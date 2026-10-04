@@ -1,8 +1,0 @@
-[package]
-name = "floetask-core"
-description = "todo.txt parsing and task logic for floetask"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-
-[dependencies]

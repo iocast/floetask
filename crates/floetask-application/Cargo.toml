@@ -1,0 +1,10 @@
+[package]
+name = "floetask-application"
+description = "floetask application layer: use cases and the ports they need"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+floetask-domain.workspace = true
+thiserror.workspace = true

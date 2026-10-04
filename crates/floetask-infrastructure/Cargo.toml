@@ -1,0 +1,19 @@
+[package]
+name = "floetask-infrastructure"
+description = "floetask infrastructure layer: file system, config files, watcher, OS integration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+floetask-domain.workspace = true
+floetask-application.workspace = true
+chrono.workspace = true
+serde.workspace = true
+toml = "1"
+notify-debouncer-full = "0.6"
+notify-rust = "4"
+open = "5"
+
+[dev-dependencies]
+tempfile = "3"

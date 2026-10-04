@@ -1,0 +1,14 @@
+[package]
+name = "floetask-domain"
+description = "floetask domain layer: todo.txt entities and pure business rules"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chrono.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest = "1"

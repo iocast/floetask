@@ -1,12 +1,19 @@
 [workspace]
 resolver = "3"
-members = ["crates/floetask-core", "crates/floetask-app"]
+members = ["crates/floetask-domain", "crates/floetask-application", "crates/floetask-infrastructure"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [workspace.dependencies]
-floetask-core = { path = "crates/floetask-core" }
-iced = "0.14"
+floetask-domain = { path = "crates/floetask-domain" }
+floetask-application = { path = "crates/floetask-application" }
+floetask-infrastructure = { path = "crates/floetask-infrastructure" }
+floetask-gui = { path = "crates/floetask-gui" }
+
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
