@@ -55,7 +55,10 @@ pub fn build_listing(
                 && options.passes_filters(entry.todo, dates)
                 && query.matches(entry.todo, dates.today)
         })
-        .map(|entry| ListedTodo { line: entry.line, todo: entry.todo.clone() })
+        .map(|entry| ListedTodo {
+            line: entry.line,
+            todo: entry.todo.clone(),
+        })
         .collect();
 
     let counts = Counts {
@@ -69,12 +72,14 @@ pub fn build_listing(
             if sorting.completed_last {
                 visible.sort_by_key(|entry| entry.todo.is_complete());
             }
-            vec![Group { attribute: None, values: Vec::new(), todos: visible }]
+            vec![Group {
+                attribute: None,
+                values: Vec::new(),
+                todos: visible,
+            }]
         }
         Some(attribute) => {
-            visible.sort_by(|a, b| {
-                Sorting::compare(&sorting.criteria, &a.todo, &b.todo).then(a.line.cmp(&b.line))
-            });
+            visible.sort_by(|a, b| Sorting::compare(&sorting.criteria, &a.todo, &b.todo).then(a.line.cmp(&b.line)));
             group_by(attribute, visible, dates)
         }
     };
@@ -87,7 +92,11 @@ fn group_by(attribute: Attribute, sorted: Vec<ListedTodo>, dates: &DateContext) 
         let values = header_values(attribute, &entry.todo, dates);
         match groups.iter_mut().find(|group| group.values == values) {
             Some(group) => group.todos.push(entry),
-            None => groups.push(Group { attribute: Some(attribute), values, todos: vec![entry] }),
+            None => groups.push(Group {
+                attribute: Some(attribute),
+                values,
+                todos: vec![entry],
+            }),
         }
     }
     groups
@@ -141,7 +150,13 @@ later t:2024-04-01
     #[test]
     fn groups_by_first_criterion_with_missing_last() {
         let doc = TodoDocument::parse(FILE, &[]);
-        let listing = build_listing(&doc, &ViewOptions::default(), &Sorting::default(), &Query::Empty, &dates());
+        let listing = build_listing(
+            &doc,
+            &ViewOptions::default(),
+            &Sorting::default(),
+            &Query::Empty,
+            &dates(),
+        );
         assert_eq!(
             lines(&listing),
             vec![
@@ -152,14 +167,24 @@ later t:2024-04-01
         );
         assert_eq!(listing.groups[0].values, vec!["A".to_owned()]);
         assert!(listing.groups[2].values.is_empty());
-        assert_eq!(listing.counts, Counts { total: 7, visible: 5, completed: 1 });
+        assert_eq!(
+            listing.counts,
+            Counts {
+                total: 7,
+                visible: 5,
+                completed: 1
+            }
+        );
     }
 
     #[test]
     fn descending_keeps_missing_last() {
         let doc = TodoDocument::parse(FILE, &[]);
         let mut sorting = Sorting::default();
-        sorting.criteria[0] = SortCriterion { attribute: Attribute::Priority, descending: true };
+        sorting.criteria[0] = SortCriterion {
+            attribute: Attribute::Priority,
+            descending: true,
+        };
         let listing = build_listing(&doc, &ViewOptions::default(), &sorting, &Query::Empty, &dates());
         assert_eq!(listing.groups[0].values, vec!["B".to_owned()]);
         assert!(listing.groups.last().unwrap().values.is_empty());
@@ -168,10 +193,17 @@ later t:2024-04-01
     #[test]
     fn file_order_with_completed_last() {
         let doc = TodoDocument::parse(FILE, &[]);
-        let sorting = Sorting { file_order: true, completed_last: true, ..Sorting::default() };
+        let sorting = Sorting {
+            file_order: true,
+            completed_last: true,
+            ..Sorting::default()
+        };
         let listing = build_listing(&doc, &ViewOptions::default(), &sorting, &Query::Empty, &dates());
         assert_eq!(listing.groups.len(), 1);
-        assert_eq!(listing.groups[0].todos.last().unwrap().todo.raw(), "x 2024-03-01 done +work");
+        assert_eq!(
+            listing.groups[0].todos.last().unwrap().todo.raw(),
+            "x 2024-03-01 done +work"
+        );
     }
 
     #[test]
@@ -202,10 +234,16 @@ later t:2024-04-01
     fn human_friendly_groups() {
         let doc = TodoDocument::parse(FILE, &[]);
         let sorting = Sorting {
-            criteria: vec![SortCriterion { attribute: Attribute::Due, descending: false }],
+            criteria: vec![SortCriterion {
+                attribute: Attribute::Due,
+                descending: false,
+            }],
             ..Sorting::default()
         };
-        let dates = DateContext { human_friendly: true, ..dates() };
+        let dates = DateContext {
+            human_friendly: true,
+            ..dates()
+        };
         let listing = build_listing(&doc, &ViewOptions::default(), &sorting, &Query::Empty, &dates);
         assert_eq!(listing.groups[0].values, vec!["tomorrow".to_owned()]);
         assert_eq!(listing.groups[1].values, vec!["next week".to_owned()]);

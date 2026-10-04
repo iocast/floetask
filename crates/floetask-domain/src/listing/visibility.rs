@@ -55,8 +55,7 @@ impl ViewOptions {
             return false;
         }
         Attribute::ALL.into_iter().all(|attribute| {
-            let filters: Vec<&AttributeFilter> =
-                self.filters.iter().filter(|f| f.attribute == attribute).collect();
+            let filters: Vec<&AttributeFilter> = self.filters.iter().filter(|f| f.attribute == attribute).collect();
             if filters.is_empty() {
                 return true;
             }

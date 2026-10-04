@@ -26,7 +26,11 @@ impl SavedFilterStore for TomlSavedFilterStore {
             .unwrap_or_default()
             .filter
             .into_iter()
-            .map(|f| SavedFilter { name: f.name, query: f.query, suppress_notifications: f.suppress_notifications })
+            .map(|f| SavedFilter {
+                name: f.name,
+                query: f.query,
+                suppress_notifications: f.suppress_notifications,
+            })
             .collect())
     }
 
@@ -73,7 +77,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = TomlSavedFilterStore::new(dir.path().join("filters.toml"));
         assert!(store.load().unwrap().is_empty());
-        let filters = vec![SavedFilter { name: "Work".into(), query: "+work and due:".into(), suppress_notifications: true }];
+        let filters = vec![SavedFilter {
+            name: "Work".into(),
+            query: "+work and due:".into(),
+            suppress_notifications: true,
+        }];
         store.save(&filters).unwrap();
         assert_eq!(store.load().unwrap(), filters);
     }

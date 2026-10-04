@@ -23,6 +23,9 @@ pub enum AppError {
 
 impl AppError {
     pub fn io(path: impl Into<PathBuf>, error: impl std::fmt::Display) -> Self {
-        AppError::Io { path: path.into(), message: error.to_string() }
+        AppError::Io {
+            path: path.into(),
+            message: error.to_string(),
+        }
     }
 }

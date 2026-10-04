@@ -82,7 +82,10 @@ fn set_extension_replaces_in_place() {
 #[test]
 fn rename_and_remove_attributes() {
     let todo = Todo::parse("(B) Plan +trip @home +tripx");
-    assert_eq!(todo.with_project_renamed("trip", "vacation").raw(), "(B) Plan +vacation @home +tripx");
+    assert_eq!(
+        todo.with_project_renamed("trip", "vacation").raw(),
+        "(B) Plan +vacation @home +tripx"
+    );
     assert_eq!(todo.without_context("home").raw(), "(B) Plan +trip +tripx");
     assert_eq!(todo.with_project_renamed("Trip", "x").raw(), todo.raw());
 }

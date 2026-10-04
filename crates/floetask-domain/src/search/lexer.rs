@@ -63,7 +63,10 @@ pub(super) fn lex(input: &str) -> Result<Vec<Token>, LexError> {
             }
             '&' | '|' => {
                 if next != Some(c) {
-                    return Err(LexError { message: format!("expected `{c}{c}`"), at_end: next.is_none() });
+                    return Err(LexError {
+                        message: format!("expected `{c}{c}`"),
+                        at_end: next.is_none(),
+                    });
                 }
                 tokens.push(if c == '&' { Token::And } else { Token::Or });
                 i += 2;
@@ -94,7 +97,11 @@ pub(super) fn lex(input: &str) -> Result<Vec<Token>, LexError> {
             }
             '+' | '@' => {
                 let (name, end) = name_match(&chars, i + 1)?;
-                tokens.push(if c == '+' { Token::Project(name) } else { Token::Context(name) });
+                tokens.push(if c == '+' {
+                    Token::Project(name)
+                } else {
+                    Token::Context(name)
+                });
                 i = end;
             }
             _ => {
@@ -131,7 +138,10 @@ fn delimited(chars: &[char], start: usize, delimiter: char) -> Result<(String, u
             }
         }
     }
-    Err(LexError { message: format!("missing closing `{delimiter}`"), at_end: true })
+    Err(LexError {
+        message: format!("missing closing `{delimiter}`"),
+        at_end: true,
+    })
 }
 
 fn name_match(chars: &[char], start: usize) -> Result<(NameMatch, usize), LexError> {

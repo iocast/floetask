@@ -28,16 +28,19 @@ impl AttributeSummary {
     }
 }
 
-/// Drawer sections. Values come from every todo passing the view toggles,
-/// counts only from todos also passing filters and search, so a value that
-/// is filtered out can still be clicked.
+/// Drawer sections. Values come from every todo passing the view toggles
+/// (plus `h:1` todos when their attributes are shown); counts only from the
+/// todos actually listed, so a filtered-out value can still be clicked.
 pub fn summarize_attributes(
     document: &TodoDocument,
     options: &ViewOptions,
     query: &Query,
     dates: &DateContext,
 ) -> Vec<AttributeSummary> {
-    let toggles = ViewOptions { show_hidden: options.show_hidden || options.show_hidden_attributes, ..options.clone() };
+    let toggles = ViewOptions {
+        show_hidden: options.show_hidden || options.show_hidden_attributes,
+        ..options.clone()
+    };
     let candidates: Vec<_> = document
         .todos()
         .filter(|entry| toggles.passes_toggles(entry.todo, dates))
@@ -48,13 +51,18 @@ pub fn summarize_attributes(
         .map(|attribute| {
             let mut values: Vec<AttributeValue> = Vec::new();
             for entry in &candidates {
-                let counted = options.passes_filters(entry.todo, dates)
+                let counted = options.passes_toggles(entry.todo, dates)
+                    && options.passes_filters(entry.todo, dates)
                     && query.matches(entry.todo, dates.today);
                 for value in attribute.values(entry.todo, dates) {
                     let overdue = attribute == Attribute::Due && is_overdue(&value, dates);
                     match values.iter_mut().find(|v| v.value == value) {
                         Some(existing) => existing.count += usize::from(counted),
-                        None => values.push(AttributeValue { value, count: usize::from(counted), overdue }),
+                        None => values.push(AttributeValue {
+                            value,
+                            count: usize::from(counted),
+                            overdue,
+                        }),
                     }
                 }
             }

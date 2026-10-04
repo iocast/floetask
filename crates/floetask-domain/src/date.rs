@@ -1,6 +1,8 @@
 //! Calendar dates as used by todo.txt (`YYYY-MM-DD`).
 
-use chrono::{Datelike, Days, Months, NaiveDate, Weekday};
+use chrono::{Days, Months, NaiveDate};
+
+pub use chrono::{Datelike, Weekday};
 
 /// A calendar date without time zone.
 pub type Date = NaiveDate;
@@ -89,10 +91,14 @@ pub fn start_of_week(date: Date, week_start: WeekStart) -> Date {
     add_days(date, -offset)
 }
 
+/// First day of the month containing `date`.
+pub fn first_of_month(date: Date) -> Date {
+    date.with_day(1).unwrap_or(date)
+}
+
 /// Last day of the month containing `date`.
 pub fn end_of_month(date: Date) -> Date {
-    let first = date.with_day(1).unwrap_or(date);
-    add_days(add_months(first, 1), -1)
+    add_days(add_months(first_of_month(date), 1), -1)
 }
 
 /// Number of days from `from` forward to `to` (0..=6).

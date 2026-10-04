@@ -35,7 +35,10 @@ impl Default for Sorting {
         Self {
             criteria: order
                 .into_iter()
-                .map(|attribute| SortCriterion { attribute, descending: false })
+                .map(|attribute| SortCriterion {
+                    attribute,
+                    descending: false,
+                })
                 .collect(),
             file_order: false,
             completed_last: false,
@@ -45,7 +48,9 @@ impl Default for Sorting {
 
 impl Sorting {
     pub fn grouping_attribute(&self) -> Option<Attribute> {
-        (!self.file_order).then(|| self.criteria.first().map(|c| c.attribute)).flatten()
+        (!self.file_order)
+            .then(|| self.criteria.first().map(|c| c.attribute))
+            .flatten()
     }
 
     /// Moves the criterion at `index` one step up (`-1`) or down (`1`).
@@ -73,7 +78,11 @@ impl Sorting {
                 (false, false) => Ordering::Equal,
                 (true, true) => {
                     let ascending = attribute.compare(a, b).unwrap_or(Ordering::Equal);
-                    if criterion.descending { ascending.reverse() } else { ascending }
+                    if criterion.descending {
+                        ascending.reverse()
+                    } else {
+                        ascending
+                    }
                 }
             };
             if ordering != Ordering::Equal {

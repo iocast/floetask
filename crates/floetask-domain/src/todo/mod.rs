@@ -112,10 +112,7 @@ impl Todo {
     }
 
     pub fn extension(&self, key: &str) -> Option<&str> {
-        self.extensions
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v.as_str())
+        self.extensions.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
     }
 
     pub fn due(&self) -> Option<Date> {

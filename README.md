@@ -1,17 +1,121 @@
 # floetask
 
-A todo.txt manager written in Rust with an [iced](https://iced.rs) GUI.
+A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.rs) GUI. The full specification is in [FEATURES.md](FEATURES.md); contributor and agent guidance is in [AGENTS.md](AGENTS.md).
 
-Status: early scaffolding. See [FEATURES.md](FEATURES.md) for the full specification and milestones.
-
-## Layout
-
-- `crates/floetask-core`: todo.txt parser and task logic, no GUI dependency.
-- `crates/floetask-app`: the iced desktop app (binary `floetask`).
-
-## Build and run
+## Run
 
 ```sh
-cargo run -p floetask-app
+cargo run --release -p floetask-app -- [path/to/todo.txt]
+```
+
+```text
+floetask [OPTIONS] [TODO_FILE]
+
+  -c, --config <FILE>  Config file to use instead of ~/.config/floetask/config.toml
+      --paths          Print where floetask keeps its files and exit
+```
+
+A file passed on the command line is registered and opened. Without one, floetask reopens the files from last time.
+
+## Files floetask uses
+
+floetask follows the XDG Base Directory split on every platform (Linux, macOS and Windows), relative to your home directory. The `XDG_CONFIG_HOME`, `XDG_DATA_HOME` and `XDG_STATE_HOME` variables override the defaults.
+
+| Path | What | Lose it and... |
+|---|---|---|
+| `~/.config/floetask/config.toml` | Settings (written with defaults on first start; `--config` overrides) | settings reset |
+| `~/.config/floetask/colors.toml` | Optional colour overrides | default colours |
+| `~/.local/share/floetask/filters.toml` | Saved search filters | your saved searches are gone |
+| `~/.local/state/floetask/state.toml` | Open files, layout, sorting, view toggles, window size | floetask forgets where you left off |
+| `~/.local/state/floetask/notified.toml` | Notifications already shown today | you may see a notification twice |
+
+Safe writes create `todo.txt.tmp` and `todo.txt.bak` next to your file for a moment and remove them on success.
+
+### config.toml
+
+```toml
+append_creation_date = false
+convert_relative_dates = true   # due:tomorrow -> due:2026-10-05 on save
+human_friendly_dates = false    # show "today", "next week", ...
+safe_writes = true
+bulk_creation = false           # one todo per line in the add dialog
+compact = false
+notifications = true
+notification_threshold_days = 2 # 0-10
+zoom_percent = 100              # 50-150
+theme = "system"                # system, light, dark
+week_start = "monday"           # monday, saturday, sunday
+language = "system"
+exclude_lines_with_prefix = ["##"]
+
+[watcher]
+debounce_ms = 100
+polling = false
+poll_interval_ms = 1000
+```
+
+### colors.toml
+
+Any of `background`, `text`, `primary`, `success`, `warning`, `danger`, `navigation`, `priority_a`, `priority_b`, `priority_c`, `priority_other`, per mode:
+
+```toml
+[light]
+priority_a = "#e11d48"
+
+[dark]
+background = "#111827"
+```
+
+Colours are read at start-up.
+
+## Using it
+
+- **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
+- **Edit** by clicking a todo or pressing `Enter` on the selected one. Right-click a todo for Edit, Copy, Archive and Delete.
+- **Complete** with the checkbox or `Space`. Completing a `rec:` todo adds its next occurrence.
+- **Filter** with the chips on a todo or in the drawer (`Ctrl+B`): click to include, Alt+click to exclude, right-click a project or context to rename or remove it across the file.
+- **Search** with `Ctrl+F`. Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with ☆ and pick them with ▾ (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
+- **Archive** completed todos with `Ctrl+Alt+A` once a done file is set (tab menu "⋯" → Change done file, or you are asked on first archive).
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+N` | New todo |
+| `Ctrl+F` / `Ctrl+Shift+F` | Search / saved filters |
+| `Ctrl+H` | Show or hide completed todos |
+| `Ctrl+0` | Reset search and filters |
+| `Ctrl+Alt+A` | Archive completed todos |
+| `Ctrl+O` | Open a file |
+| `Ctrl+1` … `Ctrl+9` | Switch file |
+| `Ctrl+,` | Settings |
+| `Ctrl+B` | Drawer |
+| `Ctrl+Alt+H` | Navigation bar |
+| `Ctrl+Alt+D` | Toggle light/dark |
+| `Ctrl+W` / `Ctrl+Q` | Quit |
+| `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete |
+| `Escape` | Close dialog, menu, drawer, then clear and hide search |
+
+## Status against FEATURES.md
+
+Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files with tabs and tab menu, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and i18n-ready strings.
+
+Not done yet:
+
+- System tray, dock badge, start minimised (P2).
+- Native or in-app menu bar (P2); every action is reachable by shortcut or UI.
+- Translations other than English; the language setting only offers English.
+- Packaging (P2).
+- App-level undo (P2), an archive viewer, single-instance mode.
+- Drag-and-drop reordering of sort criteria: up/down buttons instead (the spec's P1 fallback).
+- `Left`/`Right` focus moves inside a row; the row action bar replaces a pop-up context menu.
+- Autocomplete suggestions show under the text field, not at the cursor.
+- "Disable animations" is stored but has no effect, since floetask has no animations.
+
+## Development
+
+See [AGENTS.md](AGENTS.md) for the architecture and rules. In short:
+
+```sh
 cargo test --workspace
+cargo clippy --workspace --all-targets
+cargo fmt --all
 ```

@@ -20,7 +20,10 @@ impl Todo {
     /// `pri:X`, and a recurring todo produces its next occurrence.
     pub fn complete(&self, today: Date) -> Completion {
         if self.complete {
-            return Completion { completed: self.clone(), next: None };
+            return Completion {
+                completed: self.clone(),
+                next: None,
+            };
         }
         let next = self.next_occurrence(today);
         let with_stored_priority = match self.priority {
@@ -47,14 +50,22 @@ impl Todo {
         let priority: Option<Priority> = self.stored_priority;
         let without_stored = self.with_extension("pri", None);
         without_stored.rebuild(
-            Head { complete: false, completed: None, priority, created: self.created },
+            Head {
+                complete: false,
+                completed: None,
+                priority,
+                created: self.created,
+            },
             &without_stored.description,
         )
     }
 
     pub fn toggle_complete(&self, today: Date) -> Completion {
         if self.complete {
-            Completion { completed: self.uncomplete(), next: None }
+            Completion {
+                completed: self.uncomplete(),
+                next: None,
+            }
         } else {
             self.complete(today)
         }
@@ -78,9 +89,7 @@ impl Todo {
             (due, threshold)
         };
 
-        let mut next = self
-            .with_date_extension("due", Some(due))
-            .with_created(Some(today));
+        let mut next = self.with_date_extension("due", Some(due)).with_created(Some(today));
         if let Some(threshold) = threshold {
             next = next.with_date_extension("t", Some(threshold));
         }

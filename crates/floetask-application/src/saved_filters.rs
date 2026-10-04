@@ -16,9 +16,7 @@ impl SavedFilter {
     /// Whether `todo` matches this filter's query (plain text or expression).
     pub fn matches(&self, todo: &Todo, today: Date) -> bool {
         match Query::interpret(&self.query) {
-            floetask_domain::search::Interpretation::Ready(query) => {
-                !query.is_empty() && query.matches(todo, today)
-            }
+            floetask_domain::search::Interpretation::Ready(query) => !query.is_empty() && query.matches(todo, today),
             floetask_domain::search::Interpretation::Incomplete => false,
         }
     }

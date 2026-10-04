@@ -22,7 +22,12 @@ impl MemoryFiles {
 
 impl FileSystem for MemoryFiles {
     fn read(&self, path: &Path) -> Result<String, AppError> {
-        self.0.lock().unwrap().get(path).cloned().ok_or_else(|| AppError::io(path, "missing"))
+        self.0
+            .lock()
+            .unwrap()
+            .get(path)
+            .cloned()
+            .ok_or_else(|| AppError::io(path, "missing"))
     }
     fn write(&self, path: &Path, content: &str, _safe: bool) -> Result<(), AppError> {
         self.0.lock().unwrap().insert(path.to_owned(), content.to_owned());
@@ -45,7 +50,10 @@ fn service(files: &Arc<MemoryFiles>) -> TodoFileService {
 }
 
 fn target(line: usize, raw: &str) -> TodoRef {
-    TodoRef { line, raw: raw.to_owned() }
+    TodoRef {
+        line,
+        raw: raw.to_owned(),
+    }
 }
 
 const TODO: &str = "todo.txt";
@@ -54,25 +62,45 @@ const DONE: &str = "done.txt";
 #[test]
 fn add_converts_dates_and_appends_creation_date() {
     let files = MemoryFiles::with(&[(TODO, "first\n")]);
-    let input = InputOptions { append_creation_date: true, convert_relative_dates: true, ..Default::default() };
-    service(&files).add(Path::new(TODO), "Call bob due:tomorrow", &input, &FileOptions::default()).unwrap();
+    let input = InputOptions {
+        append_creation_date: true,
+        convert_relative_dates: true,
+        ..Default::default()
+    };
+    service(&files)
+        .add(
+            Path::new(TODO),
+            "Call bob due:tomorrow",
+            &input,
+            &FileOptions::default(),
+        )
+        .unwrap();
     assert_eq!(files.get(TODO), "first\n2024-03-13 Call bob due:2024-03-14\n");
 }
 
 #[test]
 fn bulk_add_creates_one_todo_per_line() {
     let files = MemoryFiles::with(&[(TODO, "")]);
-    let input = InputOptions { bulk: true, ..Default::default() };
+    let input = InputOptions {
+        bulk: true,
+        ..Default::default()
+    };
     let svc = service(&files);
     assert_eq!(svc.prepare_new_todos("a\n\nb\nc", &input).len(), 3);
-    svc.add(Path::new(TODO), "a\nb", &input, &FileOptions::default()).unwrap();
+    svc.add(Path::new(TODO), "a\nb", &input, &FileOptions::default())
+        .unwrap();
     assert_eq!(files.get(TODO), "a\nb\n");
 }
 
 #[test]
 fn empty_input_is_rejected() {
     let files = MemoryFiles::with(&[(TODO, "")]);
-    let result = service(&files).add(Path::new(TODO), "   ", &InputOptions::default(), &FileOptions::default());
+    let result = service(&files).add(
+        Path::new(TODO),
+        "   ",
+        &InputOptions::default(),
+        &FileOptions::default(),
+    );
     assert_eq!(result.unwrap_err(), AppError::EmptyTodo);
 }
 
@@ -80,7 +108,11 @@ fn empty_input_is_rejected() {
 fn completing_recurring_todo_inserts_next_occurrence() {
     let files = MemoryFiles::with(&[(TODO, "a\nWater plants due:2024-03-13 rec:1w\nb\n")]);
     service(&files)
-        .toggle_complete(Path::new(TODO), &target(1, "Water plants due:2024-03-13 rec:1w"), &FileOptions::default())
+        .toggle_complete(
+            Path::new(TODO),
+            &target(1, "Water plants due:2024-03-13 rec:1w"),
+            &FileOptions::default(),
+        )
         .unwrap();
     assert_eq!(
         files.get(TODO),
@@ -91,7 +123,11 @@ fn completing_recurring_todo_inserts_next_occurrence() {
 #[test]
 fn stale_edits_are_refused() {
     let files = MemoryFiles::with(&[(TODO, "changed outside\n")]);
-    let result = service(&files).delete(Path::new(TODO), &target(0, "what the user saw"), &FileOptions::default());
+    let result = service(&files).delete(
+        Path::new(TODO),
+        &target(0, "what the user saw"),
+        &FileOptions::default(),
+    );
     assert!(matches!(result, Err(AppError::Document(_))));
     assert_eq!(files.get(TODO), "changed outside\n");
 }
@@ -112,7 +148,12 @@ fn archive_moves_completed_to_done_file() {
 fn archive_one_creates_done_file() {
     let files = MemoryFiles::with(&[(TODO, "keep\nmove me\n")]);
     service(&files)
-        .archive_one(Path::new(TODO), Path::new(DONE), &target(1, "move me"), &FileOptions::default())
+        .archive_one(
+            Path::new(TODO),
+            Path::new(DONE),
+            &target(1, "move me"),
+            &FileOptions::default(),
+        )
         .unwrap();
     assert_eq!(files.get(TODO), "keep\n");
     assert_eq!(files.get(DONE), "move me\n");
@@ -123,7 +164,13 @@ fn rename_and_remove_across_file() {
     let files = MemoryFiles::with(&[(TODO, "a +work\nb +work +home\nc +Work\n")]);
     let svc = service(&files);
     let (_, changed) = svc
-        .rename_attribute(Path::new(TODO), Attribute::Projects, "work", "job", &FileOptions::default())
+        .rename_attribute(
+            Path::new(TODO),
+            Attribute::Projects,
+            "work",
+            "job",
+            &FileOptions::default(),
+        )
         .unwrap();
     assert_eq!(changed, 2);
     let (_, removed) = svc
@@ -136,10 +183,20 @@ fn rename_and_remove_across_file() {
 #[test]
 fn excluded_lines_survive_edits() {
     let files = MemoryFiles::with(&[(TODO, "## notes\ntask\n")]);
-    let options = FileOptions { exclude_prefixes: vec!["##".into()], safe_writes: true };
+    let options = FileOptions {
+        exclude_prefixes: vec!["##".into()],
+        safe_writes: true,
+    };
     let svc = service(&files);
     let document = svc.load(Path::new(TODO), &options).unwrap();
     assert_eq!(document.todo_count(), 1);
-    svc.update(Path::new(TODO), &target(1, "task"), "task +p", &InputOptions::default(), &options).unwrap();
+    svc.update(
+        Path::new(TODO),
+        &target(1, "task"),
+        "task +p",
+        &InputOptions::default(),
+        &options,
+    )
+    .unwrap();
     assert_eq!(files.get(TODO), "## notes\ntask +p\n");
 }

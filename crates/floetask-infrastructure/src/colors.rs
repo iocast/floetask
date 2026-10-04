@@ -31,7 +31,10 @@ impl TomlColorStore {
 impl ColorStore for TomlColorStore {
     fn load(&self) -> Result<ColorOverrides, AppError> {
         let file: ColorsFile = read_toml(&self.path)?.unwrap_or_default();
-        Ok(ColorOverrides { light: file.light.into(), dark: file.dark.into() })
+        Ok(ColorOverrides {
+            light: file.light.into(),
+            dark: file.dark.into(),
+        })
     }
 
     fn location(&self) -> PathBuf {

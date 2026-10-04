@@ -124,14 +124,20 @@ impl From<&AppState> for StateFile {
             files: state
                 .files
                 .iter()
-                .map(|f| FileEntry { path: f.path.clone(), done_path: f.done_path.clone() })
+                .map(|f| FileEntry {
+                    path: f.path.clone(),
+                    done_path: f.done_path.clone(),
+                })
                 .collect(),
             sorting: Some(SortingFile {
                 criteria: state
                     .sorting
                     .criteria
                     .iter()
-                    .map(|c| CriterionFile { attribute: c.attribute.key().to_owned(), descending: c.descending })
+                    .map(|c| CriterionFile {
+                        attribute: c.attribute.key().to_owned(),
+                        descending: c.descending,
+                    })
                     .collect(),
                 file_order: state.sorting.file_order,
                 completed_last: state.sorting.completed_last,
@@ -160,7 +166,11 @@ impl From<&ViewOptions> for ViewFile {
             filters: view
                 .filters
                 .iter()
-                .map(|f| FilterFile { attribute: f.attribute.key().to_owned(), value: f.value.clone(), exclude: f.exclude })
+                .map(|f| FilterFile {
+                    attribute: f.attribute.key().to_owned(),
+                    value: f.value.clone(),
+                    exclude: f.exclude,
+                })
                 .collect(),
         }
     }
@@ -174,7 +184,10 @@ impl From<StateFile> for AppState {
             files: file
                 .files
                 .into_iter()
-                .map(|f| TodoFileEntry { path: f.path, done_path: f.done_path })
+                .map(|f| TodoFileEntry {
+                    path: f.path,
+                    done_path: f.done_path,
+                })
                 .collect(),
             active_file: file.active_file,
             sorting: file.sorting.map(sorting_from_file).unwrap_or(defaults.sorting),
@@ -212,7 +225,13 @@ impl From<StateFile> for AppState {
             collapsed_sections: attributes(&file.collapsed_sections),
             window: file
                 .window
-                .map(|w| WindowState { width: w.width, height: w.height, x: w.x, y: w.y, maximized: w.maximized })
+                .map(|w| WindowState {
+                    width: w.width,
+                    height: w.height,
+                    x: w.x,
+                    y: w.y,
+                    maximized: w.maximized,
+                })
                 .unwrap_or(defaults.window),
         }
     }
@@ -226,7 +245,10 @@ fn sorting_from_file(file: SortingFile) -> Sorting {
         if let Some(attribute) = Attribute::from_key(&entry.attribute)
             && !criteria.iter().any(|c| c.attribute == attribute)
         {
-            criteria.push(SortCriterion { attribute, descending: entry.descending });
+            criteria.push(SortCriterion {
+                attribute,
+                descending: entry.descending,
+            });
         }
     }
     for default in Sorting::default().criteria {
@@ -234,7 +256,11 @@ fn sorting_from_file(file: SortingFile) -> Sorting {
             criteria.push(default);
         }
     }
-    Sorting { criteria, file_order: file.file_order, completed_last: file.completed_last }
+    Sorting {
+        criteria,
+        file_order: file.file_order,
+        completed_last: file.completed_last,
+    }
 }
 
 #[cfg(test)]

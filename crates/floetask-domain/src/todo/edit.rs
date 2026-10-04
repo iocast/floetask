@@ -49,7 +49,13 @@ impl Todo {
     }
 
     pub fn with_priority(&self, priority: Option<Priority>) -> Todo {
-        self.rebuild(Head { priority, ..self.head() }, &self.description)
+        self.rebuild(
+            Head {
+                priority,
+                ..self.head()
+            },
+            &self.description,
+        )
     }
 
     pub fn with_created(&self, created: Option<Date>) -> Todo {

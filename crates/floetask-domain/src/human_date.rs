@@ -46,7 +46,11 @@ pub fn buckets(date: Date, today: Date, week_start: WeekStart, is_due: bool) -> 
 
     let mut result = Vec::new();
     if date < today {
-        result.push(if is_due { DateBucket::Overdue } else { DateBucket::Elapsed });
+        result.push(if is_due {
+            DateBucket::Overdue
+        } else {
+            DateBucket::Elapsed
+        });
         if date >= last_week && date < week {
             result.push(DateBucket::LastWeek);
         }
@@ -103,7 +107,10 @@ mod tests {
     #[test]
     fn today_belongs_to_several_buckets() {
         let found = buckets(d(TODAY), d(TODAY), WeekStart::Monday, true);
-        assert_eq!(found, vec![DateBucket::Today, DateBucket::ThisWeek, DateBucket::ThisMonth]);
+        assert_eq!(
+            found,
+            vec![DateBucket::Today, DateBucket::ThisWeek, DateBucket::ThisMonth]
+        );
     }
 
     #[test]

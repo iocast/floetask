@@ -34,7 +34,7 @@ fn fixed_phrase(words: &[&str], today: Date, week_start: WeekStart) -> Option<Da
         ["yesterday"] => Some(date::add_days(today, -1)),
         ["day", "after", "tomorrow"] => Some(date::add_days(today, 2)),
         ["next", "week"] => Some(date::add_days(week_start_date, 7)),
-        ["next", "month"] => Some(first_of_month(date::add_months(today, 1))),
+        ["next", "month"] => Some(date::first_of_month(date::add_months(today, 1))),
         ["next", "year"] => Date::from_ymd_opt(today.year() + 1, 1, 1),
         ["end", "of", "week"] | ["end", "of", "the", "week"] => Some(date::add_days(week_start_date, 6)),
         ["end", "of", "month"] | ["end", "of", "the", "month"] => Some(date::end_of_month(today)),
@@ -61,7 +61,10 @@ fn weekday_phrase(words: &[&str], today: Date, week_start: WeekStart) -> Option<
         ["next", day] => {
             let weekday = parse_weekday(day)?;
             let next_week = date::add_days(date::start_of_week(today, week_start), 7);
-            Some(date::add_days(next_week, date::days_since(weekday, week_start.weekday())))
+            Some(date::add_days(
+                next_week,
+                date::days_since(weekday, week_start.weekday()),
+            ))
         }
         ["this", day] | [day] => {
             let weekday = parse_weekday(day)?;
@@ -108,11 +111,13 @@ fn rewrite_line(line: &str, today: Date, week_start: WeekStart) -> String {
             .split_once(':')
             .filter(|(key, value)| DATE_KEYS.contains(key) && !value.is_empty() && parse_iso(value).is_none());
         if let Some((key, first)) = date_key {
-            let longest = (1..=MAX_PHRASE_WORDS.min(words.len() - index)).rev().find_map(|length| {
-                let mut phrase = vec![first];
-                phrase.extend(&words[index + 1..index + length]);
-                parse_phrase(&phrase.join(" "), today, week_start).map(|date| (length, date))
-            });
+            let longest = (1..=MAX_PHRASE_WORDS.min(words.len() - index))
+                .rev()
+                .find_map(|length| {
+                    let mut phrase = vec![first];
+                    phrase.extend(&words[index + 1..index + length]);
+                    parse_phrase(&phrase.join(" "), today, week_start).map(|date| (length, date))
+                });
             if let Some((length, date)) = longest {
                 output.push(format!("{key}:{}", format_iso(date)));
                 index += length;
@@ -149,8 +154,7 @@ fn shorthand_offset(today: Date, text: &str) -> Option<Date> {
 
 fn parse_amount(text: &str) -> Option<i64> {
     const WORDS: [&str; 13] = [
-        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
-        "eleven", "twelve",
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
     ];
     match text {
         "a" | "an" => Some(1),
@@ -184,14 +188,14 @@ fn parse_month(text: &str) -> Option<Month> {
         .find(|month| month.name().to_lowercase().starts_with(text))
 }
 
-fn first_of_month(date: Date) -> Date {
-    date.with_day(1).unwrap_or(date)
-}
-
 /// First day of the next occurrence of `month`, this year or next.
 fn upcoming_month_start(today: Date, month: Month) -> Option<Date> {
     let number = month.number_from_month();
-    let year = if number < today.month() { today.year() + 1 } else { today.year() };
+    let year = if number < today.month() {
+        today.year() + 1
+    } else {
+        today.year()
+    };
     Date::from_ymd_opt(year, number, 1)
 }
 

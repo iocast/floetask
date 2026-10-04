@@ -1,5 +1,5 @@
 use super::tokens::{TokenKind, classify, tokens};
-use super::{MULTILINE_SEPARATOR, Todo, KNOWN_KEYS};
+use super::{KNOWN_KEYS, MULTILINE_SEPARATOR, Todo};
 use crate::date::parse_iso;
 use crate::priority::Priority;
 use crate::recurrence::Recurrence;
@@ -81,9 +81,7 @@ fn apply_known_extension(todo: &mut Todo, key: &str, value: &str) {
         "rec" if todo.rec.is_none() => todo.rec = Recurrence::parse(value),
         "pm" if todo.pm.is_none() => todo.pm = value.parse().ok(),
         "h" => todo.hidden |= value == "1",
-        "pri" if todo.stored_priority.is_none() => {
-            todo.stored_priority = value.chars().next().and_then(Priority::new)
-        }
+        "pri" if todo.stored_priority.is_none() => todo.stored_priority = value.chars().next().and_then(Priority::new),
         _ => {}
     }
 }

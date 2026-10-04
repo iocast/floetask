@@ -17,7 +17,10 @@ pub struct ParseError {
 }
 
 pub(super) fn parse(input: &str) -> Result<Expr, ParseError> {
-    let tokens = lex(input).map_err(|e| ParseError { message: e.message, at_end: e.at_end })?;
+    let tokens = lex(input).map_err(|e| ParseError {
+        message: e.message,
+        at_end: e.at_end,
+    })?;
     let mut parser = Parser { tokens, position: 0 };
     let expr = parser.or()?;
     match parser.peek() {
@@ -43,7 +46,10 @@ impl Parser {
     }
 
     fn error(&self, message: impl Into<String>) -> ParseError {
-        ParseError { message: message.into(), at_end: self.position >= self.tokens.len() }
+        ParseError {
+            message: message.into(),
+            at_end: self.position >= self.tokens.len(),
+        }
     }
 
     fn or(&mut self) -> Result<Expr, ParseError> {
@@ -95,17 +101,19 @@ impl Parser {
             Token::Context(name) => Ok(Expr::Context(name)),
             Token::DateKey(field) => Ok(Expr::Date(field, self.date_condition()?)),
             Token::PriorityKeyword => Ok(Expr::Priority(self.priority_condition()?)),
-            Token::PriorityShorthand(letter) => {
-                Ok(Expr::Priority(PriorityCondition::Compare(CmpOp::Eq, letter)))
-            }
+            Token::PriorityShorthand(letter) => Ok(Expr::Priority(PriorityCondition::Compare(CmpOp::Eq, letter))),
             Token::Complete => Ok(Expr::Complete),
             Token::Text(text) => Ok(Expr::Text(text.to_lowercase())),
-            Token::Regex(pattern) => Regex::new(&pattern)
-                .map(Expr::Regex)
-                .map_err(|e| ParseError { message: e.to_string(), at_end: false }),
+            Token::Regex(pattern) => Regex::new(&pattern).map(Expr::Regex).map_err(|e| ParseError {
+                message: e.to_string(),
+                at_end: false,
+            }),
             other => {
                 self.position -= 1;
-                Err(ParseError { message: format!("unexpected {other:?}"), at_end: false })
+                Err(ParseError {
+                    message: format!("unexpected {other:?}"),
+                    at_end: false,
+                })
             }
         }
     }
@@ -150,14 +158,22 @@ impl Parser {
             return Err(self.error("expected a date"));
         };
         if let Some(date) = parse_iso(&word) {
-            return Ok(DateValue { base: DateBase::Absolute(date), offset: None });
+            return Ok(DateValue {
+                base: DateBase::Absolute(date),
+                offset: None,
+            });
         }
         let split = word.find(['+', '-']).unwrap_or(word.len());
         let base = match &word[..split] {
             "today" => DateBase::Today,
             "tomorrow" => DateBase::Tomorrow,
             "yesterday" => DateBase::Yesterday,
-            _ => return Err(ParseError { message: format!("`{word}` is not a date"), at_end: false }),
+            _ => {
+                return Err(ParseError {
+                    message: format!("`{word}` is not a date"),
+                    at_end: false,
+                });
+            }
         };
         let attached = &word[split..];
         let offset = if !attached.is_empty() {

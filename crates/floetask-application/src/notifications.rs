@@ -41,8 +41,7 @@ impl NotificationService {
         saved_filters: &[SavedFilter],
     ) -> Vec<DueNotification> {
         let today = self.clock.today();
-        let suppressing: Vec<&SavedFilter> =
-            saved_filters.iter().filter(|f| f.suppress_notifications).collect();
+        let suppressing: Vec<&SavedFilter> = saved_filters.iter().filter(|f| f.suppress_notifications).collect();
         documents
             .into_iter()
             .flat_map(|document| document.todos())
@@ -61,7 +60,12 @@ impl NotificationService {
                 if self.log.contains(&key) {
                     return None;
                 }
-                Some(DueNotification { key, body: todo.body().to_owned(), due, days_left })
+                Some(DueNotification {
+                    key,
+                    body: todo.body().to_owned(),
+                    due,
+                    days_left,
+                })
             })
             .collect()
     }
@@ -127,7 +131,11 @@ mod tests {
             "today due:2024-03-13\nsoon due:2024-03-15\nlater due:2024-03-16\nlate due:2024-03-12\nx 2024-03-01 done due:2024-03-13\nquiet due:2024-03-13 +quiet\n",
             &[],
         );
-        let filters = vec![SavedFilter { name: "q".into(), query: "+quiet".into(), suppress_notifications: true }];
+        let filters = vec![SavedFilter {
+            name: "q".into(),
+            query: "+quiet".into(),
+            suppress_notifications: true,
+        }];
         let pending = service.pending([&document], 2, &filters);
         let bodies: Vec<_> = pending.iter().map(|n| n.body.as_str()).collect();
         assert_eq!(bodies, vec!["today", "soon"]);

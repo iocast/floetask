@@ -62,7 +62,10 @@ pub struct TodoRef {
 
 impl TodoRef {
     pub fn new(line: usize, todo: &Todo) -> Self {
-        Self { line, raw: todo.raw().to_owned() }
+        Self {
+            line,
+            raw: todo.raw().to_owned(),
+        }
     }
 }
 

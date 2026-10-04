@@ -23,7 +23,11 @@ pub struct WatcherOptions {
 
 impl Default for WatcherOptions {
     fn default() -> Self {
-        Self { debounce_ms: 100, polling: false, poll_interval_ms: 1000 }
+        Self {
+            debounce_ms: 100,
+            polling: false,
+            poll_interval_ms: 1000,
+        }
     }
 }
 
@@ -81,8 +85,7 @@ impl Settings {
             .zoom_percent
             .clamp(*Self::ZOOM_RANGE.start(), *Self::ZOOM_RANGE.end());
         self.zoom_percent -= self.zoom_percent % 10;
-        self.notification_threshold_days =
-            self.notification_threshold_days.min(Self::NOTIFICATION_THRESHOLD_MAX);
+        self.notification_threshold_days = self.notification_threshold_days.min(Self::NOTIFICATION_THRESHOLD_MAX);
         self
     }
 }

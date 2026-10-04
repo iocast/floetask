@@ -1,6 +1,4 @@
-use super::ast::{
-    DateBase, DateCondition, DateField, DateValue, Expr, NameMatch, PriorityCondition,
-};
+use super::ast::{DateBase, DateCondition, DateField, DateValue, Expr, NameMatch, PriorityCondition};
 use crate::date::{self, Date, format_iso};
 use crate::todo::Todo;
 
@@ -20,9 +18,7 @@ pub(super) fn evaluate(expr: &Expr, todo: &Todo, today: Date) -> bool {
         }
         Expr::Priority(condition) => match (todo.priority(), condition) {
             (Some(_), PriorityCondition::Exists) => true,
-            (Some(priority), PriorityCondition::Compare(op, letter)) => {
-                op.holds(priority.letter(), *letter)
-            }
+            (Some(priority), PriorityCondition::Compare(op, letter)) => op.holds(priority.letter(), *letter),
             (None, _) => false,
         },
         Expr::Complete => todo.is_complete(),

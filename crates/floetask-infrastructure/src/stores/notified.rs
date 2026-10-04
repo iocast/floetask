@@ -19,7 +19,10 @@ pub struct TomlNotificationLog {
 
 impl TomlNotificationLog {
     pub fn new(path: PathBuf) -> Self {
-        Self { path, cache: Mutex::new(None) }
+        Self {
+            path,
+            cache: Mutex::new(None),
+        }
     }
 
     fn with_log<T>(&self, action: impl FnOnce(&mut LogFile) -> T) -> T {
@@ -27,7 +30,10 @@ impl TomlNotificationLog {
         let today = chrono::Local::now().date_naive().to_string();
         let log = cache.get_or_insert_with(|| read_toml(&self.path).ok().flatten().unwrap_or_default());
         if log.date != today {
-            *log = LogFile { date: today, keys: BTreeSet::new() };
+            *log = LogFile {
+                date: today,
+                keys: BTreeSet::new(),
+            };
         }
         action(log)
     }
@@ -41,7 +47,10 @@ impl NotificationLog for TomlNotificationLog {
     fn insert(&self, key: &str) -> Result<(), AppError> {
         let snapshot = self.with_log(|log| {
             log.keys.insert(key.to_owned());
-            LogFile { date: log.date.clone(), keys: log.keys.clone() }
+            LogFile {
+                date: log.date.clone(),
+                keys: log.keys.clone(),
+            }
         });
         write_toml(&self.path, &snapshot)
     }

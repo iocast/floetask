@@ -20,7 +20,11 @@ pub(super) fn tokens(text: &str) -> Vec<Token<'_>> {
     for (index, c) in text.char_indices() {
         match (is_separator(c), start) {
             (true, Some(s)) => {
-                result.push(Token { text: &text[s..index], start: s, end: index });
+                result.push(Token {
+                    text: &text[s..index],
+                    start: s,
+                    end: index,
+                });
                 start = None;
             }
             (false, None) => start = Some(index),
@@ -28,7 +32,11 @@ pub(super) fn tokens(text: &str) -> Vec<Token<'_>> {
         }
     }
     if let Some(s) = start {
-        result.push(Token { text: &text[s..], start: s, end: text.len() });
+        result.push(Token {
+            text: &text[s..],
+            start: s,
+            end: text.len(),
+        });
     }
     result
 }

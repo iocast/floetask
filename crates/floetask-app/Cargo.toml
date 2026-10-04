@@ -1,6 +1,6 @@
 [package]
 name = "floetask-app"
-description = "floetask desktop app (iced)"
+description = "floetask composition root: command line, wiring, start-up"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,5 +10,7 @@ name = "floetask"
 path = "src/main.rs"
 
 [dependencies]
-floetask-core.workspace = true
-iced.workspace = true
+floetask-application.workspace = true
+floetask-infrastructure.workspace = true
+floetask-gui.workspace = true
+clap = { version = "4", features = ["derive"] }

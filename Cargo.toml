@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/floetask-domain", "crates/floetask-application", "crates/floetask-infrastructure"]
+members = [
+    "crates/floetask-domain",
+    "crates/floetask-application",
+    "crates/floetask-infrastructure",
+    "crates/floetask-gui",
+    "crates/floetask-app",
+]
 
 [workspace.package]
 version = "0.1.0"

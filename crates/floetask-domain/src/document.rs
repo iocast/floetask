@@ -112,15 +112,9 @@ impl TodoDocument {
     }
 
     /// Replaces the todo at `line` with zero or more todos.
-    pub fn replace(
-        &mut self,
-        line: usize,
-        expected_raw: &str,
-        replacement: Vec<Todo>,
-    ) -> Result<(), DocumentError> {
+    pub fn replace(&mut self, line: usize, expected_raw: &str, replacement: Vec<Todo>) -> Result<(), DocumentError> {
         self.check(line, expected_raw)?;
-        self.lines
-            .splice(line..=line, replacement.into_iter().map(Line::Todo));
+        self.lines.splice(line..=line, replacement.into_iter().map(Line::Todo));
         Ok(())
     }
 

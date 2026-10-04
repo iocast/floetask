@@ -10,7 +10,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use notify_debouncer_full::notify::{self, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher};
-use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, NoCache, RecommendedCache, new_debouncer_opt};
+use notify_debouncer_full::{
+    DebounceEventResult, Debouncer, FileIdCache, NoCache, RecommendedCache, new_debouncer_opt,
+};
 
 use floetask_application::ports::{FileWatcher, WatchGuard};
 use floetask_application::{AppError, WatcherOptions};
@@ -42,12 +44,14 @@ impl FileWatcher for NotifyFileWatcher {
             }
         };
         let timeout = Duration::from_millis(options.debounce_ms.max(1));
-        let directories: BTreeSet<PathBuf> =
-            watched.keys().filter_map(|p| p.parent().map(Path::to_path_buf)).collect();
+        let directories: BTreeSet<PathBuf> = watched
+            .keys()
+            .filter_map(|p| p.parent().map(Path::to_path_buf))
+            .collect();
 
         if options.polling {
-            let config = notify::Config::default()
-                .with_poll_interval(Duration::from_millis(options.poll_interval_ms.max(50)));
+            let config =
+                notify::Config::default().with_poll_interval(Duration::from_millis(options.poll_interval_ms.max(50)));
             let debouncer = new_debouncer_opt::<_, PollWatcher, NoCache>(timeout, None, handler, NoCache, config)
                 .map_err(watch_error)?;
             start(debouncer, &directories)
@@ -103,10 +107,13 @@ mod tests {
         std::fs::write(&todo, "a\n").unwrap();
         let (sender, receiver) = mpsc::channel();
         let sender = std::sync::Mutex::new(sender);
-        let options = WatcherOptions { debounce_ms: 50, ..WatcherOptions::default() };
+        let options = WatcherOptions {
+            debounce_ms: 50,
+            ..WatcherOptions::default()
+        };
         let _guard = NotifyFileWatcher
             .watch(
-                &[todo.clone()],
+                std::slice::from_ref(&todo),
                 &options,
                 Box::new(move |path| {
                     let _ = sender.lock().unwrap().send(path);
