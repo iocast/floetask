@@ -1,0 +1,14 @@
+[package]
+name = "floetask-app"
+description = "floetask desktop app (iced)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "floetask"
+path = "src/main.rs"
+
+[dependencies]
+floetask-core.workspace = true
+iced.workspace = true
