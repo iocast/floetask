@@ -11,7 +11,9 @@ use std::sync::{Arc, Mutex};
 use iced_test::simulator;
 
 use floetask_application::ports::*;
-use floetask_application::{AppError, AppState, ColorOverrides, Ports, SavedFilter, Services, Settings, WatcherOptions};
+use floetask_application::{
+    AppError, AppState, ColorOverrides, Ports, SavedFilter, Services, Settings, WatcherOptions,
+};
 use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
 use floetask_domain::{Date, TodoDocument};
@@ -302,7 +304,9 @@ fn renders_both_themes() {
     app.state.files[0].done_path = Some(PathBuf::from("/test/done.txt"));
     app.state
         .files
-        .push(floetask_application::TodoFileEntry::new(PathBuf::from("/test/work.txt")));
+        .push(floetask_application::TodoFileEntry::new(PathBuf::from(
+            "/test/work.txt",
+        )));
     snapshot(&app, "dark-files");
     let _ = app.update(Message::FileMenu(Some(0)));
     snapshot(&app, "dark-file-menu");
