@@ -295,11 +295,12 @@ fn keyboard_moves_selection() {
 fn renders_both_themes() {
     let mut app = app();
     let _ = app.update(Message::ToggleDrawer);
-    let _ = app.update(Message::ToggleSearch);
     snapshot(&app, "light");
     app.settings.theme = floetask_application::ThemePreference::Dark;
     assert!(app.colors().dark);
     snapshot(&app, "dark");
+    let _ = app.update(Message::FileMenu(Some(0)));
+    snapshot(&app, "dark-file-menu");
     let _ = app.update(Message::NewTodo);
     snapshot(&app, "dark-editor");
 }

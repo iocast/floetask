@@ -13,15 +13,7 @@ use crate::view;
 impl Floetask {
     pub(super) fn update_search(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ToggleSearch => {
-                self.state.search_visible = !self.state.search_visible || !self.search.input.is_empty();
-                let focus = if self.state.search_visible {
-                    operation::focus(view::SEARCH_ID)
-                } else {
-                    Task::none()
-                };
-                Task::batch([focus, self.persist_state()])
-            }
+            Message::FocusSearch => operation::focus(view::SEARCH_ID),
             Message::SearchInput(input) => {
                 self.set_search(input);
                 Task::none()
@@ -52,7 +44,6 @@ impl Floetask {
             Message::ApplySavedFilter(index) => {
                 if let Some(filter) = self.saved_filters.get(index) {
                     let query = filter.query.clone();
-                    self.state.search_visible = true;
                     self.search.saved_open = false;
                     self.set_search(query);
                 }
@@ -89,15 +80,11 @@ impl Floetask {
         self.refresh();
     }
 
-    pub(crate) fn clear_or_hide_search(&mut self) -> Task<Message> {
-        if self.search.input.is_empty() {
-            self.state.search_visible = false;
-            self.search.saved_open = false;
-            self.persist_state()
-        } else {
-            self.set_search(String::new());
-            Task::none()
-        }
+    /// Escape in the list clears the search.
+    pub(crate) fn clear_search(&mut self) -> Task<Message> {
+        self.search.saved_open = false;
+        self.set_search(String::new());
+        Task::none()
     }
 
     pub(super) fn save_filter(&mut self, name: String) -> Task<Message> {

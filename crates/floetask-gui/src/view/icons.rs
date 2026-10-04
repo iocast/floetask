@@ -38,10 +38,14 @@ pub enum Icon {
     ArrowUp,
     ArrowDown,
     Link,
+    Sidebar,
+    DotsVertical,
+    File,
+    FilePlus,
 }
 
 impl Icon {
-    const ALL: [Icon; 30] = [
+    const ALL: [Icon; 34] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -72,6 +76,10 @@ impl Icon {
         Icon::ArrowUp,
         Icon::ArrowDown,
         Icon::Link,
+        Icon::Sidebar,
+        Icon::DotsVertical,
+        Icon::File,
+        Icon::FilePlus,
     ];
 
     /// The SVG body (elements inside the 24×24 canvas).
@@ -120,6 +128,14 @@ impl Icon {
             Icon::Trash => r#"<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>"#,
             Icon::ArrowUp => r#"<path d="M12 19V5M6 11l6-6 6 6"/>"#,
             Icon::ArrowDown => r#"<path d="M12 5v14M6 13l6 6 6-6"/>"#,
+            Icon::Sidebar => r#"<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>"#,
+            Icon::DotsVertical => {
+                r#"<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>"#
+            }
+            Icon::File => r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/>"#,
+            Icon::FilePlus => {
+                r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6"/>"#
+            }
             Icon::Link => r#"<path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>"#,
         }
     }

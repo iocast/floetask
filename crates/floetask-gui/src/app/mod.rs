@@ -90,7 +90,7 @@ pub struct Floetask {
     pub(crate) selected: Option<usize>,
     /// Line whose action bar (copy, archive, delete) is open.
     pub(crate) row_menu: Option<usize>,
-    pub(crate) tab_menu: Option<usize>,
+    pub(crate) file_menu: Option<usize>,
     pub(crate) dialog: Option<Dialog>,
     pub(crate) toasts: Vec<Toast>,
     next_toast_id: u64,
@@ -147,7 +147,7 @@ impl Floetask {
             saved_filters: Vec::new(),
             selected: None,
             row_menu: None,
-            tab_menu: None,
+            file_menu: None,
             dialog: None,
             toasts: Vec::new(),
             next_toast_id: 0,
@@ -235,11 +235,12 @@ impl Floetask {
             | M::FilePicked(_)
             | M::FileCreated(_)
             | M::SelectFile(_)
-            | M::TabMenu(_)
+            | M::FileMenu(_)
+            | M::OpenDoneFile(_)
+            | M::ToggleFilesDrawer
             | M::ChangeDoneFile(_)
             | M::DoneFilePicked(..)
             | M::RevealTodoFile(_)
-            | M::RevealDoneFile(_)
             | M::AskRemoveFile(_)
             | M::ArchiveCompleted
             | M::SavedFiltersLoaded(_) => self.update_files(message),
@@ -287,7 +288,7 @@ impl Floetask {
             | M::AskRemoveValue(..)
             | M::ResetFilters => self.update_drawer(message),
 
-            M::ToggleSearch
+            M::FocusSearch
             | M::SearchInput(_)
             | M::SearchSubmitAsTodo
             | M::ToggleSavedFilters

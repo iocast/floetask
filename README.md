@@ -72,30 +72,35 @@ Colours are read at start-up.
 
 ## Using it
 
-floetask draws its own title bar, like Firefox and Zed: the logo and file tabs on the left, then **New**, search, filters, archive, open file, light/dark and settings, then the window buttons. Drag the empty space to move the window, double-click it to maximise, and drag the window edges to resize. The theme follows the system until you switch it (title bar button, `Ctrl+Alt+D`, or `theme` in config.toml).
+floetask draws its own title bar, like Firefox and Zed: the file-drawer toggle and logo on the left, the search field in the middle, the filter drawer and settings on the right, then the window buttons. Drag the empty space to move the window, double-click it to maximise, and drag the window edges to resize. Open files show as tabs under the title bar.
+
+The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New todo** button, your files, and Open / Create at the bottom. Each file's ⋮ menu sets its archive (done) file, opens the archive file in floetask, archives completed todos, shows the file in your file manager, or closes it.
+
+The theme follows the system until you pick light or dark in Settings (or press `Ctrl+Alt+D`).
 
 - **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
 - **Edit** by clicking a todo or pressing `Enter` on the selected one. Hover a todo for Edit, Copy, Archive and Delete.
 - **Complete** with the checkbox or `Space`. Completing a `rec:` todo adds its next occurrence.
 - **Filter** with the chips on a todo or in the drawer (`Ctrl+B`): click to include, Alt+click to exclude, right-click a project or context to rename or remove it across the file.
-- **Search** with `Ctrl+F`. Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with the star and pick them with the arrow (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
-- **Archive** completed todos with `Ctrl+Alt+A` once a done file is set (the arrow on the file tab → Change done file, or you are asked on first archive).
+- **Search** in the title bar (`Ctrl+F` focuses it). Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with the star and pick them from the arrow (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
+- **Archive** completed todos with `Ctrl+Alt+A` or the file's ⋮ menu once an archive file is set (⋮ → Set archive file, or you are asked on first archive).
 
 | Shortcut | Action |
 |---|---|
 | `Ctrl+N` | New todo |
-| `Ctrl+F` / `Ctrl+Shift+F` | Search / saved filters |
+| `Ctrl+F` / `Ctrl+Shift+F` | Focus search / saved filters |
 | `Ctrl+H` | Show or hide completed todos |
 | `Ctrl+0` | Reset search and filters |
 | `Ctrl+Alt+A` | Archive completed todos |
 | `Ctrl+O` | Open a file |
 | `Ctrl+1` … `Ctrl+9` | Switch file |
 | `Ctrl+,` | Settings |
-| `Ctrl+B` | Drawer |
+| `Ctrl+B` | Filter drawer |
+| `Ctrl+Alt+H` | File drawer |
 | `Ctrl+Alt+D` | Toggle light/dark |
 | `Ctrl+W` / `Ctrl+Q` | Quit |
 | `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete |
-| `Escape` | Close dialog, menu, drawer, then clear and hide search |
+| `Escape` | Close dialog, menu, filter drawer, then clear the search |
 
 ## Status against FEATURES.md
 

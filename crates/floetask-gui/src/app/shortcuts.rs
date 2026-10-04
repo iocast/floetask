@@ -45,9 +45,10 @@ impl Floetask {
         let shift = modifiers.shift();
         Some(match (character.as_str(), alt, shift) {
             ("n", false, false) => Message::NewTodo,
-            ("f", false, false) => Message::ToggleSearch,
+            ("f", false, false) => Message::FocusSearch,
             ("f", false, true) => Message::ToggleSavedFilters,
             ("h", false, false) => Message::ViewToggle(ViewToggle::Completed, !self.state.view.show_completed),
+            ("h", true, false) => Message::ToggleFilesDrawer,
             ("0", false, false) => Message::ResetFilters,
             ("a", true, false) => Message::ArchiveCompleted,
             ("o", false, false) => Message::OpenFileDialog,
@@ -67,9 +68,9 @@ impl Floetask {
         if self.dialog.is_some() {
             return self.close_dialog();
         }
-        if self.row_menu.is_some() || self.tab_menu.is_some() {
+        if self.row_menu.is_some() || self.file_menu.is_some() {
             self.row_menu = None;
-            self.tab_menu = None;
+            self.file_menu = None;
             return Task::none();
         }
         if self.search.saved_open {
@@ -79,8 +80,8 @@ impl Floetask {
         if self.state.drawer_open {
             return self.update(Message::ToggleDrawer);
         }
-        if self.state.search_visible {
-            return self.clear_or_hide_search();
+        if !self.search.input.is_empty() {
+            return self.clear_search();
         }
         Task::none()
     }

@@ -40,11 +40,12 @@ pub enum Message {
     FilePicked(Option<PathBuf>),
     FileCreated(Option<PathBuf>),
     SelectFile(usize),
-    TabMenu(Option<usize>),
+    FileMenu(Option<usize>),
+    OpenDoneFile(usize),
+    ToggleFilesDrawer,
     ChangeDoneFile(usize),
     DoneFilePicked(usize, Option<PathBuf>),
     RevealTodoFile(usize),
-    RevealDoneFile(usize),
     AskRemoveFile(usize),
     ArchiveCompleted,
     SavedFiltersLoaded(Result<Vec<SavedFilter>, AppError>),
@@ -98,7 +99,7 @@ pub enum Message {
     ResetFilters,
 
     // Search
-    ToggleSearch,
+    FocusSearch,
     SearchInput(String),
     SearchSubmitAsTodo,
     ToggleSavedFilters,

@@ -95,19 +95,6 @@ pub fn danger_button<'a>(label: impl text::IntoFragment<'a>, message: Message, c
         .into()
 }
 
-/// A small icon + label button, as used in row and tab menus.
-pub fn menu_button<'a>(glyph: Icon, label: &'a str, message: Message, colors: Colors) -> Element<'a, Message> {
-    button(
-        row![icon(glyph, 14.0, colors.muted), text(label).size(13)]
-            .spacing(6)
-            .align_y(alignment::Vertical::Center),
-    )
-    .padding([4, 8])
-    .style(theme::ghost(colors, false))
-    .on_press(message)
-    .into()
-}
-
 /// Dialog title.
 pub fn title<'a>(label: impl text::IntoFragment<'a>) -> Element<'a, Message> {
     text(label)

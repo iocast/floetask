@@ -9,6 +9,7 @@ mod dialogs;
 mod drawer;
 mod editor;
 mod empty;
+mod files;
 pub mod icons;
 pub mod list;
 mod search;
@@ -33,21 +34,40 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
 
     let mut main = column![].spacing(10).width(Fill).height(Fill);
-    if let Some(search) = search::view(app) {
-        main = main.push(search);
+    if app.active_document().is_some() {
+        main = main.push(search::summary(app));
     }
     main = main.push(body(app));
 
-    let mut content = row![main].spacing(12).height(Fill);
+    let mut content = row![].spacing(12).height(Fill);
+    if app.state.files_drawer_open {
+        content = content.push(files::drawer(app));
+    }
+    content = content.push(main);
     if app.state.drawer_open && app.active_document().is_some() {
         content = content.push(drawer::view(app));
     }
 
-    let mut page = column![title_bar::view(app)];
-    if let Some(menu) = title_bar::tab_menu(app) {
-        page = page.push(container(menu).padding([0, 12]));
+    let mut page = column![title_bar::view(app)].spacing(8);
+    if let Some(tabs) = files::tabs(app) {
+        page = page.push(tabs);
     }
-    page = page.push(container(content).padding([8, 16]).height(Fill));
+    page = page.push(
+        container(content)
+            .padding(iced::padding::left(16).right(16).bottom(16))
+            .height(Fill),
+    );
+    let page: Element<'_, Message> = match search::saved_panel(app) {
+        // Saved filters float under the centred search field.
+        Some(panel) => stack![
+            page,
+            container(panel)
+                .center_x(Fill)
+                .padding(iced::padding::top(title_bar::HEIGHT))
+        ]
+        .into(),
+        None => page.into(),
+    };
 
     let base: Element<'_, Message> = container(page)
         .width(Fill)

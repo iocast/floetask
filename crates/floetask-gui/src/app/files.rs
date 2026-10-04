@@ -32,12 +32,24 @@ impl Floetask {
             Message::FileCreated(Some(path)) => self.create_file(path),
             Message::FilePicked(None) | Message::FileCreated(None) => Task::none(),
             Message::SelectFile(index) => self.select_file(index),
-            Message::TabMenu(index) => {
-                self.tab_menu = index;
+            Message::ToggleFilesDrawer => {
+                self.state.files_drawer_open = !self.state.files_drawer_open;
+                self.file_menu = None;
+                self.persist_state()
+            }
+            Message::OpenDoneFile(index) => {
+                self.file_menu = None;
+                match self.state.files.get(index).and_then(|entry| entry.done_path.clone()) {
+                    Some(done) => self.open_path(done),
+                    None => self.toast(tr("done_file_needed")),
+                }
+            }
+            Message::FileMenu(index) => {
+                self.file_menu = index;
                 Task::none()
             }
             Message::ChangeDoneFile(index) => {
-                self.tab_menu = None;
+                self.file_menu = None;
                 Task::perform(save_file("done.txt"), move |path| Message::DoneFilePicked(index, path))
             }
             Message::DoneFilePicked(index, Some(path)) => {
@@ -51,12 +63,8 @@ impl Floetask {
                 let path = self.state.files.get(index).map(|entry| entry.path.clone());
                 self.reveal(path)
             }
-            Message::RevealDoneFile(index) => {
-                let path = self.state.files.get(index).and_then(|entry| entry.done_path.clone());
-                self.reveal(path)
-            }
             Message::AskRemoveFile(index) => {
-                self.tab_menu = None;
+                self.file_menu = None;
                 if let Some(entry) = self.state.files.get(index) {
                     self.dialog = Some(Dialog::Confirm {
                         message: trf("remove_file_confirm", &[&entry.file_name()]),
@@ -176,7 +184,7 @@ impl Floetask {
             return Task::none();
         }
         self.state.active_file = index;
-        self.tab_menu = None;
+        self.file_menu = None;
         self.after_file_switch();
         self.persist_state()
     }
@@ -216,7 +224,7 @@ impl Floetask {
     }
 
     fn reveal(&mut self, path: Option<PathBuf>) -> Task<Message> {
-        self.tab_menu = None;
+        self.file_menu = None;
         let Some(path) = path else {
             return self.toast(tr("done_file_needed"));
         };
