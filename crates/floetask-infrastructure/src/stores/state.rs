@@ -44,7 +44,6 @@ struct StateFile {
     drawer_open: bool,
     drawer_tab: String,
     files_drawer_open: Option<bool>,
-    tabs_visible: Option<bool>,
     collapsed_sections: Vec<String>,
     files: Vec<FileEntry>,
     sorting: Option<SortingFile>,
@@ -117,7 +116,6 @@ impl From<&AppState> for StateFile {
             }
             .to_owned(),
             files_drawer_open: Some(state.files_drawer_open),
-            tabs_visible: Some(state.tabs_visible),
             collapsed_sections: state.collapsed_sections.iter().map(|a| a.key().to_owned()).collect(),
             files: state
                 .files
@@ -218,7 +216,6 @@ impl From<StateFile> for AppState {
                 _ => DrawerTab::Attributes,
             },
             files_drawer_open: file.files_drawer_open.unwrap_or(defaults.files_drawer_open),
-            tabs_visible: file.tabs_visible.unwrap_or(defaults.tabs_visible),
             collapsed_sections: attributes(&file.collapsed_sections),
             window: file
                 .window

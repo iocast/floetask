@@ -63,7 +63,6 @@ pub struct AppState {
     pub drawer_tab: DrawerTab,
     /// The collapsible file list on the left.
     pub files_drawer_open: bool,
-    pub tabs_visible: bool,
     pub collapsed_sections: Vec<Attribute>,
     pub window: WindowState,
 }
@@ -78,7 +77,6 @@ impl Default for AppState {
             drawer_open: false,
             drawer_tab: DrawerTab::default(),
             files_drawer_open: true,
-            tabs_visible: true,
             collapsed_sections: Vec::new(),
             window: WindowState::default(),
         }

@@ -38,7 +38,6 @@ pub fn view<'a>(app: &'a Floetask) -> Element<'a, Message> {
             s.disable_animations,
             set(SettingChange::DisableAnimations)
         ),
-        switch(tr("show_tabs"), app.state.tabs_visible, |_| Message::ToggleTabs),
     ]
     .spacing(12);
 

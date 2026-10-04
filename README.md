@@ -72,9 +72,9 @@ Colours are read at start-up.
 
 ## Using it
 
-floetask draws its own title bar, like Firefox and Zed: the file-drawer toggle and logo on the left, the search field in the middle, the filter drawer and settings on the right, then the window buttons. Drag the empty space to move the window, double-click it to maximise, and drag the window edges to resize. Open files show as tabs under the title bar.
+floetask draws its own title bar, like Firefox and Zed: the file-drawer toggle and logo on the left, the search field in the middle, the filter drawer and settings on the right, then the window buttons. Drag the empty space to move the window, double-click it to maximise, and drag the window edges to resize.
 
-The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New todo** button, your files, and Open / Create at the bottom. Each file's ⋮ menu sets its archive (done) file, opens the archive file in floetask, archives completed todos, shows the file in your file manager, or closes it.
+The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New todo** button, your files (each with its archive file listed right under it), and Open / Create at the bottom. Each file's ⋮ menu opens a floating list that sets its archive (done) file, opens the archive file in floetask, archives completed todos, shows the file in your file manager, or closes it.
 
 The theme follows the system until you pick light or dark in Settings (or press `Ctrl+Alt+D`).
 
@@ -104,7 +104,7 @@ The theme follows the system until you pick light or dark in Settings (or press 
 
 ## Status against FEATURES.md
 
-Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files with tabs and tab menu, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and i18n-ready strings.
+Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files in a file drawer with per-file menus, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and i18n-ready strings.
 
 Not done yet:
 

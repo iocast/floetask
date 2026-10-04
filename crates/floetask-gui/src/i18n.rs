@@ -145,7 +145,6 @@ fn english(key: &str) -> Option<&'static str> {
         "section_todos" => "Todos",
         "section_notifications" => "Notifications",
         "section_appearance" => "Appearance",
-        "show_tabs" => "Show file tabs",
         "notifications" => "Due-date notifications",
         "notification_threshold" => "Notify {} days ahead",
         "zoom" => "Zoom {}%",

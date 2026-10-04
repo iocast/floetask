@@ -1,10 +1,11 @@
-//! The collapsible file drawer on the left and the file tabs under the
-//! title bar.
+//! The collapsible file drawer on the left. Each todo file is listed with
+//! its archive (done) file directly underneath.
 
-use iced::widget::{Column, Row, button, column, container, row, rule, scrollable, space, text};
+use iced::widget::{Column, button, column, container, row, rule, scrollable, text};
 use iced::{Alignment, Element, Fill};
 
 use super::icons::{Icon, icon};
+use super::popover::popover;
 use super::widgets::{caption, icon_button};
 use crate::app::{Floetask, Message};
 use crate::i18n::tr;
@@ -33,9 +34,12 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
 
     let mut files = Column::new().spacing(2);
     for index in 0..app.state.files.len() {
+        if is_archive_of_another(app, index) {
+            continue;
+        }
         files = files.push(file_entry(app, index, colors));
-        if app.file_menu == Some(index) {
-            files = files.push(file_menu(app, index, colors));
+        if let Some(archive) = archive_entry(app, index, colors) {
+            files = files.push(archive);
         }
     }
 
@@ -91,8 +95,7 @@ fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messa
     .padding([6, 8])
     .style(theme::ghost(colors, active))
     .on_press(Message::SelectFile(index));
-    row![
-        label,
+    let menu = popover(
         icon_button(
             Icon::DotsVertical,
             tr("file_actions"),
@@ -100,10 +103,10 @@ fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messa
             colors,
             open,
         ),
-    ]
-    .spacing(2)
-    .align_y(Alignment::Center)
-    .into()
+        open.then(|| file_menu(app, index, colors)),
+        Message::FileMenu(None),
+    );
+    row![label, menu].spacing(2).align_y(Alignment::Center).into()
 }
 
 /// The ⋮ menu of a file: archive file settings, reveal, close.
@@ -160,8 +163,52 @@ fn file_menu(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messag
         .spacing(2),
     )
     .padding(6)
+    .width(240)
     .style(theme::card(colors))
     .into()
+}
+
+/// The archive file of the todo file at `index`, indented under it.
+fn archive_entry(app: &Floetask, index: usize, colors: Colors) -> Option<Element<'_, Message>> {
+    let done = app.state.files[index].done_path.as_ref()?;
+    let registered = app.state.files.iter().position(|entry| &entry.path == done);
+    let active = registered == Some(app.state.active_file);
+    let name = done
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let open = match registered {
+        Some(position) => Message::SelectFile(position),
+        None => Message::OpenDoneFile(index),
+    };
+    Some(
+        button(
+            row![
+                icon(Icon::Archive, 14.0, if active { colors.primary } else { colors.muted }),
+                text(name)
+                    .size(13)
+                    .color(if active { colors.primary } else { colors.muted }),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .width(Fill)
+        .padding(iced::padding::left(34).right(8).top(4).bottom(4))
+        .style(theme::ghost(colors, active))
+        .on_press(open)
+        .into(),
+    )
+}
+
+/// Archive files that are open are listed under their todo file, not on
+/// their own.
+fn is_archive_of_another(app: &Floetask, index: usize) -> bool {
+    let path = &app.state.files[index].path;
+    app.state
+        .files
+        .iter()
+        .enumerate()
+        .any(|(other, entry)| other != index && entry.done_path.as_ref() == Some(path))
 }
 
 fn wide_button<'a>(glyph: Icon, label: &'a str, message: Message, colors: Colors) -> Element<'a, Message> {
@@ -184,29 +231,4 @@ fn on_primary(colors: Colors) -> iced::Color {
     } else {
         iced::Color::WHITE
     }
-}
-
-/// One tab per open file, under the title bar.
-pub fn tabs(app: &Floetask) -> Option<Element<'_, Message>> {
-    if !app.state.tabs_visible || app.state.files.is_empty() {
-        return None;
-    }
-    let colors = app.colors();
-    let tabs = Row::with_children(app.state.files.iter().enumerate().map(|(index, entry)| {
-        let active = index == app.state.active_file;
-        button(
-            row![
-                icon(Icon::File, 14.0, if active { colors.primary } else { colors.muted }),
-                text(entry.file_name()).size(13)
-            ]
-            .spacing(6)
-            .align_y(Alignment::Center),
-        )
-        .padding([6, 12])
-        .style(theme::tab(colors, active))
-        .on_press(Message::SelectFile(index))
-        .into()
-    }))
-    .spacing(4);
-    Some(row![tabs, space().width(Fill)].padding([0, 16]).into())
 }

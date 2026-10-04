@@ -113,7 +113,6 @@ pub enum Message {
     OpenSettings,
     Setting(SettingChange),
     ToggleTheme,
-    ToggleTabs,
 
     // Dialogs
     ConfirmDialog,

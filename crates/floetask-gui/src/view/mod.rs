@@ -12,6 +12,7 @@ mod empty;
 mod files;
 pub mod icons;
 pub mod list;
+mod popover;
 mod search;
 mod settings;
 mod title_bar;
@@ -49,9 +50,6 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
     }
 
     let mut page = column![title_bar::view(app)].spacing(8);
-    if let Some(tabs) = files::tabs(app) {
-        page = page.push(tabs);
-    }
     page = page.push(
         container(content)
             .padding(iced::padding::left(16).right(16).bottom(16))

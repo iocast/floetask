@@ -26,10 +26,6 @@ impl Floetask {
                 };
                 self.save_settings()
             }
-            Message::ToggleTabs => {
-                self.state.tabs_visible = !self.state.tabs_visible;
-                self.persist_state()
-            }
             _ => Task::none(),
         }
     }

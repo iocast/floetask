@@ -299,8 +299,24 @@ fn renders_both_themes() {
     app.settings.theme = floetask_application::ThemePreference::Dark;
     assert!(app.colors().dark);
     snapshot(&app, "dark");
+    app.state.files[0].done_path = Some(PathBuf::from("/test/done.txt"));
+    app.state
+        .files
+        .push(floetask_application::TodoFileEntry::new(PathBuf::from("/test/work.txt")));
+    snapshot(&app, "dark-files");
     let _ = app.update(Message::FileMenu(Some(0)));
     snapshot(&app, "dark-file-menu");
     let _ = app.update(Message::NewTodo);
     snapshot(&app, "dark-editor");
+}
+
+#[test]
+fn file_menu_floats_and_closes_on_outside_click() {
+    let mut app = app();
+    let _ = app.update(Message::FileMenu(Some(0)));
+    let mut ui = simulator(app.view());
+    // A click on the list, outside the menu, dismisses it.
+    ui.click("Buy milk").unwrap();
+    let messages: Vec<Message> = ui.into_messages().collect();
+    assert!(messages.iter().any(|m| matches!(m, Message::FileMenu(None))));
 }

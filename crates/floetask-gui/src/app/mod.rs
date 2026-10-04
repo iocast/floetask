@@ -298,7 +298,7 @@ impl Floetask {
             | M::AskDeleteSavedFilter(_)
             | M::ToggleSuppress(_) => self.update_search(message),
 
-            M::OpenSettings | M::Setting(_) | M::ToggleTheme | M::ToggleTabs => self.update_settings(message),
+            M::OpenSettings | M::Setting(_) | M::ToggleTheme => self.update_settings(message),
 
             M::ConfirmDialog => self.confirm_dialog(),
             M::CloseDialog => self.close_dialog(),
