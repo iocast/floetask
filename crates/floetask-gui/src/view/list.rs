@@ -1,10 +1,13 @@
 //! The grouped todo list.
+//!
+//! Each todo is a card: a priority accent, a round checkbox, the text with
+//! its attributes underneath, and quick actions that appear on hover.
 
 use iced::widget::{
-    Column, Row, button, checkbox, column, container, markdown, mouse_area, rich_text, row, scrollable, span, text,
-    tooltip,
+    Column, Row, button, checkbox, column, container, markdown, mouse_area, rich_text, row, scrollable, space, span,
+    text,
 };
-use iced::{Alignment, Color, Element, Fill, Font};
+use iced::{Alignment, Color, Element, Fill};
 
 use floetask_application::TodoRef;
 use floetask_domain::date::format_iso;
@@ -13,18 +16,19 @@ use floetask_domain::listing::{Attribute, Group, ListedTodo};
 use floetask_domain::{Date, Todo};
 
 use super::LIST_ID;
-use super::widgets::link_button;
+use super::icons::{Icon, icon};
+use super::widgets::{caption, icon_button};
 use crate::app::{DateKey, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
+    let colors = app.colors();
+    let compact = app.settings.compact;
     let mut index = 0;
-    let mut groups = Column::new()
-        .spacing(if app.settings.compact { 6 } else { 12 })
-        .padding([4, 16]);
+    let mut groups = Column::new().spacing(if compact { 12 } else { 20 }).padding([4, 4]);
     for group in &app.listing.groups {
-        let mut rows = Column::new().spacing(if app.settings.compact { 0 } else { 2 });
+        let mut rows = Column::new().spacing(if compact { 4 } else { 6 });
         if let Some(header) = group_header(app, group) {
             rows = rows.push(header);
         }
@@ -34,41 +38,39 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         }
         groups = groups.push(rows);
     }
-    scrollable(groups).id(LIST_ID).height(Fill).width(Fill).into()
+    scrollable(container(groups).padding(iced::padding::right(8).bottom(16)))
+        .id(LIST_ID)
+        .direction(theme::thin_scrollbar())
+        .style(theme::slim_scroller(colors))
+        .height(Fill)
+        .width(Fill)
+        .into()
 }
 
-/// Group title. Project and context names can be right-clicked to rename or
-/// remove them across the file.
+/// Group title with its todo count. Project and context names can be
+/// right-clicked to rename or remove them across the file.
 fn group_header<'a>(app: &'a Floetask, group: &'a Group) -> Option<Element<'a, Message>> {
     let attribute = group.attribute?;
     let colors = app.colors();
-    let label: Element<'a, Message> = if group.values.is_empty() {
-        text(trf("no_value", &[&tr(attribute.key()).to_lowercase()]))
-            .size(13)
-            .into()
-    } else {
-        row(group.values.iter().map(|value| {
-            let shown = text(attribute_label(attribute, value)).size(13).font(Font {
-                weight: iced::font::Weight::Bold,
-                ..Font::default()
-            });
-            if attribute.is_renamable() {
-                mouse_area(shown)
-                    .on_right_press(Message::AskRename(attribute, value.clone()))
-                    .into()
-            } else {
-                shown.into()
-            }
-        }))
-        .spacing(8)
-        .into()
-    };
-    Some(
-        container(label)
-            .padding([6, 4])
-            .style(theme::group_header(colors))
-            .into(),
-    )
+    let mut label = Row::new().spacing(8).align_y(Alignment::Center);
+    if group.values.is_empty() {
+        label = label.push(caption(
+            &trf("no_value", &[&tr(attribute.key()).to_lowercase()]),
+            colors,
+        ));
+    }
+    for value in &group.values {
+        let shown = caption(&attribute_label(attribute, value), colors);
+        label = label.push(if attribute.is_renamable() {
+            mouse_area(shown)
+                .on_right_press(Message::AskRename(attribute, value.clone()))
+                .into()
+        } else {
+            shown
+        });
+    }
+    label = label.push(text(group.todos.len().to_string()).size(11).color(colors.muted));
+    Some(container(label).padding([4, 6]).into())
 }
 
 fn todo_row<'a>(
@@ -81,37 +83,43 @@ fn todo_row<'a>(
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);
     let compact = app.settings.compact;
+    let hovered = app.hovered == Some(entry.line) || app.row_menu == Some(entry.line);
 
-    let mut line = Row::new().spacing(8).align_y(Alignment::Center);
+    let accent_color = match todo.priority() {
+        Some(priority) if !todo.is_complete() => colors.priority(priority),
+        _ => Color::TRANSPARENT,
+    };
+    let accent = container(space())
+        .width(3)
+        .height(if compact { 18 } else { 22 })
+        .style(theme::accent(accent_color));
+
     let toggle_target = target.clone();
-    line = line.push(checkbox(todo.is_complete()).on_toggle(move |_| Message::ToggleComplete(toggle_target.clone())));
+    let done = checkbox(todo.is_complete())
+        .on_toggle(move |_| Message::ToggleComplete(toggle_target.clone()))
+        .size(18)
+        .style(theme::round_checkbox(colors));
 
-    if let Some(priority) = todo.priority()
-        && grouped_by != Some(Attribute::Priority)
-    {
-        line = line.push(
-            container(text(priority.to_string()).size(12))
-                .padding([1, 6])
-                .style(theme::badge(colors.priority(priority))),
-        );
+    let mut details = column![body(app, todo, colors)].spacing(6).width(Fill);
+    if let Some(meta) = meta(app, todo, &target, grouped_by, colors) {
+        details = details.push(meta);
     }
 
-    line = line.push(container(body(app, todo, colors)).width(Fill));
-    line = line.push(chips(app, todo, &target, colors));
-    line = line.push(date_marks(todo, colors));
+    let mut line = row![accent, done, details].spacing(12).align_y(Alignment::Start);
+    if hovered {
+        line = line.push(quick_actions(todo, &target, colors));
+    }
 
     let selected = app.selected == Some(index);
-    let mut content = column![line].spacing(4);
-    if app.row_menu == Some(entry.line) {
-        content = content.push(row_menu(todo, &target));
-    }
-    let row_box = container(content)
-        .padding(if compact { [2, 6] } else { [6, 8] })
+    let card = container(line)
+        .padding(if compact { [6, 12] } else { [10, 14] })
         .width(Fill)
-        .style(theme::row(colors, selected));
-    mouse_area(row_box)
+        .style(theme::row(colors, hovered, selected));
+    mouse_area(card)
         .on_press(Message::OpenTodo(target))
         .on_right_press(Message::RowMenu(Some(entry.line)))
+        .on_enter(Message::RowHover(Some(entry.line)))
+        .on_exit(Message::RowHover(None))
         .into()
 }
 
@@ -125,56 +133,72 @@ fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Element<'a, Me
             .on_link_click(Message::OpenLink)
             .into();
     }
-    let main: Element<'a, Message> = match app.markdown.get(todo.body()) {
+    match app.markdown.get(todo.body()) {
         Some(content) => {
-            let style = markdown::Style::from_palette(app.theme().palette());
+            let mut style = markdown::Style::from_palette(app.theme().palette());
+            style.inline_code_color = colors.text;
+            style.inline_code_highlight.background = colors.hover.into();
             markdown::view(content.items(), markdown::Settings::with_text_size(size, style)).map(Message::OpenLink)
         }
         None => text(todo.body()).size(size).into(),
-    };
-    let links = urls(todo.body());
-    if links.is_empty() {
-        return main;
     }
-    // Bare links get an explicit open button, so a click on the row never
-    // opens a link by accident.
-    let mut buttons = Row::new().spacing(4);
-    for url in links {
-        buttons = buttons.push(
-            button(text(format!("↗ {}", short_url(&url))).size(12))
-                .style(theme::chip(colors.primary, colors, false))
-                .padding([1, 6])
-                .on_press(Message::OpenLink(url)),
-        );
-    }
-    column![main, buttons].spacing(2).into()
 }
 
-/// Attribute chips. Clicking one filters the list by it.
-fn chips<'a>(app: &'a Floetask, todo: &'a Todo, target: &TodoRef, colors: Colors) -> Element<'a, Message> {
-    let mut chips = Row::new().spacing(4).align_y(Alignment::Center);
-    let chip = |attribute: Attribute, value: String, label: String, color: Color| {
+/// Attributes under the text: projects, contexts, dates, recurrence,
+/// pomodoros and links. Chips filter the list when clicked.
+fn meta<'a>(
+    app: &'a Floetask,
+    todo: &'a Todo,
+    target: &TodoRef,
+    grouped_by: Option<Attribute>,
+    colors: Colors,
+) -> Option<Element<'a, Message>> {
+    let mut chips = Row::new().spacing(6).align_y(Alignment::Center);
+    let mut empty = true;
+    let chip = |attribute: Attribute, value: String, glyph: Option<Icon>, label: String, color: Color| {
         let active = app.state.view.filter_state(attribute, &value) == Some(false);
-        button(text(label).size(12))
-            .padding([1, 8])
+        let tint = if active { colors.surface } else { color };
+        let mut content = Row::new().spacing(4).align_y(Alignment::Center);
+        if let Some(glyph) = glyph {
+            content = content.push(icon(glyph, 12.0, tint));
+        }
+        button(content.push(text(label).size(12)))
+            .padding([2, 8])
             .style(theme::chip(color, colors, active))
             .on_press(Message::ChipFilter(attribute, value))
     };
+
+    if let Some(priority) = todo.priority()
+        && grouped_by != Some(Attribute::Priority)
+    {
+        chips = chips.push(chip(
+            Attribute::Priority,
+            priority.to_string(),
+            None,
+            priority.to_string(),
+            colors.priority(priority),
+        ));
+        empty = false;
+    }
     for project in todo.projects() {
         chips = chips.push(chip(
             Attribute::Projects,
             project.clone(),
+            None,
             format!("+{project}"),
             colors.primary,
         ));
+        empty = false;
     }
     for context in todo.contexts() {
         chips = chips.push(chip(
             Attribute::Contexts,
             context.clone(),
+            None,
             format!("@{context}"),
             colors.success,
         ));
+        empty = false;
     }
     for (key, attribute, date) in [
         (DateKey::Due, Attribute::Due, todo.due()),
@@ -183,12 +207,10 @@ fn chips<'a>(app: &'a Floetask, todo: &'a Todo, target: &TodoRef, colors: Colors
         let Some(date) = date else { continue };
         let urgent = key == DateKey::Due && date <= app.today && !todo.is_complete();
         let color = if urgent { colors.danger } else { colors.muted };
-        let marker = if urgent { "● " } else { "" };
-        let label = format!(
-            "{marker}{}: {}",
-            tr(key.key()),
-            date_label(app, date, key == DateKey::Due)
-        );
+        let label = match key {
+            DateKey::Due => date_label(app, date, true),
+            DateKey::Threshold => format!("{} {}", tr("t_short"), date_label(app, date, false)),
+        };
         let filter_value = attribute
             .values(todo, &app.date_context())
             .into_iter()
@@ -196,63 +218,103 @@ fn chips<'a>(app: &'a Floetask, todo: &'a Todo, target: &TodoRef, colors: Colors
             .unwrap_or_default();
         chips = chips.push(
             row![
-                chip(attribute, filter_value, label, color),
-                button(text("▾").size(11))
-                    .padding([1, 4])
-                    .style(button::text)
+                chip(attribute, filter_value, Some(Icon::Calendar), label, color),
+                button(icon(Icon::ChevronDown, 12.0, colors.muted))
+                    .padding(2)
+                    .style(theme::ghost(colors, false))
                     .on_press(Message::OpenRowDatePicker(target.clone(), key)),
             ]
+            .spacing(0)
             .align_y(Alignment::Center),
         );
+        empty = false;
     }
     if let Some(rec) = todo.recurrence() {
         chips = chips.push(chip(
             Attribute::Recurrence,
             rec.to_string(),
-            format!("↻ {rec}"),
+            Some(Icon::Repeat),
+            rec.to_string(),
             colors.muted,
         ));
+        empty = false;
     }
     if let Some(pm) = todo.pomodoros() {
         chips = chips.push(chip(
             Attribute::Pomodoro,
             pm.to_string(),
-            format!("◔ {pm}"),
+            Some(Icon::Timer),
+            pm.to_string(),
             colors.muted,
         ));
+        empty = false;
     }
-    chips.into()
-}
-
-/// Small markers for creation and completion dates, with the date as tooltip.
-fn date_marks(todo: &Todo, colors: Colors) -> Element<'_, Message> {
-    let mut marks = Row::new().spacing(4);
-    let mark = |symbol: &'static str, key: &str, date: Date| {
-        tooltip(
-            text(symbol).size(12).color(colors.muted),
-            container(text(trf(key, &[&format_iso(date)])).size(12))
-                .padding(6)
-                .style(container::rounded_box),
-            tooltip::Position::Left,
-        )
-    };
-    if let Some(created) = todo.created() {
-        marks = marks.push(mark("◷", "created_on", created));
+    // Bare links get an explicit open button, so a click on the row never
+    // opens a link by accident.
+    for url in urls(todo.body()) {
+        chips = chips.push(
+            button(
+                row![icon(Icon::Link, 12.0, colors.primary), text(short_url(&url)).size(12)]
+                    .spacing(4)
+                    .align_y(Alignment::Center),
+            )
+            .padding([2, 8])
+            .style(theme::chip(colors.primary, colors, false))
+            .on_press(Message::OpenLink(url)),
+        );
+        empty = false;
     }
     if let Some(completed) = todo.completed() {
-        marks = marks.push(mark("✓", "completed_on", completed));
+        chips = chips.push(
+            text(trf("completed_on", &[&format_iso(completed)]))
+                .size(12)
+                .color(colors.muted),
+        );
+        empty = false;
+    } else if let Some(created) = todo.created() {
+        chips = chips.push(
+            text(trf("created_on", &[&format_iso(created)]))
+                .size(12)
+                .color(colors.muted),
+        );
+        empty = false;
     }
-    marks.into()
+    (!empty).then(|| chips.wrap().into())
 }
 
-fn row_menu<'a>(todo: &'a Todo, target: &TodoRef) -> Element<'a, Message> {
+/// Edit, copy, archive and delete, shown while the row is hovered.
+fn quick_actions<'a>(todo: &'a Todo, target: &TodoRef, colors: Colors) -> Element<'a, Message> {
     row![
-        link_button(tr("edit"), Message::OpenTodo(target.clone())),
-        link_button(tr("copy"), Message::CopyTodo(todo.raw().to_owned())),
-        link_button(tr("archive"), Message::ArchiveOne(target.clone())),
-        link_button(tr("delete"), Message::AskDelete(target.clone())),
+        icon_button(
+            Icon::Pencil,
+            tr("edit"),
+            Some(Message::OpenTodo(target.clone())),
+            colors,
+            false
+        ),
+        icon_button(
+            Icon::Copy,
+            tr("copy"),
+            Some(Message::CopyTodo(todo.raw().to_owned())),
+            colors,
+            false
+        ),
+        icon_button(
+            Icon::Archive,
+            tr("archive_one"),
+            Some(Message::ArchiveOne(target.clone())),
+            colors,
+            false
+        ),
+        icon_button(
+            Icon::Trash,
+            tr("delete"),
+            Some(Message::AskDelete(target.clone())),
+            colors,
+            false
+        ),
     ]
-    .spacing(6)
+    .spacing(0)
     .into()
 }
 

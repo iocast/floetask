@@ -48,7 +48,6 @@ impl Floetask {
             ("f", false, false) => Message::ToggleSearch,
             ("f", false, true) => Message::ToggleSavedFilters,
             ("h", false, false) => Message::ViewToggle(ViewToggle::Completed, !self.state.view.show_completed),
-            ("h", true, false) => Message::ToggleNavigation,
             ("0", false, false) => Message::ResetFilters,
             ("a", true, false) => Message::ArchiveCompleted,
             ("o", false, false) => Message::OpenFileDialog,

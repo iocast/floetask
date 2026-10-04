@@ -26,10 +26,6 @@ impl Floetask {
                 };
                 self.save_settings()
             }
-            Message::ToggleNavigation => {
-                self.state.navigation_visible = !self.state.navigation_visible;
-                self.persist_state()
-            }
             Message::ToggleTabs => {
                 self.state.tabs_visible = !self.state.tabs_visible;
                 self.persist_state()

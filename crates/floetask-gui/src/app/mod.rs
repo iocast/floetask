@@ -13,6 +13,7 @@ mod search;
 mod settings;
 mod shortcuts;
 mod subscriptions;
+mod window_frame;
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -96,6 +97,11 @@ pub struct Floetask {
     /// Held modifier keys, so Ctrl+Enter in the search field can be told
     /// apart from Enter.
     pub(crate) modifiers: iced::keyboard::Modifiers,
+    /// The main window, for dragging, resizing and the window buttons.
+    pub(crate) window: Option<window::Id>,
+    pub(crate) maximized: bool,
+    /// Line of the todo under the mouse.
+    pub(crate) hovered: Option<usize>,
     /// Bumped whenever the set of watched files changes.
     pub(crate) watch_generation: u64,
 }
@@ -122,6 +128,7 @@ impl Floetask {
             state.open_file(absolute(&path));
         }
         let today = ports.clock.today();
+        let maximized = state.window.maximized;
 
         let mut app = Self {
             services,
@@ -144,6 +151,9 @@ impl Floetask {
             dialog: None,
             toasts: Vec::new(),
             next_toast_id: 0,
+            window: None,
+            maximized,
+            hovered: None,
             modifiers: iced::keyboard::Modifiers::default(),
             watch_generation: 0,
         };
@@ -153,10 +163,15 @@ impl Floetask {
             let store = app.services.ports.saved_filters.clone();
             Task::perform(async move { store.load() }, Message::SavedFiltersLoaded)
         };
+        let window = window::oldest().map(Message::WindowReady);
         let system_theme = iced::system::theme().map(|mode| Message::SystemDark(mode == iced::theme::Mode::Dark));
         (
             app,
-            Task::batch([load_files, saved_filters, system_theme].into_iter().chain(toast_tasks)),
+            Task::batch(
+                [load_files, saved_filters, system_theme, window]
+                    .into_iter()
+                    .chain(toast_tasks),
+            ),
         )
     }
 
@@ -197,6 +212,12 @@ impl Floetask {
                 Task::none()
             }
             M::Quit => self.quit(),
+            M::WindowReady(..)
+            | M::WindowDrag
+            | M::WindowResize(_)
+            | M::WindowMinimize
+            | M::WindowToggleMaximize
+            | M::RowHover(_) => self.update_window_frame(message),
             M::Window(id, event) => self.on_window_event(id, event),
             M::DismissToast(id) => {
                 self.toasts.retain(|toast| toast.id != id);
@@ -276,9 +297,7 @@ impl Floetask {
             | M::AskDeleteSavedFilter(_)
             | M::ToggleSuppress(_) => self.update_search(message),
 
-            M::OpenSettings | M::Setting(_) | M::ToggleTheme | M::ToggleNavigation | M::ToggleTabs => {
-                self.update_settings(message)
-            }
+            M::OpenSettings | M::Setting(_) | M::ToggleTheme | M::ToggleTabs => self.update_settings(message),
 
             M::ConfirmDialog => self.confirm_dialog(),
             M::CloseDialog => self.close_dialog(),

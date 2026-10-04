@@ -48,6 +48,8 @@ pub fn run(startup: Startup) -> iced::Result {
         maximized: window_state.maximized,
         min_size: Some(Size::new(480.0, 360.0)),
         exit_on_close_request: false,
+        // floetask draws its own title bar with the window buttons.
+        decorations: false,
         icon: logo::window_icon(),
         ..window::Settings::default()
     })

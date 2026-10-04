@@ -1,90 +1,97 @@
 //! Confirmation, rename, date and save-filter dialogs.
 
-use iced::widget::{button, column, container, row, text, text_input};
-use iced::{Element, Fill};
+use iced::widget::{column, container, row, space, text, text_input};
+use iced::{Alignment, Element, Fill};
 
 use floetask_domain::listing::Attribute;
 
 use super::calendar;
 use super::list::attribute_label;
+use super::widgets::{danger_button, primary_button, secondary_button, title};
 use crate::app::{Calendar, Floetask, Message};
 use crate::i18n::{tr, trf};
+use crate::theme::{self, Colors};
 
-pub fn confirm<'a>(message: &'a str, detail: Option<&'a str>) -> Element<'a, Message> {
-    let mut content = column![text(message).size(16)].spacing(12).width(440);
+pub fn confirm<'a>(app: &'a Floetask, message: &'a str, detail: Option<&'a str>) -> Element<'a, Message> {
+    let colors = app.colors();
+    let mut content = column![title(message)].spacing(16).width(460);
     if let Some(detail) = detail {
-        content = content.push(
-            container(text(detail).size(13).font(iced::Font::MONOSPACE))
-                .padding(10)
-                .width(Fill)
-                .style(container::rounded_box),
-        );
+        content = content.push(raw_text(detail, colors));
     }
-    content.push(buttons(tr("confirm"), button::danger)).into()
+    content
+        .push(buttons(
+            danger_button(tr("confirm"), Message::ConfirmDialog, colors),
+            colors,
+        ))
+        .into()
 }
 
-pub fn rename<'a>(attribute: Attribute, from: &'a str, input: &'a str) -> Element<'a, Message> {
+pub fn rename<'a>(app: &'a Floetask, attribute: Attribute, from: &'a str, input: &'a str) -> Element<'a, Message> {
+    let colors = app.colors();
     let field = text_input("", input)
         .on_input(Message::RenameInput)
         .on_submit(Message::ConfirmDialog)
-        .padding(8);
+        .padding(10)
+        .style(theme::input(colors));
     column![
-        text(trf("rename_title", &[&attribute_label(attribute, from)])).size(16),
+        title(trf("rename_title", &[&attribute_label(attribute, from)])),
         field,
         row![
-            button(text(tr("remove_value")))
-                .style(button::danger)
-                .on_press(Message::AskRemoveValue(attribute, from.to_owned())),
-            container(buttons(tr("rename"), button::primary)).align_right(Fill),
-        ],
+            danger_button(
+                tr("remove_value"),
+                Message::AskRemoveValue(attribute, from.to_owned()),
+                colors
+            ),
+            space().width(Fill),
+            secondary_button(tr("cancel"), Message::CloseDialog, colors),
+            primary_button(tr("rename"), Message::ConfirmDialog, colors),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
     ]
-    .spacing(12)
-    .width(440)
+    .spacing(16)
+    .width(460)
     .into()
 }
 
 pub fn date<'a>(app: &'a Floetask, calendar: &'a Calendar) -> Element<'a, Message> {
+    let colors = app.colors();
     column![
-        text(tr(calendar.key.key())).size(16),
-        calendar::view(calendar, app.today, app.settings.week_start),
-        container(
-            button(text(tr("cancel")))
-                .style(button::secondary)
-                .on_press(Message::CloseDialog)
-        )
-        .align_right(Fill),
+        title(tr(calendar.key.key())),
+        calendar::view(calendar, app.today, app.settings.week_start, colors),
     ]
-    .spacing(12)
+    .spacing(16)
     .into()
 }
 
 pub fn save_filter<'a>(app: &'a Floetask, name: &'a str) -> Element<'a, Message> {
+    let colors = app.colors();
     column![
-        text(tr("save_filter")).size(16),
-        container(text(&app.search.input).size(13).font(iced::Font::MONOSPACE))
-            .padding(8)
-            .style(container::rounded_box),
+        title(tr("save_filter")),
+        raw_text(&app.search.input, colors),
         text_input(tr("filter_name"), name)
             .on_input(Message::SaveFilterName)
             .on_submit(Message::ConfirmDialog)
-            .padding(8),
-        buttons(tr("save"), button::primary),
+            .padding(10)
+            .style(theme::input(colors)),
+        buttons(primary_button(tr("save"), Message::ConfirmDialog, colors), colors),
     ]
-    .spacing(12)
-    .width(440)
+    .spacing(16)
+    .width(460)
     .into()
 }
 
-fn buttons<'a>(label: &'a str, style: fn(&iced::Theme, button::Status) -> button::Style) -> Element<'a, Message> {
-    container(
-        row![
-            button(text(tr("cancel")))
-                .style(button::secondary)
-                .on_press(Message::CloseDialog),
-            button(text(label)).style(style).on_press(Message::ConfirmDialog),
-        ]
-        .spacing(8),
-    )
-    .align_right(Fill)
-    .into()
+fn raw_text(content: &str, colors: Colors) -> Element<'_, Message> {
+    container(text(content).size(13).font(iced::Font::MONOSPACE))
+        .padding(12)
+        .width(Fill)
+        .style(theme::code(colors))
+        .into()
+}
+
+/// Cancel plus the dialog's main action, right-aligned.
+fn buttons<'a>(action: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
+    container(row![secondary_button(tr("cancel"), Message::CloseDialog, colors), action].spacing(8))
+        .align_right(Fill)
+        .into()
 }

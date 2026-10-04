@@ -1,26 +1,31 @@
 //! Colours and widget styles.
 //!
-//! floetask builds an iced theme from its own palette, which the user can
-//! override per light and dark mode in the colour file.
+//! floetask has a light and a dark (near-black) theme. Both are built from
+//! [`Colors`], which the user can override per mode in the colour file. All
+//! widget styles live here so views stay declarative.
 
-use iced::widget::{button, container};
-use iced::{Background, Border, Color, Theme, border};
+use iced::widget::{button, checkbox, container, scrollable, text_input};
+use iced::{Background, Border, Color, Shadow, Theme, Vector, border};
 
 use floetask_application::{ColorOverrides, PaletteOverrides};
 use floetask_domain::Priority;
 
-/// floetask's colours for one mode, beyond what iced's palette holds.
+/// The colours of one theme.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Colors {
     pub dark: bool,
+    /// Window background, behind cards.
     pub background: Color,
+    /// Cards, panels, dialogs.
+    pub surface: Color,
+    pub border: Color,
+    pub hover: Color,
     pub text: Color,
+    pub muted: Color,
     pub primary: Color,
     pub success: Color,
     pub warning: Color,
     pub danger: Color,
-    pub navigation: Color,
-    pub muted: Color,
     pub priority_a: Color,
     pub priority_b: Color,
     pub priority_c: Color,
@@ -36,34 +41,38 @@ impl Colors {
 
     const LIGHT: Self = Self {
         dark: false,
-        background: rgb(0xffffff),
-        text: rgb(0x1f2328),
-        primary: rgb(0x2563eb),
+        background: rgb(0xf4f5f7),
+        surface: rgb(0xffffff),
+        border: rgb(0xe3e5ea),
+        hover: rgb(0xeceef2),
+        text: rgb(0x1a1d23),
+        muted: rgb(0x6b7280),
+        primary: rgb(0x4f46e5),
         success: rgb(0x16a34a),
         warning: rgb(0xd97706),
-        danger: rgb(0xdc2626),
-        navigation: rgb(0xeef0f3),
-        muted: rgb(0x6b7280),
-        priority_a: rgb(0xe5484d),
+        danger: rgb(0xe5484d),
+        priority_a: rgb(0xef4444),
         priority_b: rgb(0xf59e0b),
-        priority_c: rgb(0x30a46c),
-        priority_other: rgb(0x8b8d98),
+        priority_c: rgb(0x10b981),
+        priority_other: rgb(0x94a3b8),
     };
 
     const DARK: Self = Self {
         dark: true,
-        background: rgb(0x1b1d22),
-        text: rgb(0xe6e6e6),
-        primary: rgb(0x60a5fa),
+        background: rgb(0x0b0c0f),
+        surface: rgb(0x15171c),
+        border: rgb(0x262930),
+        hover: rgb(0x1e2128),
+        text: rgb(0xe8eaed),
+        muted: rgb(0x8b919c),
+        primary: rgb(0x818cf8),
         success: rgb(0x4ade80),
         warning: rgb(0xfbbf24),
         danger: rgb(0xf87171),
-        navigation: rgb(0x15171b),
-        muted: rgb(0x9ca3af),
-        priority_a: rgb(0xf06a6e),
-        priority_b: rgb(0xf5b84a),
-        priority_c: rgb(0x4cc38a),
-        priority_other: rgb(0x8b8d98),
+        priority_a: rgb(0xf87171),
+        priority_b: rgb(0xfbbf24),
+        priority_c: rgb(0x34d399),
+        priority_other: rgb(0x64748b),
     };
 
     fn with_overrides(mut self, custom: &PaletteOverrides) -> Self {
@@ -78,7 +87,7 @@ impl Colors {
         apply(&mut self.success, &custom.success);
         apply(&mut self.warning, &custom.warning);
         apply(&mut self.danger, &custom.danger);
-        apply(&mut self.navigation, &custom.navigation);
+        apply(&mut self.surface, &custom.navigation);
         apply(&mut self.priority_a, &custom.priority_a);
         apply(&mut self.priority_b, &custom.priority_b);
         apply(&mut self.priority_c, &custom.priority_c);
@@ -90,7 +99,7 @@ impl Colors {
         Theme::custom(
             if self.dark { "floetask dark" } else { "floetask light" },
             iced::theme::Palette {
-                background: self.background,
+                background: self.surface,
                 text: self.text,
                 primary: self.primary,
                 success: self.success,
@@ -110,9 +119,9 @@ impl Colors {
         }
     }
 
-    /// A slightly raised surface (rows, chips) on the background.
-    pub fn surface(&self, strength: f32) -> Color {
-        mix(self.background, self.text, strength)
+    /// `color` faded onto the surface, for tinted backgrounds.
+    pub fn tint(&self, color: Color, amount: f32) -> Color {
+        mix(self.surface, color, amount)
     }
 }
 
@@ -137,96 +146,309 @@ fn mix(a: Color, b: Color, amount: f32) -> Color {
     )
 }
 
-// Styles. Each takes the colours explicitly so views stay declarative.
+fn filled(color: Color) -> Option<Background> {
+    Some(Background::Color(color))
+}
 
-pub fn navigation(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+// Containers
+
+pub fn app(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
-        background: Some(Background::Color(colors.navigation)),
+        background: filled(colors.background),
+        text_color: Some(colors.text),
         ..container::Style::default()
     }
 }
 
-pub fn row(colors: Colors, selected: bool) -> impl Fn(&Theme) -> container::Style {
+/// A floating panel: the drawer, menus, the search bar.
+pub fn panel(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
-        background: selected.then(|| Background::Color(colors.surface(0.08))),
+        background: filled(colors.surface),
         border: Border {
-            radius: 6.0.into(),
-            ..Border::default()
+            radius: 12.0.into(),
+            width: 1.0,
+            color: colors.border,
         },
         ..container::Style::default()
     }
 }
 
-/// A clickable attribute chip; `active` when it is a filter in use.
-pub fn chip(color: Color, colors: Colors, active: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
-    move |_, status| {
-        let background = if active {
-            color
-        } else {
-            match status {
-                button::Status::Hovered | button::Status::Pressed => colors.surface(0.16),
-                _ => colors.surface(0.08),
-            }
-        };
-        button::Style {
-            background: Some(Background::Color(background)),
-            text_color: if active { colors.background } else { color },
-            border: border::rounded(10),
-            ..button::Style::default()
-        }
+/// A todo row. Hovered and selected rows are lifted a little.
+pub fn row(colors: Colors, hovered: bool, selected: bool) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(if hovered { colors.hover } else { colors.surface }),
+        border: Border {
+            radius: 10.0.into(),
+            width: 1.0,
+            color: if selected { colors.primary } else { colors.border },
+        },
+        ..container::Style::default()
     }
 }
 
-pub fn badge(color: Color) -> impl Fn(&Theme) -> container::Style {
+/// The thin coloured bar marking a todo's priority.
+pub fn accent(color: Color) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
-        background: Some(Background::Color(color)),
-        text_color: Some(Color::WHITE),
-        border: border::rounded(4),
+        background: filled(color),
+        border: border::rounded(2),
         ..container::Style::default()
     }
 }
 
 pub fn card(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
-        background: Some(Background::Color(colors.background)),
+        background: filled(colors.surface),
+        text_color: Some(colors.text),
         border: Border {
-            radius: 10.0.into(),
+            radius: 16.0.into(),
             width: 1.0,
-            color: colors.surface(0.15),
+            color: colors.border,
         },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(0.3),
-            offset: iced::Vector::new(0.0, 4.0),
-            blur_radius: 16.0,
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(if colors.dark { 0.6 } else { 0.18 }),
+            offset: Vector::new(0.0, 12.0),
+            blur_radius: 32.0,
         },
         ..container::Style::default()
     }
 }
 
-pub fn backdrop(_: &Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(Color::BLACK.scale_alpha(0.45))),
+pub fn backdrop(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(Color::BLACK.scale_alpha(if colors.dark { 0.6 } else { 0.3 })),
         ..container::Style::default()
     }
 }
 
 pub fn toast(colors: Colors, error: bool) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
-        background: Some(Background::Color(if error {
-            colors.danger
-        } else {
-            colors.surface(0.85)
-        })),
-        text_color: Some(colors.background),
-        border: border::rounded(8),
+        background: filled(if error { colors.danger } else { colors.text }),
+        text_color: Some(colors.surface),
+        border: border::rounded(10),
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(0.25),
+            offset: Vector::new(0.0, 6.0),
+            blur_radius: 16.0,
+        },
         ..container::Style::default()
     }
 }
 
-pub fn group_header(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+pub fn tooltip(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
-        text_color: Some(colors.muted),
+        background: filled(colors.text),
+        text_color: Some(colors.surface),
+        border: border::rounded(6),
         ..container::Style::default()
+    }
+}
+
+/// Boxes showing raw todo.txt text.
+pub fn code(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.background),
+        border: Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: colors.border,
+        },
+        ..container::Style::default()
+    }
+}
+
+// Buttons
+
+/// Borderless icon or text button; `active` tints it with the primary colour.
+pub fn ghost(colors: Colors, active: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let background = match (active, status) {
+            (true, _) => Some(colors.tint(colors.primary, 0.14)),
+            (false, button::Status::Hovered | button::Status::Pressed) => Some(colors.hover),
+            _ => None,
+        };
+        button::Style {
+            background: background.map(Background::Color),
+            text_color: if active { colors.primary } else { colors.text },
+            border: border::rounded(8),
+            ..button::Style::default()
+        }
+    }
+}
+
+/// Window controls; the close button turns red on hover.
+pub fn window_control(colors: Colors, close: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+        let background = match (hovered, close) {
+            (true, true) => Some(rgb(0xe81123)),
+            (true, false) => Some(colors.hover),
+            _ => None,
+        };
+        button::Style {
+            background: background.map(Background::Color),
+            text_color: if hovered && close { Color::WHITE } else { colors.text },
+            ..button::Style::default()
+        }
+    }
+}
+
+pub fn primary(colors: Colors) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let base = colors.primary;
+        let background = match status {
+            button::Status::Hovered => mix(base, Color::WHITE, 0.12),
+            button::Status::Pressed => mix(base, Color::BLACK, 0.1),
+            button::Status::Disabled => base.scale_alpha(0.5),
+            button::Status::Active => base,
+        };
+        button::Style {
+            background: filled(background),
+            text_color: if colors.dark { rgb(0x0b0c0f) } else { Color::WHITE },
+            border: border::rounded(8),
+            ..button::Style::default()
+        }
+    }
+}
+
+pub fn secondary(colors: Colors) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| button::Style {
+        background: filled(match status {
+            button::Status::Hovered | button::Status::Pressed => colors.hover,
+            _ => colors.surface,
+        }),
+        text_color: colors.text,
+        border: Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: colors.border,
+        },
+        ..button::Style::default()
+    }
+}
+
+pub fn danger(colors: Colors) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| button::Style {
+        background: filled(match status {
+            button::Status::Hovered | button::Status::Pressed => mix(colors.danger, Color::BLACK, 0.1),
+            _ => colors.danger,
+        }),
+        text_color: Color::WHITE,
+        border: border::rounded(8),
+        ..button::Style::default()
+    }
+}
+
+/// A file tab in the title bar.
+pub fn tab(colors: Colors, active: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let background = match (active, status) {
+            (true, _) => Some(colors.surface),
+            (false, button::Status::Hovered | button::Status::Pressed) => Some(colors.hover),
+            _ => None,
+        };
+        button::Style {
+            background: background.map(Background::Color),
+            text_color: if active { colors.text } else { colors.muted },
+            border: Border {
+                radius: 8.0.into(),
+                width: if active { 1.0 } else { 0.0 },
+                color: colors.border,
+            },
+            ..button::Style::default()
+        }
+    }
+}
+
+/// A clickable attribute chip; `active` when it is a filter in use.
+pub fn chip(color: Color, colors: Colors, active: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+        let background = match (active, hovered) {
+            (true, _) => color,
+            (false, true) => colors.tint(color, 0.22),
+            (false, false) => colors.tint(color, 0.12),
+        };
+        button::Style {
+            background: filled(background),
+            text_color: if active { colors.surface } else { color },
+            border: border::rounded(20),
+            ..button::Style::default()
+        }
+    }
+}
+
+// Scrolling
+
+pub fn thin_scrollbar() -> scrollable::Direction {
+    scrollable::Direction::Vertical(scrollable::Scrollbar::new().width(6).scroller_width(6).margin(2))
+}
+
+/// A slim scroller with no visible rail.
+pub fn slim_scroller(colors: Colors) -> impl Fn(&Theme, scrollable::Status) -> scrollable::Style {
+    move |theme, status| {
+        let mut style = scrollable::default(theme, status);
+        let hovered = !matches!(status, scrollable::Status::Active { .. });
+        let rail = scrollable::Rail {
+            background: None,
+            border: Border::default(),
+            scroller: scrollable::Scroller {
+                background: Background::Color(if hovered { colors.muted } else { colors.border }),
+                border: border::rounded(3),
+            },
+        };
+        style.vertical_rail = rail;
+        style.horizontal_rail = rail;
+        style
+    }
+}
+
+// Inputs
+
+/// Round checkbox, filled with the primary colour when done.
+pub fn round_checkbox(colors: Colors) -> impl Fn(&Theme, checkbox::Status) -> checkbox::Style {
+    move |_, status| {
+        let (checked, hovered) = match status {
+            checkbox::Status::Active { is_checked } | checkbox::Status::Disabled { is_checked } => (is_checked, false),
+            checkbox::Status::Hovered { is_checked } => (is_checked, true),
+        };
+        checkbox::Style {
+            background: Background::Color(if checked {
+                colors.primary
+            } else if hovered {
+                colors.hover
+            } else {
+                colors.surface
+            }),
+            icon_color: colors.surface,
+            border: Border {
+                radius: 20.0.into(),
+                width: 1.5,
+                color: if checked || hovered {
+                    colors.primary
+                } else {
+                    colors.muted
+                },
+            },
+            text_color: None,
+        }
+    }
+}
+
+pub fn input(colors: Colors) -> impl Fn(&Theme, text_input::Status) -> text_input::Style {
+    move |_, status| {
+        let focused = matches!(status, text_input::Status::Focused { .. });
+        text_input::Style {
+            background: filled(colors.surface).unwrap(),
+            border: Border {
+                radius: 10.0.into(),
+                width: 1.0,
+                color: if focused { colors.primary } else { colors.border },
+            },
+            icon: colors.muted,
+            placeholder: colors.muted,
+            value: colors.text,
+            selection: colors.tint(colors.primary, 0.3),
+        }
     }
 }
 

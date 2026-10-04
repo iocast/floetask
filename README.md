@@ -58,7 +58,7 @@ poll_interval_ms = 1000
 
 ### colors.toml
 
-Any of `background`, `text`, `primary`, `success`, `warning`, `danger`, `navigation`, `priority_a`, `priority_b`, `priority_c`, `priority_other`, per mode:
+Any of `background`, `text`, `primary`, `success`, `warning`, `danger`, `navigation` (cards and panels), `priority_a`, `priority_b`, `priority_c`, `priority_other`, per mode:
 
 ```toml
 [light]
@@ -72,12 +72,14 @@ Colours are read at start-up.
 
 ## Using it
 
+floetask draws its own title bar, like Firefox and Zed: the logo and file tabs on the left, then **New**, search, filters, archive, open file, light/dark and settings, then the window buttons. Drag the empty space to move the window, double-click it to maximise, and drag the window edges to resize. The theme follows the system until you switch it (title bar button, `Ctrl+Alt+D`, or `theme` in config.toml).
+
 - **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
-- **Edit** by clicking a todo or pressing `Enter` on the selected one. Right-click a todo for Edit, Copy, Archive and Delete.
+- **Edit** by clicking a todo or pressing `Enter` on the selected one. Hover a todo for Edit, Copy, Archive and Delete.
 - **Complete** with the checkbox or `Space`. Completing a `rec:` todo adds its next occurrence.
 - **Filter** with the chips on a todo or in the drawer (`Ctrl+B`): click to include, Alt+click to exclude, right-click a project or context to rename or remove it across the file.
-- **Search** with `Ctrl+F`. Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with ☆ and pick them with ▾ (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
-- **Archive** completed todos with `Ctrl+Alt+A` once a done file is set (tab menu "⋯" → Change done file, or you are asked on first archive).
+- **Search** with `Ctrl+F`. Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with the star and pick them with the arrow (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
+- **Archive** completed todos with `Ctrl+Alt+A` once a done file is set (the arrow on the file tab → Change done file, or you are asked on first archive).
 
 | Shortcut | Action |
 |---|---|
@@ -90,7 +92,6 @@ Colours are read at start-up.
 | `Ctrl+1` … `Ctrl+9` | Switch file |
 | `Ctrl+,` | Settings |
 | `Ctrl+B` | Drawer |
-| `Ctrl+Alt+H` | Navigation bar |
 | `Ctrl+Alt+D` | Toggle light/dark |
 | `Ctrl+W` / `Ctrl+Q` | Quit |
 | `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete |
@@ -108,7 +109,7 @@ Not done yet:
 - Packaging (P2).
 - App-level undo (P2), an archive viewer, single-instance mode.
 - Drag-and-drop reordering of sort criteria: up/down buttons instead (the spec's P1 fallback).
-- `Left`/`Right` focus moves inside a row; the row action bar replaces a pop-up context menu.
+- `Left`/`Right` focus moves inside a row; hover actions replace a pop-up context menu.
 - Autocomplete suggestions show under the text field, not at the cursor.
 - "Disable animations" is stored but has no effect, since floetask has no animations.
 

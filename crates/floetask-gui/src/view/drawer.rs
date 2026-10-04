@@ -1,51 +1,88 @@
-//! The drawer on the right: attributes, view filters and sorting.
+//! The drawer: a floating panel with attributes, view filters and sorting.
 
-use iced::widget::{Column, Row, button, column, container, mouse_area, row, rule, scrollable, text};
+use iced::widget::{Column, Row, button, column, container, mouse_area, row, rule, scrollable, space, text};
 use iced::{Alignment, Element, Fill};
 
 use floetask_application::DrawerTab;
 use floetask_domain::listing::AttributeSummary;
 
+use super::icons::{Icon, icon};
 use super::list::attribute_label;
-use super::widgets::switch;
+use super::widgets::{caption, icon_button, switch};
 use crate::app::{Floetask, Message, ViewToggle};
 use crate::i18n::tr;
 use crate::theme::{self, Colors};
 
+const WIDTH: f32 = 300.0;
+
 pub fn view(app: &Floetask) -> Element<'_, Message> {
-    let tab = |label: &'static str, value: DrawerTab| {
-        button(text(tr(label)).size(14))
-            .style(if app.state.drawer_tab == value {
-                button::primary
-            } else {
-                button::text
-            })
-            .on_press(Message::DrawerTab(value))
-    };
-    let tabs = row![
-        tab("attributes", DrawerTab::Attributes),
-        tab("filters", DrawerTab::Filters),
-        tab("sorting", DrawerTab::Sorting)
-    ]
-    .spacing(4);
+    let colors = app.colors();
     let content = match app.state.drawer_tab {
-        DrawerTab::Attributes => attributes(app),
+        DrawerTab::Attributes => attributes(app, colors),
         DrawerTab::Filters => filters(app),
-        DrawerTab::Sorting => sorting(app),
+        DrawerTab::Sorting => sorting(app, colors),
     };
-    container(column![tabs, rule::horizontal(1), scrollable(content).height(Fill)].spacing(8))
-        .width(320)
-        .height(Fill)
-        .padding(10)
-        .style(theme::navigation(app.colors()))
-        .into()
+    container(
+        column![
+            segmented(app, colors),
+            scrollable(container(content).padding(iced::padding::right(12).bottom(12)))
+                .direction(theme::thin_scrollbar())
+                .style(theme::slim_scroller(colors))
+                .height(Fill),
+        ]
+        .spacing(12),
+    )
+    .width(WIDTH)
+    .height(Fill)
+    .padding(iced::padding::top(12).left(12))
+    .style(theme::panel(colors))
+    .into()
 }
 
-fn attributes(app: &Floetask) -> Element<'_, Message> {
-    let colors = app.colors();
-    let mut sections = Column::new().spacing(10).padding([0, 6]);
+/// The three tabs as one segmented control.
+fn segmented(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let segment = |label: &'static str, value: DrawerTab| {
+        let active = app.state.drawer_tab == value;
+        button(text(tr(label)).size(13).width(Fill).align_x(Alignment::Center))
+            .width(Fill)
+            .padding([6, 0])
+            .style(theme::tab(colors, active))
+            .on_press(Message::DrawerTab(value))
+    };
+    container(
+        row![
+            segment("attributes", DrawerTab::Attributes),
+            segment("filters", DrawerTab::Filters),
+            segment("sorting", DrawerTab::Sorting),
+        ]
+        .spacing(2),
+    )
+    .padding(3)
+    .style(move |_| container::Style {
+        background: Some(colors.background.into()),
+        border: iced::border::rounded(10),
+        ..container::Style::default()
+    })
+    .width(WIDTH - 24.0)
+    .into()
+}
+
+fn attributes(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let mut sections = Column::new().spacing(16);
     if app.state.view.has_active_filters() {
-        sections = sections.push(button(text(tr("reset_filters")).size(13)).on_press(Message::ResetFilters));
+        sections = sections.push(
+            button(
+                row![
+                    icon(Icon::Close, 14.0, colors.primary),
+                    text(tr("reset_filters")).size(13)
+                ]
+                .spacing(6)
+                .align_y(Alignment::Center),
+            )
+            .padding([6, 10])
+            .style(theme::ghost(colors, true))
+            .on_press(Message::ResetFilters),
+        );
     }
     for summary in &app.summaries {
         sections = sections.push(section(app, summary, colors));
@@ -62,23 +99,41 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
     let title_color = if summary.has_overdue() {
         colors.danger
     } else {
-        colors.text
+        colors.muted
     };
     let header = row![
         button(
-            text(format!("{} {}", if collapsed { "▸" } else { "▾" }, tr(attribute.key())))
-                .size(14)
-                .color(title_color)
+            row![
+                icon(
+                    if collapsed {
+                        Icon::ChevronRight
+                    } else {
+                        Icon::ChevronDown
+                    },
+                    14.0,
+                    title_color
+                ),
+                text(tr(attribute.key()).to_uppercase())
+                    .size(11)
+                    .color(title_color)
+                    .font(iced::Font {
+                        weight: iced::font::Weight::Semibold,
+                        ..iced::Font::default()
+                    }),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
         )
-        .style(button::text)
+        .padding([4, 4])
+        .style(theme::ghost(colors, false))
         .width(Fill)
         .on_press(Message::ToggleSection(attribute)),
-        iced::widget::tooltip(
-            button(text(if hidden { "⊘" } else { "○" }).size(14))
-                .style(button::text)
-                .on_press(Message::ToggleCategory(attribute)),
-            text(tr(if hidden { "show_category" } else { "hide_category" })).size(12),
-            iced::widget::tooltip::Position::Left,
+        icon_button(
+            if hidden { Icon::EyeOff } else { Icon::Eye },
+            tr(if hidden { "show_category" } else { "hide_category" }),
+            Some(Message::ToggleCategory(attribute)),
+            colors,
+            hidden,
         ),
     ]
     .align_y(Alignment::Center);
@@ -95,15 +150,16 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
             _ if value.overdue => colors.danger,
             _ => colors.primary,
         };
+        let count_color = if state.is_some() { colors.surface } else { colors.muted };
         let chip = button(
-            text(format!(
-                "{} · {}",
-                attribute_label(attribute, &value.value),
-                value.count
-            ))
-            .size(12),
+            row![
+                text(attribute_label(attribute, &value.value)).size(12),
+                text(value.count.to_string()).size(11).color(count_color),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
         )
-        .padding([2, 8])
+        .padding([3, 10])
         .style(theme::chip(color, colors, state.is_some()))
         .on_press(Message::FilterValue(attribute, value.value.clone(), exclude_click));
         let on_right = if attribute.is_renamable() {
@@ -113,9 +169,10 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
         };
         mouse_area(chip).on_right_press(on_right).into()
     }))
-    .spacing(4)
-    .wrap();
-    column![header, values].spacing(4).into()
+    .spacing(6)
+    .wrap()
+    .vertical_spacing(6);
+    column![header, values].spacing(8).into()
 }
 
 fn filters(app: &Floetask) -> Element<'_, Message> {
@@ -138,36 +195,49 @@ fn filters(app: &Floetask) -> Element<'_, Message> {
         ),
         toggle("show_future_due", view.show_future_due, ViewToggle::FutureDue),
     ]
-    .spacing(12)
-    .padding([0, 6])
+    .spacing(16)
     .into()
 }
 
-fn sorting(app: &Floetask) -> Element<'_, Message> {
+fn sorting(app: &Floetask, colors: Colors) -> Element<'_, Message> {
     let sorting = &app.state.sorting;
     let last = sorting.criteria.len().saturating_sub(1);
     let criteria = Column::with_children(sorting.criteria.iter().enumerate().map(|(index, criterion)| {
-        let small = |label: &'static str, message: Option<Message>| {
-            button(text(label).size(13))
-                .style(button::text)
-                .padding([2, 6])
-                .on_press_maybe(message)
-        };
         let grouping = index == 0 && !sorting.file_order;
+        let mut label = row![text(tr(criterion.attribute.key())).size(14)]
+            .spacing(8)
+            .align_y(Alignment::Center);
+        if grouping {
+            label = label.push(caption(tr("groups"), colors));
+        }
         row![
-            text(format!(
-                "{}{}",
-                tr(criterion.attribute.key()),
-                if grouping { " ▣" } else { "" }
-            ))
-            .size(14)
-            .width(Fill),
-            small(
-                if criterion.descending { "↓" } else { "↑" },
-                Some(Message::InvertSort(index))
+            label,
+            space().width(Fill),
+            icon_button(
+                if criterion.descending {
+                    Icon::ArrowDown
+                } else {
+                    Icon::ArrowUp
+                },
+                tr("invert"),
+                Some(Message::InvertSort(index)),
+                colors,
+                criterion.descending,
             ),
-            small("▲", (index > 0).then_some(Message::MoveSort(index, -1))),
-            small("▼", (index < last).then_some(Message::MoveSort(index, 1))),
+            icon_button(
+                Icon::ChevronUp,
+                tr("move_up"),
+                (index > 0).then_some(Message::MoveSort(index, -1)),
+                colors,
+                false
+            ),
+            icon_button(
+                Icon::ChevronDown,
+                tr("move_down"),
+                (index < last).then_some(Message::MoveSort(index, 1)),
+                colors,
+                false,
+            ),
         ]
         .align_y(Alignment::Center)
         .into()
@@ -179,7 +249,6 @@ fn sorting(app: &Floetask) -> Element<'_, Message> {
         switch(tr("file_order"), sorting.file_order, Message::FileOrder),
         switch(tr("completed_last"), sorting.completed_last, Message::CompletedLast),
     ]
-    .spacing(10)
-    .padding([0, 6])
+    .spacing(14)
     .into()
 }

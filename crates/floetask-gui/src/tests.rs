@@ -290,3 +290,16 @@ fn keyboard_moves_selection() {
     assert_eq!(app.selected, Some(1));
     assert_eq!(app.selected_todo().unwrap().todo.body(), "Prepare slides");
 }
+
+#[test]
+fn renders_both_themes() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::ToggleSearch);
+    snapshot(&app, "light");
+    app.settings.theme = floetask_application::ThemePreference::Dark;
+    assert!(app.colors().dark);
+    snapshot(&app, "dark");
+    let _ = app.update(Message::NewTodo);
+    snapshot(&app, "dark-editor");
+}

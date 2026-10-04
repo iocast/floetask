@@ -69,5 +69,6 @@ To try the app without touching real settings, point the XDG variables at a scra
 
 - Message flow: `floetask-gui/src/app/mod.rs` dispatches each `Message` to a handler module (`files.rs`, `list.rs`, `editing.rs`, `drawer.rs`, `search.rs`, `settings.rs`, `shortcuts.rs`).
 - Event sources (keyboard, window, theme, watcher, tick): `floetask-gui/src/app/subscriptions.rs`.
-- Views: `floetask-gui/src/view/`.
+- Views: `floetask-gui/src/view/`. The window is borderless: `title_bar.rs` draws tabs, actions and window buttons, `mod.rs` adds the resize edges, and `app/window_frame.rs` handles drag, resize, minimise and maximise.
+- Look and feel: colours and every widget style live in `theme.rs` (light and dark `Colors`); icons are drawn in `view/icons.rs`. Views use these instead of iced's default styles.
 - Known gaps against FEATURES.md are listed in the README.

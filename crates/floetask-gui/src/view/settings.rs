@@ -1,16 +1,16 @@
 //! The settings dialog.
 
-use iced::widget::{button, column, container, pick_list, row, rule, scrollable, slider, text};
+use iced::widget::{column, container, pick_list, row, scrollable, slider, text};
 use iced::{Alignment, Element, Fill};
 
 use floetask_application::{Settings, ThemePreference};
 use floetask_domain::WeekStart;
 
-use super::widgets::switch;
+use super::widgets::{caption, primary_button, switch, title};
 use crate::app::{Floetask, Message, SettingChange};
 use crate::i18n::{LANGUAGES, tr, trf};
 
-pub fn view(app: &Floetask) -> Element<'_, Message> {
+pub fn view<'a>(app: &'a Floetask) -> Element<'a, Message> {
     let s = &app.settings;
     let set = |change: fn(bool) -> SettingChange| move |on| Message::Setting(change(on));
 
@@ -38,12 +38,11 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
             s.disable_animations,
             set(SettingChange::DisableAnimations)
         ),
-        switch(tr("notifications"), s.notifications, set(SettingChange::Notifications)),
         switch(tr("show_tabs"), app.state.tabs_visible, |_| Message::ToggleTabs),
     ]
-    .spacing(10);
+    .spacing(12);
 
-    let threshold = row![
+    let threshold_row = row![
         text(trf("notification_threshold", &[&s.notification_threshold_days]))
             .size(14)
             .width(Fill),
@@ -55,6 +54,11 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         .width(180),
     ]
     .align_y(Alignment::Center);
+    let threshold = column![
+        switch(tr("notifications"), s.notifications, set(SettingChange::Notifications)),
+        threshold_row,
+    ]
+    .spacing(12);
 
     let zoom = row![
         text(trf("zoom", &[&s.zoom_percent])).size(14).width(Fill),
@@ -103,32 +107,47 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     ]
     .spacing(10);
 
+    let colors = app.colors();
     let location = text(trf(
         "config_location",
         &[&app.services.ports.settings.location().display()],
     ))
     .size(12)
-    .color(app.colors().muted);
+    .color(colors.muted);
+
+    let section = |label: &'static str, body: Element<'a, Message>| -> Element<'a, Message> {
+        column![
+            caption(tr(label), colors),
+            container(body)
+                .padding(14)
+                .width(Fill)
+                .style(crate::theme::panel(colors)),
+        ]
+        .spacing(8)
+        .into()
+    };
 
     column![
-        text(tr("settings_title")).size(20),
+        title(tr("settings_title")),
         scrollable(
             column![
-                toggles,
-                rule::horizontal(1),
-                threshold,
-                zoom,
-                rule::horizontal(1),
-                choices
+                section("section_todos", toggles.into()),
+                section("section_notifications", threshold.into()),
+                section("section_appearance", column![choices, zoom].spacing(12).into()),
             ]
-            .spacing(14)
+            .spacing(18)
+            .padding(iced::padding::right(12)),
         )
-        .height(iced::Length::Shrink),
-        location,
-        container(button(text(tr("close"))).on_press(Message::CloseDialog)).align_right(Fill),
+        .height(iced::Length::Fixed(460.0)),
+        row![
+            location.width(Fill),
+            primary_button(tr("close"), Message::CloseDialog, colors)
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
     ]
-    .spacing(14)
-    .width(520)
+    .spacing(16)
+    .width(560)
     .into()
 }
 

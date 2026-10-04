@@ -6,24 +6,36 @@ use iced::{Alignment, Element, Length};
 use floetask_domain::date::{self, Datelike, first_of_month};
 use floetask_domain::{Date, WeekStart};
 
+use super::icons::Icon;
+use super::widgets::{icon_button, secondary_button};
 use crate::app::{Calendar, Message};
 use crate::i18n::tr;
+use crate::theme::{self, Colors};
 
-const CELL: f32 = 36.0;
+const CELL: f32 = 38.0;
 const WEEKDAYS: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
-pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart) -> Element<'_, Message> {
+pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart, colors: Colors) -> Element<'_, Message> {
     let month = first_of_month(calendar.month);
     let header = row![
-        button(text("‹"))
-            .style(button::text)
-            .on_press(Message::CalendarMonth(-1)),
+        icon_button(
+            Icon::ChevronLeft,
+            tr("previous_month"),
+            Some(Message::CalendarMonth(-1)),
+            colors,
+            false
+        ),
         text(month.format("%B %Y").to_string())
+            .size(15)
             .width(Length::Fill)
             .align_x(Alignment::Center),
-        button(text("›"))
-            .style(button::text)
-            .on_press(Message::CalendarMonth(1)),
+        icon_button(
+            Icon::ChevronRight,
+            tr("next_month"),
+            Some(Message::CalendarMonth(1)),
+            colors,
+            false
+        ),
     ]
     .align_y(Alignment::Center)
     .width(CELL * 7.0);
@@ -31,7 +43,8 @@ pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart) -> Element<
     let first_weekday = week_start.weekday().num_days_from_monday() as usize;
     let names = Row::with_children((0..7).map(|offset| {
         text(tr(WEEKDAYS[(first_weekday + offset) % 7]))
-            .size(12)
+            .size(11)
+            .color(colors.muted)
             .width(CELL)
             .align_x(Alignment::Center)
             .into()
@@ -44,42 +57,39 @@ pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart) -> Element<
         let days = Row::with_children((0..7).map(|weekday| {
             let day = date::add_days(start, week * 7 + weekday);
             let in_month = day.month() == month.month();
-            let style = if Some(day) == calendar.selected {
-                button::primary
+            let selected = Some(day) == calendar.selected;
+            let color = if selected {
+                colors.surface
+            } else if !in_month {
+                colors.muted
             } else if day == today {
-                button::secondary
+                colors.primary
             } else {
-                button::text
+                colors.text
             };
             let label = text(day.day().to_string())
                 .size(13)
+                .color(color)
                 .width(Length::Fill)
                 .align_x(Alignment::Center);
-            let label = if in_month {
-                label
-            } else {
-                label.color(iced::Color::from_rgb(0.55, 0.55, 0.6))
-            };
-            button(label)
+            let button = button(label)
                 .width(CELL)
-                .padding(4)
-                .style(style)
-                .on_press(Message::CalendarPick(Some(day)))
-                .into()
-        }))
-        .spacing(0);
+                .padding(6)
+                .on_press(Message::CalendarPick(Some(day)));
+            if selected {
+                button.style(theme::primary(colors)).into()
+            } else {
+                button.style(theme::ghost(colors, false)).into()
+            }
+        }));
         weeks = weeks.push(days);
     }
 
     let footer = row![
-        button(text(tr("today")).size(13))
-            .style(button::secondary)
-            .on_press(Message::CalendarPick(Some(today))),
-        button(text(tr("clear")).size(13))
-            .style(button::secondary)
-            .on_press(Message::CalendarPick(None)),
+        secondary_button(tr("today"), Message::CalendarPick(Some(today)), colors),
+        secondary_button(tr("clear"), Message::CalendarPick(None), colors),
     ]
     .spacing(8);
 
-    column![header, names, weeks, footer].spacing(6).into()
+    column![header, names, weeks, footer].spacing(8).into()
 }

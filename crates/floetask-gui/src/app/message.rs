@@ -17,6 +17,12 @@ pub enum Message {
     KeyPressed(keyboard::Key, keyboard::Modifiers),
     ModifiersChanged(keyboard::Modifiers),
     Quit,
+    WindowReady(Option<window::Id>),
+    WindowDrag,
+    WindowResize(window::Direction),
+    WindowMinimize,
+    WindowToggleMaximize,
+    RowHover(Option<usize>),
     Window(window::Id, window::Event),
     DismissToast(u64),
     Failed(AppError),
@@ -106,7 +112,6 @@ pub enum Message {
     OpenSettings,
     Setting(SettingChange),
     ToggleTheme,
-    ToggleNavigation,
     ToggleTabs,
 
     // Dialogs
