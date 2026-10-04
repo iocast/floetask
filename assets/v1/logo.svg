@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- floetask: loose ice crystals forming in cold water, around a done mark. -->
+  <defs>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <g id="crystal" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="5">
+      <path d="M0 -20 V20 M-17.3 -10 L17.3 10 M-17.3 10 L17.3 -10"/>
+      <path d="M-5 -15 L0 -10 L5 -15 M-5 15 L0 10 L5 15"/>
+      <path d="M-15.5 -2.5 L-8.7 -5 L-10.5 -11.5 M15.5 2.5 L8.7 5 L10.5 11.5"/>
+      <path d="M-15.5 2.5 L-8.7 5 L-10.5 11.5 M15.5 -2.5 L8.7 -5 L10.5 -11.5"/>
+    </g>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#water)"/>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#sheen)"/>
+
+  <use href="#crystal" transform="translate(76 74) scale(1.15)"/>
+  <use href="#crystal" transform="translate(186 186) scale(0.7)" opacity="0.85"/>
+  <use href="#crystal" transform="translate(146 52) scale(0.5)" opacity="0.7"/>
+
+  <path d="M64 138 L108 180 L194 90" fill="none" stroke="#ffffff" stroke-width="26"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

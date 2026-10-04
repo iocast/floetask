@@ -114,7 +114,7 @@ Not done yet:
 
 ## Logo
 
-`assets/logo.svg` is the source: loose ice crystals (floetask ice) around a done mark. It is the window icon, the Windows exe icon and appears in the app. After editing it, regenerate the PNG and ICO files with `cargo run -p render-logo`.
+`assets/logo.svg` is the source of the current logo (v2): a hexagonal ice crystal broken open by a done mark. It is the window icon, the Windows exe icon and appears in the app. After editing it, regenerate the PNG and ICO files with `cargo run -p render-logo`. The first design is kept in `assets/v1/`.
 
 ## Development
 
