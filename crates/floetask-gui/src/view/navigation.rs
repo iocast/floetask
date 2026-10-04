@@ -14,6 +14,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         app.state.active_entry().is_some_and(|entry| entry.done_path.is_some()) && app.listing.counts.completed > 0;
 
     let mut items = column![
+        container(crate::logo::view(28.0)).padding(6),
         icon_button("+", tr("add_todo"), has_file.then_some(Message::NewTodo)),
         icon_button("≡", tr("toggle_drawer"), has_file.then_some(Message::ToggleDrawer)),
         icon_button("⌕", tr("search"), has_file.then_some(Message::ToggleSearch)),

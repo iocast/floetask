@@ -7,7 +7,7 @@ use crate::app::{Floetask, Message};
 use crate::i18n::tr;
 
 pub fn no_file(_app: &Floetask) -> Element<'_, Message> {
-    splash(
+    branded_splash(
         tr("no_file_title"),
         Some(tr("no_file_body")),
         row![
@@ -43,6 +43,16 @@ pub fn nothing_visible(_app: &Floetask) -> Element<'_, Message> {
             .on_press(Message::ResetFilters)
             .into(),
     )
+}
+
+/// The start screen, with the logo above the message.
+fn branded_splash<'a>(title: &'a str, body: Option<&'a str>, actions: Element<'a, Message>) -> Element<'a, Message> {
+    center(
+        column![crate::logo::view(96.0), splash(title, body, actions)]
+            .spacing(20)
+            .align_x(Alignment::Center),
+    )
+    .into()
 }
 
 fn splash<'a>(title: &'a str, body: Option<&'a str>, actions: Element<'a, Message>) -> Element<'a, Message> {

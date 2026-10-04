@@ -14,3 +14,6 @@ floetask-application.workspace = true
 floetask-infrastructure.workspace = true
 floetask-gui.workspace = true
 clap = { version = "4", features = ["derive"] }
+
+[build-dependencies]
+winresource = "0.1"

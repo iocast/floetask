@@ -7,6 +7,7 @@
 mod app;
 mod compose;
 mod i18n;
+mod logo;
 mod theme;
 mod view;
 
@@ -47,6 +48,7 @@ pub fn run(startup: Startup) -> iced::Result {
         maximized: window_state.maximized,
         min_size: Some(Size::new(480.0, 360.0)),
         exit_on_close_request: false,
+        icon: logo::window_icon(),
         ..window::Settings::default()
     })
     .run()

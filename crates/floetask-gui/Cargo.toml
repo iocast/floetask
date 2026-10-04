@@ -8,9 +8,10 @@ rust-version.workspace = true
 [dependencies]
 floetask-domain.workspace = true
 floetask-application.workspace = true
-iced = { version = "0.14", features = ["markdown", "tokio"] }
+iced = { version = "0.14", features = ["markdown", "svg", "tokio"] }
 tokio = { version = "1", features = ["rt", "time"] }
 rfd = "0.15"
+png = "0.17"
 
 [dev-dependencies]
 iced_test = "0.14"

@@ -6,6 +6,7 @@ members = [
     "crates/floetask-infrastructure",
     "crates/floetask-gui",
     "crates/floetask-app",
+    "tools/render-logo",
 ]
 
 [workspace.package]

@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" width="128" alt="floetask logo"></p>
+
 # floetask
 
 A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.rs) GUI. The full specification is in [FEATURES.md](FEATURES.md); contributor and agent guidance is in [AGENTS.md](AGENTS.md).
@@ -109,6 +111,10 @@ Not done yet:
 - `Left`/`Right` focus moves inside a row; the row action bar replaces a pop-up context menu.
 - Autocomplete suggestions show under the text field, not at the cursor.
 - "Disable animations" is stored but has no effect, since floetask has no animations.
+
+## Logo
+
+`assets/logo.svg` is the source: loose ice crystals (floetask ice) around a done mark. It is the window icon, the Windows exe icon and appears in the app. After editing it, regenerate the PNG and ICO files with `cargo run -p render-logo`.
 
 ## Development
 

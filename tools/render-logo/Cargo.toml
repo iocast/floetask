@@ -1,0 +1,11 @@
+[package]
+name = "render-logo"
+description = "Renders assets/logo.svg into the PNG and ICO icons committed in assets/"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+resvg = "0.45"
+ico = "0.5"
