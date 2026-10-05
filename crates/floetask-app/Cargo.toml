@@ -15,5 +15,26 @@ floetask-infrastructure.workspace = true
 floetask-gui.workspace = true
 clap = { version = "4", features = ["derive"] }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+
 [build-dependencies]
 winresource = "0.1"
+
+# Installers and bundles, built with `cargo packager --release` (see
+# features/14-platform.md). Each OS builds its own formats.
+[package.metadata.packager]
+product-name = "floetask"
+identifier = "com.iocast.floetask"
+description = "A todo.txt manager for the desktop"
+publisher = "iocast"
+authors = ["iocast <iocast@me.com>"]
+category = "Productivity"
+before-packaging-command = "cargo build --release -p floetask-app"
+out-dir = "../../target/packages"
+binaries = [{ path = "floetask", main = true }]
+icons = ["../../assets/icon-512.png", "../../assets/icon-256.png", "../../assets/floetask.ico"]
+
+[package.metadata.packager.nsis]
+# Installs for the current user, no admin prompt.
+installer-mode = "currentUser"

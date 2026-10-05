@@ -1074,6 +1074,7 @@ dependencies = [
  "floetask-application",
  "floetask-gui",
  "floetask-infrastructure",
+ "windows-sys 0.61.2",
  "winresource",
 ]
 

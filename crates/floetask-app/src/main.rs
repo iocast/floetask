@@ -3,6 +3,10 @@
 //!
 //! This is the only crate that knows every layer.
 
+// Release builds are GUI apps on Windows: no console window opens next to
+// the app. Debug builds keep the console for logs and panics.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -28,6 +32,7 @@ struct Cli {
 }
 
 fn main() -> ExitCode {
+    attach_parent_console();
     let cli = Cli::parse();
     let paths = AppPaths::resolve(cli.config);
 
@@ -60,3 +65,20 @@ fn main() -> ExitCode {
         }
     }
 }
+
+/// A GUI-subsystem exe has no console, so `--help`, `--paths` and errors
+/// would print nowhere. When started from a terminal, write to that
+/// terminal instead; when started by a double click there is none to attach
+/// to and nothing happens.
+#[cfg(windows)]
+fn attach_parent_console() {
+    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+    // SAFETY: AttachConsole has no preconditions; failure only means there is
+    // no parent console, which is fine.
+    unsafe {
+        AttachConsole(ATTACH_PARENT_PROCESS);
+    }
+}
+
+#[cfg(not(windows))]
+fn attach_parent_console() {}
