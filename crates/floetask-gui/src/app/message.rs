@@ -70,6 +70,7 @@ pub enum Message {
     EditorDismissSuggestions,
     EditorPriority(Option<Priority>),
     EditorOpenCalendar(DateKey),
+    EditorCloseCalendar,
     EditorRecurrenceCount(String),
     EditorRecurrenceUnit(RecurrenceUnit),
     EditorRecurrenceStrict(bool),

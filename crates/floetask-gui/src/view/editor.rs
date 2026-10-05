@@ -10,6 +10,7 @@ use floetask_domain::{Priority, RecurrenceUnit};
 use super::EDITOR_ID;
 use super::calendar;
 use super::icons::{Icon, icon};
+use super::popover::popover;
 use super::widgets::{caption, primary_button, secondary_button, title};
 use crate::app::{DateKey, Editor, Floetask, Message};
 use crate::i18n::{tr, trf};
@@ -23,6 +24,7 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
         "new_todo"
     });
     let has_suggestions = !editor.suggestions.is_empty();
+    let calendar_open = editor.calendar.is_some();
     let input = text_editor(&editor.content)
         .id(EDITOR_ID)
         .placeholder(tr("editor_placeholder"))
@@ -51,6 +53,7 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
             match press.key.as_ref() {
                 Key::Named(Named::Enter) if command => custom(Message::SaveEditor),
                 Key::Named(Named::Escape) if has_suggestions => custom(Message::EditorDismissSuggestions),
+                Key::Named(Named::Escape) if calendar_open => custom(Message::EditorCloseCalendar),
                 Key::Named(Named::Escape) => custom(Message::CloseDialog),
                 Key::Named(Named::ArrowDown) if has_suggestions => custom(Message::EditorSuggestionMove(1)),
                 Key::Named(Named::ArrowUp) if has_suggestions => custom(Message::EditorSuggestionMove(-1)),
@@ -63,10 +66,7 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     if has_suggestions {
         content = content.push(suggestions(editor, colors));
     }
-    content = content.push(pickers(editor, colors));
-    if let Some(calendar) = &editor.calendar {
-        content = content.push(calendar::view(calendar, app.today, app.settings.week_start, colors));
-    }
+    content = content.push(pickers(app, editor, colors));
     content = content.push(repeat_and_pomodoros(editor, colors));
     content.push(actions(app, editor, colors)).width(580).into()
 }
@@ -89,7 +89,7 @@ fn suggestions(editor: &Editor, colors: Colors) -> Element<'_, Message> {
     .into()
 }
 
-fn pickers(editor: &Editor, colors: Colors) -> Element<'_, Message> {
+fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
     let todo = Todo::from_user_text(&editor.text());
     let mut priorities: Vec<PriorityChoice> = vec![PriorityChoice(None)];
     priorities.extend(Priority::all().map(|p| PriorityChoice(Some(p))));
@@ -104,14 +104,26 @@ fn pickers(editor: &Editor, colors: Colors) -> Element<'_, Message> {
         } else {
             colors.text
         };
-        button(
+        let anchor = button(
             row![icon(Icon::Calendar, 14.0, tint), text(label).size(13)]
                 .spacing(6)
                 .align_y(Alignment::Center),
         )
         .padding([6, 10])
         .style(theme::ghost(colors, open || date.is_some()))
-        .on_press(Message::EditorOpenCalendar(key))
+        // While open, a click on the button closes the calendar like any outside click.
+        .on_press(if open {
+            Message::EditorCloseCalendar
+        } else {
+            Message::EditorOpenCalendar(key)
+        });
+        let calendar = editor.calendar.as_ref().filter(|_| open).map(|calendar| {
+            container(calendar::view(calendar, app.today, app.settings.week_start, colors))
+                .padding(12)
+                .style(theme::card(colors))
+                .into()
+        });
+        popover(anchor, calendar, Message::EditorCloseCalendar).align_left()
     };
     column![
         caption(tr("details"), colors),

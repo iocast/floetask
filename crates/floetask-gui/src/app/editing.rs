@@ -71,6 +71,10 @@ impl Floetask {
                         };
                         Task::none()
                     }
+                    Message::EditorCloseCalendar => {
+                        editor.calendar = None;
+                        operation::focus(view::EDITOR_ID)
+                    }
                     Message::EditorRecurrenceCount(count) => {
                         if count.chars().all(|c| c.is_ascii_digit()) && count.len() <= 3 {
                             editor.recurrence_count = count;

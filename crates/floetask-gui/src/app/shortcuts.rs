@@ -65,6 +65,11 @@ impl Floetask {
     }
 
     fn escape(&mut self) -> Task<Message> {
+        if let Some(super::Dialog::Editor(editor)) = &self.dialog
+            && editor.calendar.is_some()
+        {
+            return self.update(Message::EditorCloseCalendar);
+        }
         if self.dialog.is_some() {
             return self.close_dialog();
         }

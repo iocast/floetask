@@ -17,6 +17,7 @@ pub struct Popover<'a, Message> {
     anchor: Element<'a, Message>,
     popup: Option<Element<'a, Message>>,
     on_dismiss: Message,
+    align_left: bool,
 }
 
 /// Shows `popup` (when `Some`) under the right edge of `anchor`.
@@ -29,6 +30,16 @@ pub fn popover<'a, Message: Clone + 'a>(
         anchor: anchor.into(),
         popup,
         on_dismiss,
+        align_left: false,
+    }
+}
+
+impl<Message> Popover<'_, Message> {
+    /// Lines the popup up with the left edge of the anchor instead, like a
+    /// date picker under its field.
+    pub fn align_left(mut self) -> Self {
+        self.align_left = true;
+        self
     }
 }
 
@@ -134,6 +145,7 @@ impl<'a, Message: Clone + 'a> Widget<Message, iced::Theme, iced::Renderer> for P
                 content: popup,
                 tree: popup_tree,
                 on_dismiss: self.on_dismiss.clone(),
+                align_left: self.align_left,
             }))),
             _ => self
                 .anchor
@@ -154,6 +166,7 @@ struct Popup<'a, 'b, Message> {
     content: &'b mut Element<'a, Message>,
     tree: &'b mut Tree,
     on_dismiss: Message,
+    align_left: bool,
 }
 
 impl<Message: Clone> overlay::Overlay<Message, iced::Theme, iced::Renderer> for Popup<'_, '_, Message> {
@@ -163,8 +176,13 @@ impl<Message: Clone> overlay::Overlay<Message, iced::Theme, iced::Renderer> for 
             .as_widget_mut()
             .layout(self.tree, renderer, &layout::Limits::new(Size::ZERO, bounds));
         let size = node.size();
-        // Right-align with the anchor, below it; flip above if it does not fit.
-        let x = (self.anchor.x + self.anchor.width - size.width).clamp(0.0, (bounds.width - size.width).max(0.0));
+        // Align with the anchor, below it; flip above if it does not fit.
+        let x = if self.align_left {
+            self.anchor.x
+        } else {
+            self.anchor.x + self.anchor.width - size.width
+        };
+        let x = x.clamp(0.0, (bounds.width - size.width).max(0.0));
         let below = self.anchor.y + self.anchor.height + GAP;
         let y = if below + size.height <= bounds.height {
             below

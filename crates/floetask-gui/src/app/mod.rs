@@ -263,6 +263,7 @@ impl Floetask {
             | M::EditorDismissSuggestions
             | M::EditorPriority(_)
             | M::EditorOpenCalendar(_)
+            | M::EditorCloseCalendar
             | M::EditorRecurrenceCount(_)
             | M::EditorRecurrenceUnit(_)
             | M::EditorRecurrenceStrict(_)

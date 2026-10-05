@@ -324,3 +324,37 @@ fn file_menu_floats_and_closes_on_outside_click() {
     let messages: Vec<Message> = ui.into_messages().collect();
     assert!(messages.iter().any(|m| matches!(m, Message::FileMenu(None))));
 }
+
+#[test]
+fn editor_date_picker_floats_over_the_dialog() {
+    let mut app = app();
+    let _ = app.update(Message::NewTodo);
+    for message in click(&app, "Due") {
+        let _ = app.update(message);
+    }
+    let editor_calendar = |app: &Floetask| match &app.dialog {
+        Some(Dialog::Editor(editor)) => editor.calendar.as_ref().map(|calendar| calendar.key),
+        _ => panic!("editor closed"),
+    };
+    assert_eq!(editor_calendar(&app), Some(crate::app::DateKey::Due));
+    // The repeat row stays where it was, under the floating calendar.
+    assert!(simulator(app.view()).find("Repeat").is_ok());
+    snapshot(&app, "editor-date-picker");
+
+    // A click outside the calendar closes it and keeps the dialog.
+    for message in click(&app, "Priority") {
+        let _ = app.update(message);
+    }
+    assert_eq!(editor_calendar(&app), None);
+
+    // Escape closes the calendar first, then the dialog.
+    let _ = app.update(Message::EditorOpenCalendar(crate::app::DateKey::Threshold));
+    let escape = Message::KeyPressed(
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+        Default::default(),
+    );
+    let _ = app.update(escape.clone());
+    assert_eq!(editor_calendar(&app), None);
+    let _ = app.update(escape);
+    assert!(app.dialog.is_none());
+}
