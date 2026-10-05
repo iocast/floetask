@@ -9,7 +9,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Color, Element, Fill};
 
-use floetask_application::TodoRef;
+use floetask_application::{NoteStatus, TodoRef};
 use floetask_domain::date::format_iso;
 use floetask_domain::human_date::display_bucket;
 use floetask_domain::listing::{Attribute, Group, ListedTodo};
@@ -17,7 +17,7 @@ use floetask_domain::{Date, Todo};
 
 use super::LIST_ID;
 use super::icons::{Icon, icon};
-use super::widgets::{caption, icon_button};
+use super::widgets::{caption, icon_button, with_tooltip};
 use crate::app::{DateKey, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
@@ -265,6 +265,10 @@ fn meta<'a>(
         ));
         empty = false;
     }
+    if let Some(note) = todo.note() {
+        chips = chips.push(note_button(app, note, target, colors));
+        empty = false;
+    }
     // Bare links get an explicit open button, so a click on the row never
     // opens a link by accident.
     for url in urls(todo.body()) {
@@ -296,6 +300,26 @@ fn meta<'a>(
         empty = false;
     }
     (!empty).then(|| chips.wrap().into())
+}
+
+/// Opens the linked note. A note whose file does not exist yet shows as a
+/// broken link and is created on click; an invalid name cannot be opened.
+fn note_button<'a>(app: &Floetask, note: &'a str, target: &TodoRef, colors: Colors) -> Element<'a, Message> {
+    let status = app.note_statuses.get(note).copied().unwrap_or(NoteStatus::Missing);
+    let (glyph, color, hint) = match status {
+        NoteStatus::Present => (Icon::Note, colors.primary, tr("open_note").to_owned()),
+        NoteStatus::Missing => (Icon::NoteBroken, colors.muted, trf("note_missing", &[&note])),
+        NoteStatus::Invalid => (Icon::NoteBroken, colors.danger, trf("note_invalid", &[&note])),
+    };
+    let chip = button(
+        row![icon(glyph, 12.0, color), text(note).size(12)]
+            .spacing(4)
+            .align_y(Alignment::Center),
+    )
+    .padding([2, 8])
+    .style(theme::chip(color, colors, false))
+    .on_press_maybe((status != NoteStatus::Invalid).then(|| Message::OpenNote(target.clone())));
+    with_tooltip(chip, hint, colors)
 }
 
 /// Edit, copy, archive and delete, shown while the row is hovered.

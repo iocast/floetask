@@ -13,6 +13,7 @@ pub mod document;
 pub mod human_date;
 pub mod listing;
 pub mod natural_date;
+pub mod note;
 pub mod priority;
 pub mod recurrence;
 pub mod search;
@@ -21,6 +22,7 @@ pub mod todo;
 
 pub use date::{Date, WeekStart};
 pub use document::{DocumentError, TodoDocument};
+pub use note::{NoteError, NoteName};
 pub use priority::Priority;
 pub use recurrence::{Recurrence, RecurrenceUnit};
 pub use status::StatusSet;

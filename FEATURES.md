@@ -10,7 +10,7 @@ Priority tags used below:
 - **P0**: needed for a usable first release (core todo.txt editing).
 - **P1**: needed for a complete feature set.
 - **P2**: polish or platform extras; can follow later.
-- **Out**: deliberately not ported.
+- **Out**: deliberately left out.
 
 ---
 
@@ -32,6 +32,7 @@ Priority tags used below:
 | Hidden | `h:1` | Todo hidden from list but its attributes still feed autocomplete and the drawer. |
 | Pomodoro | `pm:N` | Parsed and displayed only; no timer. |
 | Stored priority | `pri:X` | floetask moves the priority here on completion and restores it on un-completion. |
+| Note | `note:name.md` | Links a notes file in `notes/` next to the todo file (P1). See [NOTE-EXTENSION.md](NOTE-EXTENSION.md). |
 | Other `key:value` | any | Preserved verbatim on round-trip. |
 
 ### 1.2 Parsed todo object
@@ -404,7 +405,6 @@ Candidate languages: English, German, Italian, Spanish, French, Simplified Chine
 ## 15. Out of scope
 
 - **Telemetry and analytics**.
-- **Electron dev tools / reload** menu items.
 - **Sponsoring / donation links**.
 - **Pomodoro timer**: floetask only parses and displays `pm:`.
 
@@ -426,5 +426,5 @@ Keeping all todo logic in `floetask-core` with no iced dependency lets it be ful
 
 1. **M1 core**: parser with round-trip tests, completion, recurrence, safe write, file watcher.
 2. **M2 usable app**: open/create file, list view with grouping and sorting, add/edit dialog with pickers, settings persistence, light/dark theme, main shortcuts.
-3. **M3 parity**: drawer (attributes, filters, sorting, rename/remove), advanced search and saved filters, archiving, multiple files and tabs, notifications, markdown, natural dates, human-friendly dates, bulk/multi-line.
+3. **M3 full feature set**: drawer (attributes, filters, sorting, rename/remove), advanced search and saved filters, archiving, multiple files and tabs, notifications, markdown, natural dates, human-friendly dates, bulk/multi-line.
 4. **M4 polish**: tray, native menu, i18n, colour file, packaging.

@@ -86,6 +86,11 @@ fn english(key: &str) -> Option<&'static str> {
         "clear" => "Clear",
         "today" => "Today",
         "strict" => "Strict",
+        "note" => "Note",
+        "open_note" => "Open note",
+        "note_missing" => "{} does not exist yet; open it to create it",
+        "note_invalid" => "{} is not a valid note name",
+        "note_orphaned" => "No todo links to notes/{} any more; the file was kept",
         // Attributes
         "projects" => "Projects",
         "contexts" => "Contexts",

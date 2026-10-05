@@ -23,6 +23,7 @@ impl Floetask {
             }
             Message::CalendarPick(date) => self.pick_date(date),
             Message::SaveEditor => self.save_editor(),
+            Message::EditorApplyNote(set) => self.apply_note(set),
             other => {
                 let (projects, contexts) = (self.projects.clone(), self.contexts.clone());
                 let today = self.today;
@@ -78,6 +79,10 @@ impl Floetask {
                     Message::EditorCloseCalendar => {
                         editor.calendar = None;
                         operation::focus(view::EDITOR_ID)
+                    }
+                    Message::EditorNote(note) => {
+                        editor.note = note;
+                        Task::none()
                     }
                     Message::EditorRecurrenceCount(count) => {
                         if count.chars().all(|c| c.is_ascii_digit()) && count.len() <= 3 {
@@ -145,6 +150,28 @@ impl Floetask {
                 service.update(path, &target, &text, &input, options)
             }),
             None => self.change_active_file(move |service, path, options| service.add(path, &text, &input, options)),
+        }
+    }
+
+    /// Sets or clears `note:` in the dialog text. Setting uses the typed name
+    /// or, when the field is empty, the name suggested from the text.
+    fn apply_note(&mut self, set: bool) -> Task<Message> {
+        let Some(Dialog::Editor(editor)) = &mut self.dialog else {
+            return Task::none();
+        };
+        if !set {
+            editor.note.clear();
+            rewrite(editor, |todo| todo.with_note(None));
+            return Task::none();
+        }
+        match editor.note_choice() {
+            Some(Ok(name)) => {
+                editor.note = name.to_string();
+                rewrite(editor, |todo| todo.with_note(Some(&name)));
+                Task::none()
+            }
+            Some(Err(error)) => self.toast_error(error.to_string()),
+            None => self.toast_error(tr("empty_todo")),
         }
     }
 

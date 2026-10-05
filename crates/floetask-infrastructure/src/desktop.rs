@@ -30,4 +30,8 @@ impl Desktop for OsDesktop {
         let folder = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(path);
         open::that_detached(folder).map_err(|e| AppError::io(folder, e))
     }
+
+    fn open_file(&self, path: &Path) -> Result<(), AppError> {
+        open::that_detached(path).map_err(|e| AppError::io(path, e))
+    }
 }

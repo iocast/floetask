@@ -42,13 +42,15 @@ pub enum Icon {
     DotsVertical,
     File,
     FilePlus,
+    Note,
+    NoteBroken,
     Play,
     Hourglass,
     Status,
 }
 
 impl Icon {
-    const ALL: [Icon; 37] = [
+    const ALL: [Icon; 39] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -83,6 +85,8 @@ impl Icon {
         Icon::DotsVertical,
         Icon::File,
         Icon::FilePlus,
+        Icon::Note,
+        Icon::NoteBroken,
         Icon::Play,
         Icon::Hourglass,
         Icon::Status,
@@ -141,6 +145,12 @@ impl Icon {
             Icon::File => r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/>"#,
             Icon::FilePlus => {
                 r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6"/>"#
+            }
+            Icon::Note => {
+                r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4"/>"#
+            }
+            Icon::NoteBroken => {
+                r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M3 3l18 18"/>"#
             }
             Icon::Play => r#"<path d="M8 5v14l11-7z"/>"#,
             Icon::Hourglass => r#"<path d="M6 3h12M6 21h12M7 3v3a5 5 0 0 0 10 0V3M7 21v-3a5 5 0 0 1 10 0v3"/>"#,

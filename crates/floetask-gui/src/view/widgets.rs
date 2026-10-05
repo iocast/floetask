@@ -41,7 +41,7 @@ pub fn icon_button<'a>(
 /// Wraps `content` in a tooltip shown below it.
 pub fn with_tooltip<'a>(
     content: impl Into<Element<'a, Message>>,
-    hint: &'a str,
+    hint: impl iced::widget::text::IntoFragment<'a>,
     colors: Colors,
 ) -> Element<'a, Message> {
     tooltip(

@@ -7,7 +7,8 @@ use iced::widget::text_editor;
 use floetask_application::TodoRef;
 use floetask_domain::date::first_of_month;
 use floetask_domain::listing::Attribute;
-use floetask_domain::{Date, RecurrenceUnit};
+use floetask_domain::note::suggest_name;
+use floetask_domain::{Date, NoteError, NoteName, RecurrenceUnit};
 
 /// The date extensions that have a picker.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +62,8 @@ pub struct Editor {
     pub recurrence_unit: RecurrenceUnit,
     pub recurrence_strict: bool,
     pub pomodoros: String,
+    /// The note name being typed; empty means "use the suggestion".
+    pub note: String,
 }
 
 impl Editor {
@@ -75,12 +78,26 @@ impl Editor {
             recurrence_unit: RecurrenceUnit::Week,
             recurrence_strict: false,
             pomodoros: "1".to_owned(),
+            note: floetask_domain::Todo::from_user_text(text)
+                .note()
+                .unwrap_or_default()
+                .to_owned(),
         }
     }
 
     pub fn text(&self) -> String {
         let text = self.content.text();
         text.strip_suffix('\n').map(str::to_owned).unwrap_or(text)
+    }
+
+    /// The note name to use: the typed one, or one suggested from the text.
+    pub fn note_choice(&self) -> Option<Result<NoteName, NoteError>> {
+        let typed = self.note.trim();
+        if typed.is_empty() {
+            suggest_name(&floetask_domain::Todo::from_user_text(&self.text())).map(Ok)
+        } else {
+            Some(NoteName::parse(typed))
+        }
     }
 
     pub fn set_text(&mut self, text: &str) {

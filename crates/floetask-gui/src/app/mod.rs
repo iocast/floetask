@@ -23,7 +23,8 @@ use iced::widget::markdown;
 use iced::{Element, Task, Theme, window};
 
 use floetask_application::{
-    AppError, AppState, ColorOverrides, FileOptions, InputOptions, SavedFilter, Services, Settings, ThemePreference,
+    AppError, AppState, ColorOverrides, FileOptions, InputOptions, NoteStatus, SavedFilter, Services, Settings,
+    ThemePreference,
 };
 use floetask_domain::listing::{
     AttributeSummary, DateContext, TodoListing, build_listing, known_names, summarize_attributes,
@@ -84,6 +85,8 @@ pub struct Floetask {
     pub(crate) projects: BTreeSet<String>,
     pub(crate) contexts: BTreeSet<String>,
     pub(crate) markdown: HashMap<String, markdown::Content>,
+    /// Whether each `note:` value in the active file points at a file.
+    pub(crate) note_statuses: HashMap<String, NoteStatus>,
     pub(crate) search: SearchState,
     pub(crate) saved_filters: Vec<SavedFilter>,
     /// Index into the flattened visible list.
@@ -143,6 +146,7 @@ impl Floetask {
             projects: BTreeSet::new(),
             contexts: BTreeSet::new(),
             markdown: HashMap::new(),
+            note_statuses: HashMap::new(),
             search: SearchState::default(),
             saved_filters: Vec::new(),
             selected: None,
@@ -253,7 +257,9 @@ impl Floetask {
             | M::AskDelete(_)
             | M::ChipFilter(..)
             | M::OpenLink(_)
-            | M::OpenRowDatePicker(..) => self.update_list(message),
+            | M::OpenRowDatePicker(..)
+            | M::OpenNote(_)
+            | M::NoteOpened(_) => self.update_list(message),
 
             M::NewTodo
             | M::EditorAction(_)
@@ -271,6 +277,8 @@ impl Floetask {
             | M::EditorApplyRecurrence(_)
             | M::EditorPomodoros(_)
             | M::EditorApplyPomodoros(_)
+            | M::EditorNote(_)
+            | M::EditorApplyNote(_)
             | M::SaveEditor
             | M::CalendarMonth(_)
             | M::CalendarPick(_) => self.update_editing(message),
@@ -366,7 +374,13 @@ impl Floetask {
             &self.settings.statuses,
         );
         let (projects, contexts) = known_names(document);
+        // A few file checks, one per distinct note; cheap enough to run here.
+        let note_statuses = match self.active_path() {
+            Some(path) => self.services.notes.statuses(&path, document),
+            None => HashMap::new(),
+        };
         self.listing = listing;
+        self.note_statuses = note_statuses;
         self.summaries = summaries;
         self.projects = projects;
         self.contexts = contexts;

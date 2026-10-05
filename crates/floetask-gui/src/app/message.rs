@@ -60,6 +60,8 @@ pub enum Message {
     ChipFilter(Attribute, String),
     OpenLink(String),
     OpenRowDatePicker(TodoRef, DateKey),
+    OpenNote(TodoRef),
+    NoteOpened(Result<PathBuf, AppError>),
 
     // Add / edit dialog
     NewTodo,
@@ -78,6 +80,8 @@ pub enum Message {
     EditorApplyRecurrence(bool),
     EditorPomodoros(String),
     EditorApplyPomodoros(bool),
+    EditorNote(String),
+    EditorApplyNote(bool),
     SaveEditor,
 
     // Calendar (row date picker or editor)

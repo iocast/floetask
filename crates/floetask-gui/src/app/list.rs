@@ -3,12 +3,12 @@
 use iced::Task;
 use iced::widget::operation;
 
-use floetask_application::TodoRef;
+use floetask_application::{NoteService, TodoRef};
 use floetask_domain::listing::ListedTodo;
 use floetask_domain::todo::Todo;
 
 use super::{Calendar, DateKey, Dialog, Editor, Floetask, Message, Pending};
-use crate::i18n::tr;
+use crate::i18n::{tr, trf};
 use crate::view;
 
 impl Floetask {
@@ -50,6 +50,22 @@ impl Floetask {
                 let desktop = self.services.ports.desktop.clone();
                 Task::perform(async move { desktop.open_uri(&uri) }, Message::from_result)
             }
+            Message::OpenNote(target) => {
+                let Some(path) = self.active_path() else {
+                    return Task::none();
+                };
+                let service = self.services.notes.clone();
+                let todo = Todo::parse(&target.raw);
+                Task::perform(async move { service.open(&path, &todo) }, Message::NoteOpened)
+            }
+            Message::NoteOpened(result) => match result {
+                // The note may have just been created: update its link.
+                Ok(_) => {
+                    self.refresh();
+                    Task::none()
+                }
+                Err(error) => self.report(&error),
+            },
             Message::OpenRowDatePicker(target, key) => {
                 let todo = Todo::parse(&target.raw);
                 let current = match key {
@@ -99,8 +115,17 @@ impl Floetask {
         self.select_row(next)
     }
 
+    /// Deletes a todo. Its note file is kept; if no other todo links to it
+    /// any more, a toast says so.
     pub(super) fn delete_todo(&mut self, target: TodoRef) -> Task<Message> {
-        self.change_active_file(move |service, path, options| service.delete(path, &target, options))
+        let orphan = self
+            .active_document()
+            .and_then(|document| NoteService::orphaned_by_delete(document, &target));
+        let delete = self.change_active_file(move |service, path, options| service.delete(path, &target, options));
+        match orphan {
+            Some(name) => Task::batch([delete, self.toast(trf("note_orphaned", &[&name]))]),
+            None => delete,
+        }
     }
 
     fn archive_one(&mut self, target: TodoRef) -> Task<Message> {
