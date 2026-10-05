@@ -848,3 +848,27 @@ fn board_makes_room_for_the_drawer() {
     let _ = app.update(Message::ToggleDrawer);
     snapshot(&app, "board-drawer");
 }
+
+#[test]
+fn grouped_board_makes_room_for_the_drawer() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let _ = app.update(Message::MoveSort(2, -2));
+    let _ = app.update(Message::ToggleDrawer);
+    snapshot(&app, "board-grouped-drawer");
+}
+
+#[test]
+fn wide_grouped_board_stays_left_of_the_drawer() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let _ = app.update(Message::MoveSort(2, -2));
+    let _ = app.update(Message::ToggleDrawer);
+    let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") else {
+        return;
+    };
+    let path = PathBuf::from(dir).join("board-grouped-drawer-wide");
+    let mut ui = iced_test::Simulator::with_size(iced::Settings::default(), (1600.0, 900.0), app.view());
+    let snapshot = ui.snapshot(&app.theme()).unwrap();
+    snapshot.matches_image(&path).unwrap();
+}

@@ -67,7 +67,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
 }
 
 /// Narrowest a column gets before the board scrolls sideways.
-const MIN_LANE_WIDTH: f32 = 240.0;
+const MIN_LANE_WIDTH: f32 = 200.0;
 const LANE_SPACING: f32 = 12.0;
 
 /// The boards for the available `width`: one row of columns, or one per
@@ -76,7 +76,8 @@ fn boards(app: &Floetask, width: f32) -> Element<'_, Message> {
     let colors = app.colors();
     let scrollbar = || scrollable::Scrollbar::new().width(4).scroller_width(4);
     let count = app.board.groups.first().map_or(0, |group| group.lanes.len()) as f32;
-    let needed = count * MIN_LANE_WIDTH + (count - 1.0).max(0.0) * LANE_SPACING + 10.0;
+    // Padding plus room for a vertical scrollbar.
+    let needed = count * MIN_LANE_WIDTH + (count - 1.0).max(0.0) * LANE_SPACING + 24.0;
     let fits = width >= needed;
     let lane_width = if fits { Fill } else { Length::Fixed(MIN_LANE_WIDTH) };
 
@@ -207,7 +208,8 @@ fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool, width: Le
     let mut frame = container(content)
         .padding(10)
         .width(width)
-        .style(theme::lane(colors, target && droppable));
+        .style(theme::lane(colors, target && droppable))
+        .clip(true);
     if fill {
         frame = frame.height(Fill);
     }
@@ -246,7 +248,8 @@ fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colo
         container(content)
             .padding([10, 12])
             .width(Fill)
-            .style(theme::board_card(colors, dragged)),
+            .style(theme::board_card(colors, dragged))
+            .clip(true),
     )
     .on_press(Message::BoardPress(target, lane))
     .interaction(mouse::Interaction::Grab)

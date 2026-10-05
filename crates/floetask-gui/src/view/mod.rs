@@ -47,7 +47,8 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
     if app.state.files_drawer_open {
         content = content.push(files::drawer(app));
     }
-    content = content.push(main);
+    // Clipped, so a wide list or board can never draw under the drawers.
+    content = content.push(container(main).width(Fill).height(Fill).clip(true));
     if app.state.drawer_open && app.active_document().is_some() {
         content = content.push(drawer::view(app));
     }
