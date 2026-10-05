@@ -224,7 +224,7 @@ fn list_shows_grouped_todos() {
         "Waiting",
         "Done",
         "family",
-        "errands",
+        "@errands",
     ] {
         assert!(ui.find(text).is_ok(), "missing {text}");
     }

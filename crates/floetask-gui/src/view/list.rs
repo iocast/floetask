@@ -233,7 +233,8 @@ pub(crate) fn meta<'a>(
             Attribute::Contexts,
             context.clone(),
             None,
-            context.clone(),
+            // On the card a context keeps its `@`, as typed in the todo.
+            format!("@{context}"),
             colors.success,
         ));
         empty = false;
