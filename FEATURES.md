@@ -10,7 +10,7 @@ Priority tags used below:
 - **P0**: needed for a usable first release (core todo.txt editing).
 - **P1**: needed for a complete feature set.
 - **P2**: polish or platform extras; can follow later.
-- **Out**: deliberately not ported.
+- **Out**: deliberately left out.
 
 ---
 
@@ -391,7 +391,6 @@ Candidate languages: English, German, Italian, Spanish, French, Simplified Chine
 ## 15. Out of scope
 
 - **Telemetry and analytics**.
-- **Electron dev tools / reload** menu items.
 - **Sponsoring / donation links**.
 - **Pomodoro timer**: floetask only parses and displays `pm:`.
 
@@ -413,5 +412,5 @@ Keeping all todo logic in `floetask-core` with no iced dependency lets it be ful
 
 1. **M1 core**: parser with round-trip tests, completion, recurrence, safe write, file watcher.
 2. **M2 usable app**: open/create file, list view with grouping and sorting, add/edit dialog with pickers, settings persistence, light/dark theme, main shortcuts.
-3. **M3 parity**: drawer (attributes, filters, sorting, rename/remove), advanced search and saved filters, archiving, multiple files and tabs, notifications, markdown, natural dates, human-friendly dates, bulk/multi-line.
+3. **M3 full feature set**: drawer (attributes, filters, sorting, rename/remove), advanced search and saved filters, archiving, multiple files and tabs, notifications, markdown, natural dates, human-friendly dates, bulk/multi-line.
 4. **M4 polish**: tray, native menu, i18n, colour file, packaging.
