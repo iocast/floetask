@@ -59,14 +59,6 @@ impl StatusSet {
         Self { order: names, hidden }
     }
 
-    /// Adds a status at the end of the order, e.g. one a board column
-    /// introduces. Invalid and already known names are ignored.
-    pub fn add(&mut self, status: &str) {
-        if is_valid_status(status) && !self.order.iter().any(|name| name == status) {
-            self.order.push(status.to_owned());
-        }
-    }
-
     /// Every known status in display order, for pickers.
     pub fn names(&self) -> &[String] {
         &self.order
@@ -128,15 +120,5 @@ mod tests {
         assert_eq!(set.names(), ["review", "doing", "todo", "waiting", "someday"]);
         assert_eq!(set.hidden(), ["blocked"]);
         assert_eq!(set.compare("zeta", "alpha"), std::cmp::Ordering::Greater);
-    }
-
-    #[test]
-    fn adding_appends_new_statuses_once() {
-        let mut set = StatusSet::default();
-        set.add("in-review");
-        set.add("in-review");
-        set.add("doing");
-        set.add("Bad");
-        assert_eq!(set.names(), ["doing", "todo", "waiting", "someday", "in-review"]);
     }
 }

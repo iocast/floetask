@@ -642,7 +642,5 @@ fn board_columns_are_set_per_file() {
         ["todo", "doing", "done", "in-review", "someday"]
     );
     assert_eq!(board_lane_bodies(&app)[4], vec!["Learn Rust"]);
-    // The new column is a new status, offered in the todo dialog's picker.
-    assert!(app.settings.statuses.names().contains(&"in-review".to_owned()));
     assert_eq!(board_lane_bodies(&app)[5], vec!["Legal review"]);
 }

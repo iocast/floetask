@@ -275,19 +275,5 @@ mod tests {
             loaded.board_columns(&dir.path().join("other.txt")),
             BoardColumns::default()
         );
-        assert!(loaded.statuses.names().contains(&"in-review".to_owned()));
-
-        // A column added by hand in config.toml also becomes a status.
-        let path = dir.path().join("hand.toml");
-        std::fs::write(
-            &path,
-            "[[boards]]
-file = \"x.txt\"
-columns = [\"todo\", \"testing\"]
-",
-        )
-        .unwrap();
-        let settings = TomlSettingsStore::new(path).load().unwrap();
-        assert_eq!(settings.statuses.names().last().map(String::as_str), Some("testing"));
     }
 }
