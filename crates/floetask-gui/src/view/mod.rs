@@ -76,22 +76,21 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
         .style(theme::app(colors))
         .into();
 
-    let main_layer = match &app.dialog {
-        None => base,
-        Some(dialog) => {
-            let content = match dialog {
-                Dialog::Editor(state) => editor::view(app, state),
-                Dialog::Settings(dialog) => settings::view(app, dialog),
-                Dialog::Confirm { message, detail, .. } => dialogs::confirm(app, message, detail.as_deref()),
-                Dialog::Rename { attribute, from, input } => dialogs::rename(app, *attribute, from, input),
-                Dialog::RowDate { calendar, .. } => dialogs::date(app, calendar),
-                Dialog::SaveFilter { name } => dialogs::save_filter(app, name),
-                Dialog::BoardColumns { columns, input } => dialogs::board_columns(app, columns, input),
-            };
-            widgets::modal(base, content, colors)
-        }
-    };
-    let mut layers = stack![main_layer];
+    // The page is always the stack's first child, so opening a dialog does
+    // not rebuild it and the list keeps its scroll position.
+    let mut layers = stack![base];
+    if let Some(dialog) = &app.dialog {
+        let content = match dialog {
+            Dialog::Editor(state) => editor::view(app, state),
+            Dialog::Settings(dialog) => settings::view(app, dialog),
+            Dialog::Confirm { message, detail, .. } => dialogs::confirm(app, message, detail.as_deref()),
+            Dialog::Rename { attribute, from, input } => dialogs::rename(app, *attribute, from, input),
+            Dialog::RowDate { calendar, .. } => dialogs::date(app, calendar),
+            Dialog::SaveFilter { name } => dialogs::save_filter(app, name),
+            Dialog::BoardColumns { columns, input } => dialogs::board_columns(app, columns, input),
+        };
+        layers = layers.push(widgets::modal(content, colors));
+    }
 
     if !app.toasts.is_empty() {
         let toasts = column(app.toasts.iter().map(|toast| {

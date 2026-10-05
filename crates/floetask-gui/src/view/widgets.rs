@@ -1,23 +1,17 @@
 //! Small building blocks shared by the views.
 
-use iced::widget::{button, center, container, mouse_area, opaque, row, stack, text, toggler, tooltip};
+use iced::widget::{button, center, container, mouse_area, opaque, row, text, toggler, tooltip};
 use iced::{Element, Fill, alignment};
 
 use super::icons::{Icon, icon};
 use crate::app::Message;
 use crate::theme::{self, Colors};
 
-/// Shows `content` centred over a dimmed `base`. Clicking the backdrop
-/// closes the dialog.
-pub fn modal<'a>(base: Element<'a, Message>, content: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
+/// A layer showing `content` centred over a dimmed backdrop, to stack on
+/// top of the page. Clicking the backdrop closes the dialog.
+pub fn modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
     let card = container(content).padding(24).max_width(680).style(theme::card(colors));
-    stack![
-        base,
-        opaque(
-            mouse_area(center(opaque(card)).padding(24).style(theme::backdrop(colors))).on_press(Message::CloseDialog)
-        )
-    ]
-    .into()
+    opaque(mouse_area(center(opaque(card)).padding(24).style(theme::backdrop(colors))).on_press(Message::CloseDialog))
 }
 
 /// A square icon button with a tooltip. `active` highlights toggled tools;
