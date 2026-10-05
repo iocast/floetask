@@ -12,7 +12,7 @@ use iced_test::simulator;
 
 use floetask_application::ports::*;
 use floetask_application::{
-    AppError, AppState, ColorOverrides, Ports, SavedFilter, Services, Settings, WatcherOptions,
+    AppError, AppState, ColorOverrides, NoteStatus, Ports, SavedFilter, Services, Settings, TodoRef, WatcherOptions,
 };
 use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
@@ -23,8 +23,8 @@ use crate::app::{Dialog, Floetask, Message, Startup};
 const TODO_PATH: &str = "/test/todo.txt";
 const SAMPLE: &str = "\
 (A) Call mom +family @phone due:2026-10-04
-(B) Prepare slides +work due:2026-10-06
-Buy milk @errands
+(B) Prepare slides +work due:2026-10-06 note:slides
+Buy milk @errands note:shopping
 x 2026-10-03 2026-10-01 Send invoice +work
 ";
 
@@ -129,6 +129,9 @@ impl Desktop for Fixed {
     fn reveal(&self, _: &Path) -> Result<(), AppError> {
         Ok(())
     }
+    fn open_file(&self, _: &Path) -> Result<(), AppError> {
+        Ok(())
+    }
 }
 
 impl ColorStore for Fixed {
@@ -145,6 +148,14 @@ fn app() -> Floetask {
     let files = Arc::new(MemoryFiles::default());
     files.write(Path::new(TODO_PATH), SAMPLE, false).unwrap();
     files.write(Path::new("/test/config.toml"), "", false).unwrap();
+    files
+        .write(
+            &note_path("slides.md"),
+            "# Slides
+",
+            false,
+        )
+        .unwrap();
     let fixed = Arc::new(Fixed);
     let ports = Ports {
         files,
@@ -357,4 +368,73 @@ fn editor_date_picker_floats_over_the_dialog() {
     assert_eq!(editor_calendar(&app), None);
     let _ = app.update(escape);
     assert!(app.dialog.is_none());
+}
+
+/// Toasts schedule their dismissal on tokio; tests that show one need a
+/// runtime to enter.
+fn runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap()
+}
+
+/// Where the sample file's note `name` lives.
+fn note_path(name: &str) -> PathBuf {
+    Path::new(TODO_PATH).parent().unwrap().join("notes").join(name)
+}
+
+#[test]
+fn notes_link_open_and_warn_when_orphaned() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    assert_eq!(app.note_statuses["slides"], NoteStatus::Present);
+    assert_eq!(app.note_statuses["shopping"], NoteStatus::Missing);
+    snapshot(&app, "notes");
+
+    // A broken link still opens: the note is created, then shown as present.
+    let messages = click(&app, "shopping");
+    let [Message::OpenNote(target)] = &messages[..] else {
+        panic!("expected OpenNote, got {messages:?}")
+    };
+    let todo = floetask_domain::Todo::parse(&target.raw);
+    let opened = app.services.notes.open(Path::new(TODO_PATH), &todo);
+    assert_eq!(opened, Ok(note_path("shopping.md")));
+    assert_eq!(
+        app.services.ports.files.read(&note_path("shopping.md")).unwrap(),
+        "# Buy milk
+"
+    );
+    let _ = app.update(Message::NoteOpened(opened));
+    assert_eq!(app.note_statuses["shopping"], NoteStatus::Present);
+
+    // Deleting the only todo linking a note warns and keeps the file.
+    let _ = app.update(Message::AskDelete(TodoRef::new(2, &todo)));
+    let _ = app.update(Message::ConfirmDialog);
+    assert!(app.toasts.iter().any(|toast| toast.text.contains("notes/shopping.md")));
+    assert!(app.services.ports.files.exists(&note_path("shopping.md")));
+}
+
+#[test]
+fn editor_suggests_and_sets_a_note_name() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let _ = app.update(Message::NewTodo);
+    if let Some(Dialog::Editor(editor)) = &mut app.dialog {
+        editor.set_text("(A) Write report +work");
+    }
+    snapshot(&app, "editor-note");
+    let _ = app.update(Message::EditorApplyNote(true));
+    let Some(Dialog::Editor(editor)) = &mut app.dialog else {
+        panic!("editor closed")
+    };
+    assert_eq!(editor.text(), "(A) Write report +work note:write-report.md");
+
+    editor.note = "Bad Name".to_owned();
+    let _ = app.update(Message::EditorApplyNote(true));
+    assert!(app.toasts.iter().any(|toast| toast.error));
+    let _ = app.update(Message::EditorApplyNote(false));
+    let Some(Dialog::Editor(editor)) = &app.dialog else {
+        panic!("editor closed")
+    };
+    assert_eq!(editor.text(), "(A) Write report +work");
 }

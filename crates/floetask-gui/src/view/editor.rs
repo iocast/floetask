@@ -185,7 +185,26 @@ fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message>
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    column![repeat, pomodoros].spacing(10).into()
+    let suggestion = match editor.note_choice() {
+        Some(Ok(name)) if editor.note.trim().is_empty() => name.to_string(),
+        _ => "name.md".to_owned(),
+    };
+    let note = row![
+        icon(Icon::Note, 14.0, colors.muted),
+        text(tr("note")).size(13).color(colors.muted),
+        text_input(&suggestion, &editor.note)
+            .on_input(Message::EditorNote)
+            .on_submit(Message::EditorApplyNote(true))
+            .width(240)
+            .size(13)
+            .padding(6)
+            .style(theme::input(colors)),
+        small("set", Message::EditorApplyNote(true)),
+        small("clear", Message::EditorApplyNote(false)),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    column![repeat, pomodoros, note].spacing(10).into()
 }
 
 fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {

@@ -9,6 +9,7 @@
 
 pub mod colors;
 pub mod error;
+pub mod notes;
 pub mod notifications;
 pub mod ports;
 pub mod saved_filters;
@@ -18,6 +19,7 @@ pub mod todo_files;
 
 pub use colors::{ColorOverrides, PaletteOverrides};
 pub use error::AppError;
+pub use notes::{NoteService, NoteStatus};
 pub use notifications::{DueNotification, NotificationService};
 pub use saved_filters::SavedFilter;
 pub use settings::{Settings, ThemePreference, WatcherOptions};
@@ -45,6 +47,7 @@ pub struct Ports {
 #[derive(Clone)]
 pub struct Services {
     pub todo_files: TodoFileService,
+    pub notes: NoteService,
     pub notifications: NotificationService,
     pub ports: Ports,
 }
@@ -53,6 +56,7 @@ impl Services {
     pub fn new(ports: Ports) -> Self {
         Self {
             todo_files: TodoFileService::new(ports.files.clone(), ports.clock.clone()),
+            notes: NoteService::new(ports.files.clone(), ports.desktop.clone()),
             notifications: NotificationService::new(
                 ports.notifier.clone(),
                 ports.notification_log.clone(),

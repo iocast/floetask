@@ -14,8 +14,8 @@ floetask-app ──► floetask-gui ──► floetask-application ──► flo
 
 | Crate | Layer | Holds | May depend on |
 |---|---|---|---|
-| `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts) | `chrono`, `regex`, `thiserror` only |
-| `floetask-application` | Use cases and ports | `TodoFileService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` | domain |
+| `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `note:` name rules, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts) | `chrono`, `regex`, `thiserror` only |
+| `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` | domain |
 | `floetask-infrastructure` | Adapters | Local file system with safe writes, debounced watcher, TOML stores (config, state, filters, notified, colors), XDG paths, OS notifications, opening links | domain, application, I/O crates |
 | `floetask-gui` | Presentation | iced app: state, messages, update handlers, views, theme, i18n | domain, application, `iced`, `rfd` (never infrastructure) |
 | `floetask-app` | Composition root | CLI (`clap`), wires infrastructure ports into services, starts the GUI | everything |

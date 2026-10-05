@@ -42,10 +42,12 @@ pub enum Icon {
     DotsVertical,
     File,
     FilePlus,
+    Note,
+    NoteBroken,
 }
 
 impl Icon {
-    const ALL: [Icon; 34] = [
+    const ALL: [Icon; 36] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -80,6 +82,8 @@ impl Icon {
         Icon::DotsVertical,
         Icon::File,
         Icon::FilePlus,
+        Icon::Note,
+        Icon::NoteBroken,
     ];
 
     /// The SVG body (elements inside the 24×24 canvas).
@@ -135,6 +139,12 @@ impl Icon {
             Icon::File => r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/>"#,
             Icon::FilePlus => {
                 r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6"/>"#
+            }
+            Icon::Note => {
+                r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4"/>"#
+            }
+            Icon::NoteBroken => {
+                r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M3 3l18 18"/>"#
             }
             Icon::Link => r#"<path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>"#,
         }

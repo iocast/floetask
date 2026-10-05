@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use floetask_domain::DocumentError;
+use floetask_domain::{DocumentError, NoteError};
 use thiserror::Error;
 
 /// Errors reported to the user. Cloneable so they can travel in GUI
@@ -11,6 +11,8 @@ pub enum AppError {
     Io { path: PathBuf, message: String },
     #[error(transparent)]
     Document(#[from] DocumentError),
+    #[error(transparent)]
+    Note(#[from] NoteError),
     #[error("{0} has no done file to archive into")]
     NoDoneFile(PathBuf),
     #[error("the todo is empty")]

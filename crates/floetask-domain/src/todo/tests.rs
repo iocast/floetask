@@ -20,7 +20,7 @@ fn parses_full_incomplete_line() {
     assert_eq!(todo.recurrence().unwrap().to_string(), "+w");
     assert_eq!(todo.pomodoros(), Some(2));
     assert_eq!(todo.extension("note"), Some("x"));
-    assert_eq!(todo.body(), "Call mom note:x");
+    assert_eq!(todo.body(), "Call mom");
 }
 
 #[test]

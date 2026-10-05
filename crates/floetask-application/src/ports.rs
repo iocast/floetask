@@ -76,6 +76,8 @@ pub trait Desktop: Send + Sync {
     fn open_uri(&self, uri: &str) -> Result<(), AppError>;
     /// Shows a file in the OS file manager.
     fn reveal(&self, path: &Path) -> Result<(), AppError>;
+    /// Opens a file in the app the OS associates with its type.
+    fn open_file(&self, path: &Path) -> Result<(), AppError>;
 }
 
 /// The colour file overriding theme colours.
