@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 #
-# Tag-based release helper for rcmate, driven by CHANGELOG.md (Keep a Changelog + Semantic
+# Tag-based release helper for floetask, driven by CHANGELOG.md (Keep a Changelog + Semantic
 # Versioning) and Cargo.toml. zsh port of release.ps1.
 #
 # Run from anywhere inside the repo. The tag message and the GitHub Release body both come from
@@ -165,7 +165,7 @@ EOF
     *)
       cat <<EOF
 
-Release helper for rcmate - binaries are built by GitHub Actions, release notes come from
+Release helper for floetask - binaries are built by GitHub Actions, release notes come from
 $CHANGELOG_FILE (Keep a Changelog + Semantic Versioning). This script does not write changelog
 *content*; use the changelog skill/tool for that. It only promotes [Unreleased] to a dated
 version section, keeps $CARGO_TOML_FILE's version in sync, commits, tags, and pushes.

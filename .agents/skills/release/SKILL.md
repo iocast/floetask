@@ -1,7 +1,7 @@
 ---
 name: release
 description: >
-  Cuts a new rcmate release: bumps the version consistently across Cargo.toml and
+  Cuts a new floetask release: bumps the version consistently across Cargo.toml and
   CHANGELOG.md, rewrites the changelog entry in Keep a Changelog format, commits,
   and (with explicit confirmation) tags and pushes to trigger the GitHub Actions
   release workflow. Use when the user says "cut a release", "release vX.Y.Z",

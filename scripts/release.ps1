@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Tag-based release helper for rcmate, driven by CHANGELOG.md (Keep a Changelog + Semantic Versioning)
+  Tag-based release helper for floetask, driven by CHANGELOG.md (Keep a Changelog + Semantic Versioning)
   and Cargo.toml.
 
 .DESCRIPTION
@@ -76,7 +76,7 @@ $Self = $MyInvocation.InvocationName
 function Show-Help([string]$Topic) {
     $overview = @"
 
-Release helper for rcmate - binaries are built by GitHub Actions, release notes come from
+Release helper for floetask - binaries are built by GitHub Actions, release notes come from
 $Changelog (Keep a Changelog + Semantic Versioning). This script does not write changelog
 *content*; use the changelog skill/tool for that. It only promotes [Unreleased] to a dated
 version section, keeps $CargoToml's version in sync, commits, tags, and pushes.
