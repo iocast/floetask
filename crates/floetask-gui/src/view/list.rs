@@ -179,6 +179,9 @@ fn todo_row<'a>(
         .into()
 }
 
+/// Extra space around an inline context pill.
+const PILL_GAP: &str = "\u{2002}";
+
 /// The todo text with its contexts in place. Markdown when it uses Markdown
 /// syntax; otherwise plain text with each context as a green oval that
 /// filters the list when clicked. Completed todos are struck through and
@@ -200,17 +203,25 @@ pub(crate) fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Ele
     let spans: Vec<_> = todo
         .text_segments()
         .into_iter()
-        .map(|segment| match segment {
-            TextSegment::Text(words) => span(words)
-                .strikethrough(done)
-                .color_maybe(done.then_some(colors.muted)),
-            TextSegment::Context(name) => span(format!("@{name}"))
-                .color(if done { colors.muted } else { colors.success })
-                .strikethrough(done)
-                .background(colors.tint(colors.success, 0.15))
-                .border(iced::border::rounded(8))
-                .padding([0, 4])
-                .link(Message::ChipFilter(Attribute::Contexts, name)),
+        .flat_map(|segment| match segment {
+            TextSegment::Text(words) => vec![
+                span(words)
+                    .strikethrough(done)
+                    .color_maybe(done.then_some(colors.muted)),
+            ],
+            TextSegment::Context(name) => vec![
+                // The pill's padding is drawn over the neighbouring spaces;
+                // an en space on each side keeps a visible gap.
+                span(PILL_GAP),
+                span(name.clone())
+                    .color(if done { colors.muted } else { colors.success })
+                    .strikethrough(done)
+                    .background(colors.tint(colors.success, 0.15))
+                    .border(iced::border::rounded(10))
+                    .padding([1, 8])
+                    .link(Message::ChipFilter(Attribute::Contexts, name)),
+                span(PILL_GAP),
+            ],
         })
         .collect();
     rich_text(spans).size(size).on_link_click(|message| message).into()
@@ -286,18 +297,37 @@ pub(crate) fn meta<'a>(
         let Some(date) = date else { continue };
         let urgent = key == DateKey::Due && date <= app.today && !todo.is_complete();
         let color = if urgent { colors.danger } else { colors.muted };
-        let label = match key {
-            DateKey::Due => date_label(app, date, true),
-            DateKey::Threshold => format!("{} {}", tr("t_short"), date_label(app, date, false)),
-        };
+        let value = date_label(app, date, key == DateKey::Due);
         let filter_value = attribute
             .values(todo, &app.date_context())
             .into_iter()
             .next()
             .unwrap_or_default();
+        let active = app.state.view.filter_state(attribute, &filter_value) == Some(false);
+        let tint = if active { colors.surface } else { color };
+        // Two-part pill, "due | 2026-10-04", so the date says what it is.
+        let labelled = button(
+            row![
+                text(tr(key.label_key())).size(12).color(tint).font(iced::Font {
+                    weight: iced::font::Weight::Semibold,
+                    ..iced::Font::default()
+                }),
+                container(space())
+                    .width(1)
+                    .height(12)
+                    .style(theme::accent(colors.tint(tint, 0.4))),
+                icon(Icon::Calendar, 12.0, tint),
+                text(value).size(12),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        )
+        .padding([2, 8])
+        .style(theme::chip(color, colors, active))
+        .on_press(Message::ChipFilter(attribute, filter_value));
         chips = chips.push(
             row![
-                chip(attribute, filter_value, Some(Icon::Calendar), label, color),
+                labelled,
                 button(icon(Icon::ChevronDown, 12.0, colors.muted))
                     .padding(2)
                     .style(theme::ghost(colors, false))

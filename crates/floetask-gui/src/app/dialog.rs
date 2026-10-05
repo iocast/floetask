@@ -24,6 +24,14 @@ impl DateKey {
             DateKey::Threshold => "t",
         }
     }
+
+    /// Translation key of the short label on a todo card's date pill.
+    pub fn label_key(self) -> &'static str {
+        match self {
+            DateKey::Due => "due_label",
+            DateKey::Threshold => "threshold_label",
+        }
+    }
 }
 
 /// A month calendar for picking a date.
