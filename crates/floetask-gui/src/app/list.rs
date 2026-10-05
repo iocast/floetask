@@ -134,7 +134,9 @@ impl Floetask {
     pub(super) fn delete_todo(&mut self, target: TodoRef) -> Task<Message> {
         let orphan = self
             .active_document()
-            .and_then(|document| NoteService::orphaned_by_delete(document, &target));
+            .and_then(|document| NoteService::orphaned_by_delete(document, &target))
+            .zip(self.active_path())
+            .map(|(name, path)| format!("{}/{name}", NoteService::folder_name(&path)));
         let delete = self.change_active_file(move |service, path, options| service.delete(path, &target, options));
         match orphan {
             Some(name) => Task::batch([delete, self.toast(trf("note_orphaned", &[&name]))]),

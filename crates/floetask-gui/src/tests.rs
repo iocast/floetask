@@ -420,7 +420,7 @@ fn runtime() -> tokio::runtime::Runtime {
 
 /// Where the sample file's note `name` lives.
 fn note_path(name: &str) -> PathBuf {
-    Path::new(TODO_PATH).parent().unwrap().join("notes").join(name)
+    Path::new(TODO_PATH).parent().unwrap().join("todo-notes").join(name)
 }
 
 #[test]
@@ -451,7 +451,11 @@ fn notes_link_open_and_warn_when_orphaned() {
     // Deleting the only todo linking a note warns and keeps the file.
     let _ = app.update(Message::AskDelete(TodoRef::new(2, &todo)));
     let _ = app.update(Message::ConfirmDialog);
-    assert!(app.toasts.iter().any(|toast| toast.text.contains("notes/shopping.md")));
+    assert!(
+        app.toasts
+            .iter()
+            .any(|toast| toast.text.contains("todo-notes/shopping.md"))
+    );
     assert!(app.services.ports.files.exists(&note_path("shopping.md")));
 }
 

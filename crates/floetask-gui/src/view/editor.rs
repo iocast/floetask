@@ -4,9 +4,10 @@ use iced::keyboard::{Key, key::Named};
 use iced::widget::{Column, button, checkbox, column, container, pick_list, row, space, text, text_editor, text_input};
 use iced::{Alignment, Border, Element, Fill};
 
+use floetask_application::NoteService;
 use floetask_domain::status::DEFAULT_STATUS;
 use floetask_domain::todo::Todo;
-use floetask_domain::{Priority, RecurrenceUnit};
+use floetask_domain::{NoteName, Priority, RecurrenceUnit};
 
 use super::EDITOR_ID;
 use super::calendar;
@@ -57,7 +58,7 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     }
     content = content.push(pickers(app, editor, colors));
     content = content.push(repeat_and_pomodoros(editor, colors));
-    content = content.push(notes(editor, colors));
+    content = content.push(notes(app, editor, colors));
     content.push(actions(app, editor, colors)).width(580).into()
 }
 
@@ -215,7 +216,7 @@ fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message>
 
 /// The todo's notes, in Markdown. Saving writes them to the `note:` file,
 /// adding the tag with a name taken from the todo text when there is none.
-fn notes(editor: &Editor, colors: Colors) -> Element<'_, Message> {
+fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
     let field = text_editor(&editor.note)
         .placeholder(tr("notes_placeholder"))
         .on_action(Message::EditorNoteAction)
@@ -235,13 +236,15 @@ fn notes(editor: &Editor, colors: Colors) -> Element<'_, Message> {
         .spacing(6)
         .align_y(Alignment::Center);
     // Say where the notes go once there is something to save.
-    let target = editor.note_target();
-    let hint = match &target {
-        Some(Ok(name)) => Some((trf("note_saved_to", &[name]), colors.muted)),
+    let folder = app
+        .active_path()
+        .map(|path| NoteService::folder_name(&path))
+        .unwrap_or_default();
+    let saved_to = |name: &NoteName| trf("note_saved_to", &[&format!("{folder}/{name}")]);
+    let hint = match editor.note_target() {
+        Some(Ok(name)) => Some((saved_to(&name), colors.muted)),
         Some(Err(error)) => Some((error.to_string(), colors.danger)),
-        None if !editor.note_text().trim().is_empty() => {
-            Some((trf("note_saved_to", &[&editor.new_note_name()]), colors.muted))
-        }
+        None if !editor.note_text().trim().is_empty() => Some((saved_to(&editor.new_note_name()), colors.muted)),
         None => None,
     };
     if let Some((hint, color)) = hint {

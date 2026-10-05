@@ -1,5 +1,5 @@
-//! The `note:` extension: links a todo to a notes file in a `notes/` folder
-//! next to the todo file. See `NOTE-EXTENSION.md` in the repository root.
+//! The `note:` extension: links a todo to a notes file in a `<file>-notes/`
+//! folder next to the todo file (`todo.txt` keeps its notes in `todo-notes/`). See `NOTE-EXTENSION.md` in the repository root.
 //!
 //! This module only validates names and derives text; finding, creating and
 //! opening the file is the application layer's job.
@@ -11,8 +11,9 @@ use crate::todo::Todo;
 /// The extension key, as in `note:report-outline.md`.
 pub const NOTE_KEY: &str = "note";
 
-/// The folder next to the todo file that note names are relative to.
-pub const NOTES_DIR: &str = "notes";
+/// Suffix of the notes folder, added to the todo file name without its
+/// extension.
+const NOTES_FOLDER_SUFFIX: &str = "-notes";
 
 /// Extension assumed when a note name has none.
 const DEFAULT_EXTENSION: &str = "md";
@@ -94,6 +95,17 @@ impl std::fmt::Display for NoteName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
     }
+}
+
+/// The folder next to a todo file that its note names are relative to:
+/// `todo.txt` gets `todo-notes`, `work.todo.txt` gets `work.todo-notes`.
+/// Each todo file has its own folder, so two lists never share notes.
+pub fn notes_folder(todo_file_name: &str) -> String {
+    let stem = match todo_file_name.rfind('.') {
+        Some(dot) if dot > 0 => &todo_file_name[..dot],
+        _ => todo_file_name,
+    };
+    format!("{stem}{NOTES_FOLDER_SUFFIX}")
 }
 
 impl Todo {
@@ -210,6 +222,14 @@ mod tests {
         assert_eq!(suggest("+work @office"), None);
         let long = suggest(&"word ".repeat(30)).unwrap();
         assert!(long.len() <= SUGGESTION_MAX_LEN + 3 && !long.contains("-.md"));
+    }
+
+    #[test]
+    fn notes_folder_is_named_after_the_todo_file() {
+        assert_eq!(notes_folder("todo.txt"), "todo-notes");
+        assert_eq!(notes_folder("work.todo.txt"), "work.todo-notes");
+        assert_eq!(notes_folder("inbox"), "inbox-notes");
+        assert_eq!(notes_folder(".todo"), ".todo-notes");
     }
 
     #[test]

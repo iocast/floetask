@@ -32,7 +32,7 @@ Priority tags used below:
 | Hidden | `h:1` | Todo hidden from list but its attributes still feed autocomplete and the drawer. |
 | Pomodoro | `pm:N` | Parsed and displayed only; no timer. |
 | Stored priority | `pri:X` | floetask moves the priority here on completion and restores it on un-completion. |
-| Note | `note:name.md` | Links a Markdown notes file in `notes/` next to the todo file, written from the add/edit dialog; the file and tag are created automatically (P1). See [NOTE-EXTENSION.md](NOTE-EXTENSION.md). |
+| Note | `note:name.md` | Links a Markdown notes file in `<filename>-notes/` next to the todo file (`todo.txt` → `todo-notes/`), written from the add/edit dialog; the file and tag are created automatically (P1). See [NOTE-EXTENSION.md](NOTE-EXTENSION.md). |
 | Other `key:value` | any | Preserved verbatim on round-trip. |
 
 ### 1.2 Parsed todo object

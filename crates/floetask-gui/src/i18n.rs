@@ -89,11 +89,11 @@ fn english(key: &str) -> Option<&'static str> {
         "note" => "Note",
         "notes" => "Notes",
         "notes_placeholder" => "Notes in Markdown, saved to a file next to your todo file",
-        "note_saved_to" => "Saved to notes/{}",
+        "note_saved_to" => "Saved to {}",
         "open_note" => "Open note",
         "note_missing" => "{} does not exist yet; open it to create it",
         "note_invalid" => "{} is not a valid note name",
-        "note_orphaned" => "No todo links to notes/{} any more; the file was kept",
+        "note_orphaned" => "No todo links to {} any more; the file was kept",
         // Attributes
         "projects" => "Projects",
         "contexts" => "Contexts",

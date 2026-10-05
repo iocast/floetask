@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use floetask_domain::note::{NOTES_DIR, new_note_content};
+use floetask_domain::note::{new_note_content, notes_folder};
 use floetask_domain::todo::Todo;
 use floetask_domain::{NoteName, TodoDocument};
 
@@ -38,9 +38,22 @@ impl NoteService {
         Self { files, desktop }
     }
 
-    /// The note file for `name`, in the `notes/` folder next to the todo file.
+    /// The notes folder's name, e.g. `todo-notes` for `todo.txt`.
+    pub fn folder_name(todo_file: &Path) -> String {
+        let file_name = todo_file
+            .file_name()
+            .map(|name| name.to_string_lossy())
+            .unwrap_or_default();
+        notes_folder(&file_name)
+    }
+
+    /// The note file for `name`, in the `<file>-notes/` folder next to the
+    /// todo file.
     pub fn note_path(todo_file: &Path, name: &NoteName) -> PathBuf {
-        let folder = todo_file.parent().unwrap_or(Path::new("")).join(NOTES_DIR);
+        let folder = todo_file
+            .parent()
+            .unwrap_or(Path::new(""))
+            .join(Self::folder_name(todo_file));
         name.segments().fold(folder, |path, segment| path.join(segment))
     }
 
@@ -174,7 +187,7 @@ mod tests {
     }
 
     fn note_file(name: &str) -> PathBuf {
-        PathBuf::from("/lists/notes").join(name)
+        PathBuf::from("/lists/todo-notes").join(name)
     }
 
     #[test]

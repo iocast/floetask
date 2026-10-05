@@ -17,12 +17,14 @@ note:<filename>
 ```
 todo.txt
 done.txt
-notes/
+todo-notes/
   report-outline.md
   dentist-call.md
 ```
 
-The `notes/` folder sits next to `todo.txt`. Filenames are resolved relative to it.
+Each todo file has its own notes folder next to it, named `<filename>-notes`, where `<filename>` is the todo file's name without its extension: `todo.txt` uses `todo-notes/`, `work.txt` uses `work-notes/`. Filenames in `note:` are resolved relative to that folder, so two todo files never share notes.
+
+Tasks archived to `done.txt` keep pointing into the folder of the todo file they came from (`todo-notes/`), not into `done-notes/`.
 
 ## Filename rules
 
@@ -37,7 +39,7 @@ The `notes/` folder sits next to `todo.txt`. Filenames are resolved relative to 
 (A) Write report +work @office due:2026-10-10 note:report-outline.md
 ```
 
-Opens `notes/report-outline.md`.
+In `todo.txt`, this opens `todo-notes/report-outline.md`.
 
 ## Behavior (for tools)
 
@@ -59,11 +61,12 @@ This is not part of the official todo.txt spec. Tools must explicitly support it
 
 ## How floetask implements it
 
-* Each todo card with a `note:` shows a note button. Clicking it opens the note in the system's default app, creating `notes/<filename>` with the task text as a `#` heading first if it is missing.
+* Each todo card with a `note:` shows a note button. Clicking it opens the note in the system's default app, creating `<filename>-notes/<note>` with the task text as a `#` heading first if it is missing.
 * When the note file does not exist yet, the button shows as a broken link; the todo stays valid and clicking still creates the note.
 * An invalid value (uppercase, spaces, `..`, a leading `/`) shows as a broken link and is never opened.
 * The add/edit dialog has a Markdown notes field. Editing a todo with a `note:` loads the file's content into it, and saving writes the field back to the file when it changed.
-* The user never names or creates the file. Saving a todo without `note:` whose notes field has text creates `notes/<slug>.md` from the task text (e.g. `write-report.md`, or `write-report-2.md` if that name is taken) and adds the tag. With an empty field, no file and no tag are added.
+* The user never names or creates the file. Saving a todo without `note:` whose notes field has text creates `<filename>-notes/<slug>.md` from the task text (e.g. `write-report.md`, or `write-report-2.md` if that name is taken) and adds the tag. With an empty field, no file and no tag are added.
 * Clearing the notes field of an existing note empties the file but keeps it and the tag.
 * Deleting a todo whose note no other todo in the file uses shows a warning that the note is now orphaned. The note file is never deleted.
 * Completing and archiving leave both the tag and the file untouched.
+* Known gap: opening a `done.txt` on its own resolves its notes against `done-notes/`, so archived notes show as broken links there.
