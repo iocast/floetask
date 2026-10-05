@@ -14,6 +14,30 @@ pub fn modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, M
     opaque(mouse_area(center(opaque(card)).padding(24).style(theme::backdrop(colors))).on_press(Message::CloseDialog))
 }
 
+/// Margin around a full-window dialog: about a thumb's width, so the app
+/// behind stays visible as a frame.
+const FULL_MODAL_MARGIN: f32 = 40.0;
+
+/// Like [`modal`], but the card fills the window minus a thumb-width
+/// margin, for dialogs with a lot of content such as Settings.
+pub fn full_modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
+    let card = container(content)
+        .padding(24)
+        .width(Fill)
+        .height(Fill)
+        .style(theme::card(colors));
+    opaque(
+        mouse_area(
+            container(opaque(card))
+                .padding(FULL_MODAL_MARGIN)
+                .width(Fill)
+                .height(Fill)
+                .style(theme::backdrop(colors)),
+        )
+        .on_press(Message::CloseDialog),
+    )
+}
+
 /// A square icon button with a tooltip. `active` highlights toggled tools;
 /// without a message the button is disabled and its icon greyed out.
 pub fn icon_button<'a>(

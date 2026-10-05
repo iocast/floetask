@@ -6,7 +6,7 @@ use iced::widget::{
     Column, button, checkbox, column, container, pick_list, row, rule, scrollable, slider, space, text, text_input,
     toggler,
 };
-use iced::{Alignment, Element, Fill, Length};
+use iced::{Alignment, Element, Fill};
 
 use floetask_application::{Settings, ThemePreference};
 use floetask_domain::WeekStart;
@@ -47,7 +47,7 @@ pub fn view<'a>(app: &'a Floetask, dialog: &'a SettingsDialog) -> Element<'a, Me
             .height(Fill),
     ]
     .spacing(16)
-    .height(Length::Fixed(480.0));
+    .height(Fill);
 
     column![
         title(tr("settings_title")),
@@ -55,7 +55,8 @@ pub fn view<'a>(app: &'a Floetask, dialog: &'a SettingsDialog) -> Element<'a, Me
         container(primary_button(tr("close"), Message::CloseDialog, colors)).align_right(Fill),
     ]
     .spacing(16)
-    .width(820)
+    .width(Fill)
+    .height(Fill)
     .into()
 }
 

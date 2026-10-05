@@ -89,7 +89,10 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
             Dialog::SaveFilter { name } => dialogs::save_filter(app, name),
             Dialog::BoardColumns { columns, input } => dialogs::board_columns(app, columns, input),
         };
-        layers = layers.push(widgets::modal(content, colors));
+        layers = layers.push(match dialog {
+            Dialog::Settings(_) => widgets::full_modal(content, colors),
+            _ => widgets::modal(content, colors),
+        });
     }
 
     if !app.toasts.is_empty() {
