@@ -125,6 +125,16 @@ pub enum Message {
     SettingsSection(super::SettingsSection),
     SettingsStatusInput(String),
 
+    // Updates (Settings → About)
+    CheckForUpdates,
+    /// Whether the user asked, and what the release server said.
+    UpdateChecked(
+        bool,
+        Result<Option<floetask_application::ports::AvailableUpdate>, AppError>,
+    ),
+    InstallUpdate,
+    UpdateInstalled(Result<(), AppError>),
+
     // Dialogs
     // Status board
     ToggleMainView,
@@ -169,6 +179,7 @@ pub enum SettingChange {
     DisableAnimations(bool),
     Compact(bool),
     Notifications(bool),
+    CheckForUpdates(bool),
     NotificationThreshold(u8),
     Zoom(u16),
     Theme(floetask_application::ThemePreference),

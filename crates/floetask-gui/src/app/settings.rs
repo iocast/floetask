@@ -57,6 +57,7 @@ impl Floetask {
             SettingChange::DisableAnimations(on) => s.disable_animations = on,
             SettingChange::Compact(on) => s.compact = on,
             SettingChange::Notifications(on) => s.notifications = on,
+            SettingChange::CheckForUpdates(on) => s.check_for_updates = on,
             SettingChange::NotificationThreshold(days) => s.notification_threshold_days = days,
             SettingChange::Zoom(percent) => s.zoom_percent = percent,
             SettingChange::Theme(theme) => s.theme = theme,

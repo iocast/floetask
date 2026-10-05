@@ -190,17 +190,19 @@ pub enum SettingsSection {
     Appearance,
     Notifications,
     Files,
+    About,
 }
 
 impl SettingsSection {
     /// Sidebar order.
-    pub const ALL: [SettingsSection; 6] = [
+    pub const ALL: [SettingsSection; 7] = [
         SettingsSection::Todos,
         SettingsSection::Dates,
         SettingsSection::Statuses,
         SettingsSection::Appearance,
         SettingsSection::Notifications,
         SettingsSection::Files,
+        SettingsSection::About,
     ];
 
     /// Translation key of the section title.
@@ -212,6 +214,7 @@ impl SettingsSection {
             SettingsSection::Appearance => "section_appearance",
             SettingsSection::Notifications => "section_notifications",
             SettingsSection::Files => "section_files",
+            SettingsSection::About => "section_about",
         }
     }
 }

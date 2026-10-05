@@ -145,6 +145,21 @@ impl Desktop for Fixed {
     }
 }
 
+impl Updater for Fixed {
+    fn is_configured(&self) -> bool {
+        true
+    }
+    fn check(&self) -> Result<Option<AvailableUpdate>, AppError> {
+        Ok(Some(AvailableUpdate {
+            version: "0.2.0".to_owned(),
+            notes: Some("Faster board".to_owned()),
+        }))
+    }
+    fn install_latest(&self) -> Result<(), AppError> {
+        Ok(())
+    }
+}
+
 impl ColorStore for Fixed {
     fn load(&self) -> Result<ColorOverrides, AppError> {
         Ok(ColorOverrides::default())
@@ -178,7 +193,8 @@ fn app() -> Floetask {
         notifier: fixed.clone(),
         watcher: fixed.clone(),
         desktop: fixed.clone(),
-        colors: fixed,
+        colors: fixed.clone(),
+        updater: fixed,
     };
     let (mut app, _) = Floetask::boot(Startup {
         services: Services::new(ports),
@@ -871,4 +887,28 @@ fn wide_grouped_board_stays_left_of_the_drawer() {
     let mut ui = iced_test::Simulator::with_size(iced::Settings::default(), (1600.0, 900.0), app.view());
     let snapshot = ui.snapshot(&app.theme()).unwrap();
     snapshot.matches_image(&path).unwrap();
+}
+
+#[test]
+fn about_page_shows_the_version_and_an_available_update() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let _ = app.update(Message::OpenSettings);
+    let _ = app.update(Message::SettingsSection(crate::app::SettingsSection::About));
+    assert!(
+        simulator(app.view())
+            .find(format!("Version {}", env!("CARGO_PKG_VERSION")).as_str())
+            .is_ok()
+    );
+
+    let messages = click(&app, "Check now");
+    assert!(matches!(&messages[..], [Message::CheckForUpdates]));
+    let _ = app.update(Message::CheckForUpdates);
+    assert_eq!(app.update, crate::app::UpdateState::Checking);
+    let found = app.services.ports.updater.check();
+    let _ = app.update(Message::UpdateChecked(true, found));
+    assert!(matches!(&app.update, crate::app::UpdateState::Available(update) if update.version == "0.2.0"));
+    snapshot(&app, "settings-about");
+    assert!(simulator(app.view()).find("Install and restart").is_ok());
 }

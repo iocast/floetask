@@ -88,3 +88,24 @@ pub trait ColorStore: Send + Sync {
     fn load(&self) -> Result<ColorOverrides, AppError>;
     fn location(&self) -> PathBuf;
 }
+
+/// A newer release than the running one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AvailableUpdate {
+    pub version: String,
+    /// Release notes, when the release has any.
+    pub notes: Option<String>,
+}
+
+/// Finds and installs new releases of floetask.
+pub trait Updater: Send + Sync {
+    /// Whether this build knows where releases are published and how to
+    /// verify them. Local builds usually do not.
+    fn is_configured(&self) -> bool;
+    /// Asks the release server for a newer version.
+    fn check(&self) -> Result<Option<AvailableUpdate>, AppError>;
+    /// Downloads the newest release, verifies its signature and starts its
+    /// installer. On success the installer replaces the running app, which
+    /// may exit before this returns.
+    fn install_latest(&self) -> Result<(), AppError>;
+}

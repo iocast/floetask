@@ -41,6 +41,7 @@ pub struct Ports {
     pub watcher: Arc<dyn ports::FileWatcher>,
     pub desktop: Arc<dyn ports::Desktop>,
     pub colors: Arc<dyn ports::ColorStore>,
+    pub updater: Arc<dyn ports::Updater>,
 }
 
 /// The services the GUI uses. Built once from [`Ports`].

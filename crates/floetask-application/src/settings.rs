@@ -45,6 +45,8 @@ pub struct Settings {
     pub disable_animations: bool,
     pub compact: bool,
     pub notifications: bool,
+    /// Look for a new release on start.
+    pub check_for_updates: bool,
     /// Notify about todos due within this many days (0 = today only).
     pub notification_threshold_days: u8,
     pub zoom_percent: u16,
@@ -73,6 +75,7 @@ impl Default for Settings {
             disable_animations: false,
             compact: false,
             notifications: true,
+            check_for_updates: true,
             notification_threshold_days: 2,
             zoom_percent: 100,
             theme: ThemePreference::System,

@@ -21,6 +21,10 @@ floetask [OPTIONS] [TODO_FILE]
 
 `cargo packager --release -p floetask-app` builds the installers for the current OS (Windows: setup `.exe` and `.msi`; macOS: `.app` and `.dmg`; Linux: `.deb` and AppImage) into `target/packages/`. Install the tool once with `cargo install cargo-packager --locked`. Pushing a version tag builds all three on GitHub Actions. Details and the signing to-do are in [features/14-platform.md](features/14-platform.md).
 
+### Updates
+
+Settings → About shows the version and checks for new releases (on start, or with **Check now**); **Install and restart** downloads the signed installer and runs it. Only release builds from the GitHub workflow can update themselves, after a one-time key setup: generate a key with `cargo packager signer generate`, then add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` and `FLOETASK_UPDATE_KEY_PASSWORD` and the variable `FLOETASK_UPDATE_PUBKEY` to the GitHub repository ([features/14-platform.md §14.2](features/14-platform.md)).
+
 A file passed on the command line is registered and opened. Without one, floetask reopens the files from last time.
 
 ## Files floetask uses

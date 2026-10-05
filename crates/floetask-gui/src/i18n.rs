@@ -103,6 +103,23 @@ fn english(key: &str) -> Option<&'static str> {
         "strict" => "Strict",
         "note" => "Note",
         "notes" => "Notes",
+        // About and updates
+        "section_about" => "About",
+        "about_tagline" => "A todo.txt manager for the desktop.",
+        "about_version" => "Version {}",
+        "check_for_updates" => "Check for updates on start",
+        "check_for_updates_desc" => {
+            "Look for a new release when floetask starts. Nothing is sent but the version check."
+        }
+        "check_now" => "Check now",
+        "update_checking" => "Checking for updates…",
+        "update_up_to_date" => "floetask is up to date.",
+        "update_available" => "floetask {} is available.",
+        "update_available_toast" => "floetask {} is available. Install it from Settings → About.",
+        "update_install" => "Install and restart",
+        "update_installing" => "Downloading and installing… floetask restarts when it is done.",
+        "update_failed" => "Update failed: {}",
+        "updates_not_configured" => "This build cannot update itself. Releases from the project's release page can.",
         "notes_placeholder" => "Notes in Markdown, saved to a file next to your todo file",
         "note_saved_to" => "Saved to {}",
         "open_note" => "Open note",

@@ -10,6 +10,7 @@ pub mod desktop;
 pub mod fs;
 pub mod paths;
 pub mod stores;
+pub mod updater;
 pub mod watcher;
 
 use std::sync::Arc;
@@ -32,5 +33,6 @@ pub fn ports(paths: &AppPaths) -> Ports {
         watcher: Arc::new(watcher::NotifyFileWatcher),
         desktop: Arc::new(desktop::OsDesktop),
         colors: Arc::new(TomlColorStore::new(paths.colors_file())),
+        updater: Arc::new(updater::ReleaseUpdater::from_build_env()),
     }
 }

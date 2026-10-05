@@ -51,6 +51,7 @@ struct SettingsFile {
     disable_animations: bool,
     compact: bool,
     notifications: bool,
+    check_for_updates: bool,
     notification_threshold_days: u8,
     zoom_percent: u16,
     /// `system`, `light` or `dark`.
@@ -133,6 +134,7 @@ impl From<&Settings> for SettingsFile {
             disable_animations: s.disable_animations,
             compact: s.compact,
             notifications: s.notifications,
+            check_for_updates: s.check_for_updates,
             notification_threshold_days: s.notification_threshold_days,
             zoom_percent: s.zoom_percent,
             theme: match s.theme {
@@ -178,6 +180,7 @@ impl From<SettingsFile> for Settings {
             disable_animations: f.disable_animations,
             compact: f.compact,
             notifications: f.notifications,
+            check_for_updates: f.check_for_updates,
             notification_threshold_days: f.notification_threshold_days,
             zoom_percent: f.zoom_percent,
             theme: match f.theme.as_str() {

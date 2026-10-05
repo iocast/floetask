@@ -14,6 +14,7 @@ mod search;
 mod settings;
 mod shortcuts;
 mod subscriptions;
+mod updates;
 mod window_frame;
 
 use std::collections::{BTreeSet, HashMap};
@@ -42,6 +43,7 @@ pub use dialog::{Calendar, DateKey, Dialog, Editor, Pending, SettingsDialog, Set
 #[cfg(test)]
 pub(crate) use editing::NoteSave;
 pub use message::{Message, SettingChange, ViewToggle};
+pub use updates::UpdateState;
 
 /// What the composition root hands to the GUI.
 pub struct Startup {
@@ -118,6 +120,8 @@ pub struct Floetask {
     pub(crate) hovered: Option<usize>,
     /// Bumped whenever the set of watched files changes.
     pub(crate) watch_generation: u64,
+    /// The release check on the About page.
+    pub(crate) update: UpdateState,
 }
 
 impl Floetask {
@@ -174,6 +178,7 @@ impl Floetask {
             hovered: None,
             modifiers: iced::keyboard::Modifiers::default(),
             watch_generation: 0,
+            update: UpdateState::default(),
         };
         let toast_tasks: Vec<_> = toasts.into_iter().map(|text| app.toast_error(text)).collect();
         let load_files = Task::batch([app.load_all_files(), app.persist_state()]);
@@ -181,12 +186,17 @@ impl Floetask {
             let store = app.services.ports.saved_filters.clone();
             Task::perform(async move { store.load() }, Message::SavedFiltersLoaded)
         };
+        let updates = if app.settings.check_for_updates {
+            app.check_for_updates(false)
+        } else {
+            Task::none()
+        };
         let window = window::oldest().map(Message::WindowReady);
         let system_theme = iced::system::theme().map(|mode| Message::SystemDark(mode == iced::theme::Mode::Dark));
         (
             app,
             Task::batch(
-                [load_files, saved_filters, system_theme, window]
+                [load_files, saved_filters, system_theme, window, updates]
                     .into_iter()
                     .chain(toast_tasks),
             ),
@@ -323,6 +333,9 @@ impl Floetask {
             | M::AskDeleteSavedFilter(_)
             | M::ToggleSuppress(_) => self.update_search(message),
 
+            M::CheckForUpdates | M::UpdateChecked(..) | M::InstallUpdate | M::UpdateInstalled(_) => {
+                self.update_updates(message)
+            }
             M::OpenSettings | M::Setting(_) | M::ToggleTheme | M::SettingsSection(_) | M::SettingsStatusInput(_) => {
                 self.update_settings(message)
             }

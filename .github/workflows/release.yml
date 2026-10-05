@@ -71,6 +71,14 @@ jobs:
         env:
           # The AppImage tooling is itself an AppImage; runners have no FUSE.
           APPIMAGE_EXTRACT_AND_RUN: 1
+          # Compiled into the app: where the updater looks and which key it
+          # trusts (features/14-platform.md §14.2). Without them the build
+          # works but cannot update itself.
+          FLOETASK_UPDATE_ENDPOINT: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
+          FLOETASK_UPDATE_PUBKEY: ${{ vars.FLOETASK_UPDATE_PUBKEY }}
+          # Signs every installer for the updater; skipped when unset.
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.FLOETASK_UPDATE_PRIVATE_KEY }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.FLOETASK_UPDATE_KEY_PASSWORD }}
 
       - name: Upload installers
         uses: actions/upload-artifact@v6
@@ -83,6 +91,8 @@ jobs:
             target/packages/*.dmg
             target/packages/*.deb
             target/packages/*.AppImage
+            target/packages/*.app.tar.gz
+            target/packages/*.sig
 
   release:
     name: Publish Release
@@ -106,6 +116,9 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           path: artifacts
+
+      - name: Write the updater manifest
+        run: python3 scripts/update-manifest.py artifacts "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" release_notes.md artifacts/latest.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

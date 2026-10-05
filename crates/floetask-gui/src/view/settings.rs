@@ -15,7 +15,7 @@ use floetask_domain::status::{StatusSet, is_valid_status};
 use super::icons::Icon;
 use super::list::status_label;
 use super::widgets::{icon_button, primary_button, title};
-use crate::app::{Floetask, Message, SettingChange, SettingsDialog, SettingsSection};
+use crate::app::{Floetask, Message, SettingChange, SettingsDialog, SettingsSection, UpdateState};
 use crate::i18n::{LANGUAGES, tr, trf};
 use crate::theme::{self, Colors};
 
@@ -31,6 +31,7 @@ pub fn view<'a>(app: &'a Floetask, dialog: &'a SettingsDialog) -> Element<'a, Me
         SettingsSection::Appearance => appearance(app, colors),
         SettingsSection::Notifications => notifications(app, colors),
         SettingsSection::Files => files(app, colors),
+        SettingsSection::About => about(app, colors),
     };
     let body = row![
         sidebar(dialog.section, colors),
@@ -351,6 +352,73 @@ fn files(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             setting("config_file", tr("config_file").to_owned(), location, colors),
         ],
     )
+}
+
+/// Name, version and the update check.
+fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let identity = row![
+        crate::logo::view(72.0),
+        column![
+            text("floetask").size(26),
+            text(trf("about_version", &[&env!("CARGO_PKG_VERSION")]))
+                .size(14)
+                .color(colors.muted),
+            text(tr("about_tagline")).size(14),
+        ]
+        .spacing(4),
+    ]
+    .spacing(20)
+    .align_y(Alignment::Center);
+
+    let configured = app.services.ports.updater.is_configured();
+    let status: Element<'_, Message> = if !configured {
+        text(tr("updates_not_configured")).size(13).color(colors.muted).into()
+    } else {
+        let line = |label: String, color| text(label).size(13).color(color);
+        match &app.update {
+            UpdateState::Idle => row![primary_button(tr("check_now"), Message::CheckForUpdates, colors)].into(),
+            UpdateState::Checking => line(tr("update_checking").to_owned(), colors.muted).into(),
+            UpdateState::UpToDate => row![
+                line(tr("update_up_to_date").to_owned(), colors.success),
+                space::horizontal(),
+                primary_button(tr("check_now"), Message::CheckForUpdates, colors),
+            ]
+            .align_y(Alignment::Center)
+            .into(),
+            UpdateState::Available(update) => {
+                let mut details = column![line(trf("update_available", &[&update.version]), colors.primary)].spacing(6);
+                if let Some(notes) = &update.notes {
+                    details = details.push(text(notes.clone()).size(12).color(colors.muted));
+                }
+                row![
+                    details.width(Fill),
+                    primary_button(tr("update_install"), Message::InstallUpdate, colors)
+                ]
+                .spacing(16)
+                .align_y(Alignment::Center)
+                .into()
+            }
+            UpdateState::Installing => line(tr("update_installing").to_owned(), colors.muted).into(),
+            UpdateState::Failed(error) => row![
+                line(trf("update_failed", &[error]), colors.danger).width(Fill),
+                primary_button(tr("check_now"), Message::CheckForUpdates, colors),
+            ]
+            .spacing(16)
+            .align_y(Alignment::Center)
+            .into(),
+        }
+    };
+
+    let mut items = vec![identity.into(), status];
+    if configured {
+        items.push(switch_setting(
+            "check_for_updates",
+            app.settings.check_for_updates,
+            SettingChange::CheckForUpdates,
+            colors,
+        ));
+    }
+    page("section_about", items)
 }
 
 /// A pick list over a few values shown through `label`.
