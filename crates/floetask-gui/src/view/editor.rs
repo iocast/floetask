@@ -1,7 +1,7 @@
 //! The add/edit dialog.
 
 use iced::keyboard::{Key, key::Named};
-use iced::widget::{Column, button, checkbox, column, container, pick_list, row, text, text_editor, text_input};
+use iced::widget::{Column, button, checkbox, column, container, pick_list, row, space, text, text_editor, text_input};
 use iced::{Alignment, Border, Element, Fill};
 
 use floetask_domain::status::DEFAULT_STATUS;
@@ -35,20 +35,7 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
         .max_height(240)
         .padding(12)
         .size(15)
-        .style(move |_, status| {
-            let focused = matches!(status, text_editor::Status::Focused { .. });
-            text_editor::Style {
-                background: colors.background.into(),
-                border: Border {
-                    radius: 10.0.into(),
-                    width: 1.0,
-                    color: if focused { colors.primary } else { colors.border },
-                },
-                placeholder: colors.muted,
-                value: colors.text,
-                selection: colors.tint(colors.primary, 0.3),
-            }
-        })
+        .style(field_style(colors))
         .key_binding(move |press| {
             let command = press.modifiers.command();
             let custom = |message| Some(text_editor::Binding::Custom(message));
@@ -70,7 +57,26 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     }
     content = content.push(pickers(app, editor, colors));
     content = content.push(repeat_and_pomodoros(editor, colors));
+    content = content.push(notes(editor, colors));
     content.push(actions(app, editor, colors)).width(580).into()
+}
+
+/// The look of the dialog's multi-line fields.
+fn field_style(colors: Colors) -> impl Fn(&iced::Theme, text_editor::Status) -> text_editor::Style {
+    move |_, status| {
+        let focused = matches!(status, text_editor::Status::Focused { .. });
+        text_editor::Style {
+            background: colors.background.into(),
+            border: Border {
+                radius: 10.0.into(),
+                width: 1.0,
+                color: if focused { colors.primary } else { colors.border },
+            },
+            placeholder: colors.muted,
+            value: colors.text,
+            selection: colors.tint(colors.primary, 0.3),
+        }
+    }
 }
 
 fn suggestions(editor: &Editor, colors: Colors) -> Element<'_, Message> {
@@ -204,26 +210,44 @@ fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message>
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    let suggestion = match editor.note_choice() {
-        Some(Ok(name)) if editor.note.trim().is_empty() => name.to_string(),
-        _ => "name.md".to_owned(),
+    column![repeat, pomodoros].spacing(10).into()
+}
+
+/// The todo's notes, in Markdown. Saving writes them to the `note:` file,
+/// adding the tag with a name taken from the todo text when there is none.
+fn notes(editor: &Editor, colors: Colors) -> Element<'_, Message> {
+    let field = text_editor(&editor.note)
+        .placeholder(tr("notes_placeholder"))
+        .on_action(Message::EditorNoteAction)
+        .min_height(72)
+        .max_height(200)
+        .padding(10)
+        .size(14)
+        .style(field_style(colors))
+        .key_binding(|press| match press.key.as_ref() {
+            Key::Named(Named::Enter) if press.modifiers.command() => {
+                Some(text_editor::Binding::Custom(Message::SaveEditor))
+            }
+            Key::Named(Named::Escape) => Some(text_editor::Binding::Custom(Message::CloseDialog)),
+            _ => text_editor::Binding::from_key_press(press),
+        });
+    let mut header = row![icon(Icon::Note, 14.0, colors.muted), caption(tr("notes"), colors)]
+        .spacing(6)
+        .align_y(Alignment::Center);
+    // Say where the notes go once there is something to save.
+    let target = editor.note_target();
+    let hint = match &target {
+        Some(Ok(name)) => Some((trf("note_saved_to", &[name]), colors.muted)),
+        Some(Err(error)) => Some((error.to_string(), colors.danger)),
+        None if !editor.note_text().trim().is_empty() => {
+            Some((trf("note_saved_to", &[&editor.new_note_name()]), colors.muted))
+        }
+        None => None,
     };
-    let note = row![
-        icon(Icon::Note, 14.0, colors.muted),
-        text(tr("note")).size(13).color(colors.muted),
-        text_input(&suggestion, &editor.note)
-            .on_input(Message::EditorNote)
-            .on_submit(Message::EditorApplyNote(true))
-            .width(240)
-            .size(13)
-            .padding(6)
-            .style(theme::input(colors)),
-        small("set", Message::EditorApplyNote(true)),
-        small("clear", Message::EditorApplyNote(false)),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-    column![repeat, pomodoros, note].spacing(10).into()
+    if let Some((hint, color)) = hint {
+        header = header.push(space::horizontal()).push(text(hint).size(12).color(color));
+    }
+    column![header, field].spacing(8).into()
 }
 
 fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {

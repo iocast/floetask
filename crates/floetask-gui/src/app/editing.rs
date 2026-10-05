@@ -3,8 +3,11 @@
 use iced::Task;
 use iced::widget::operation;
 
-use floetask_domain::Recurrence;
+use std::path::Path;
+
+use floetask_application::{AppError, NoteService};
 use floetask_domain::todo::Todo;
+use floetask_domain::{NoteError, NoteName, Recurrence};
 
 use super::{Calendar, DateKey, Dialog, Editor, Floetask, Message};
 use crate::compose::edit_text;
@@ -23,7 +26,18 @@ impl Floetask {
             }
             Message::CalendarPick(date) => self.pick_date(date),
             Message::SaveEditor => self.save_editor(),
-            Message::EditorApplyNote(set) => self.apply_note(set),
+            Message::NoteLoaded(target, result) => match result {
+                Ok(Some(text)) => {
+                    if let Some(Dialog::Editor(editor)) = &mut self.dialog
+                        && editor.target.as_ref() == Some(&target)
+                    {
+                        editor.load_note(&text);
+                    }
+                    Task::none()
+                }
+                Ok(None) => Task::none(),
+                Err(error) => self.report(&error),
+            },
             other => {
                 let (projects, contexts) = (self.projects.clone(), self.contexts.clone());
                 let today = self.today;
@@ -80,8 +94,8 @@ impl Floetask {
                         editor.calendar = None;
                         operation::focus(view::EDITOR_ID)
                     }
-                    Message::EditorNote(note) => {
-                        editor.note = note;
+                    Message::EditorNoteAction(action) => {
+                        editor.note.perform(action);
                         Task::none()
                     }
                     Message::EditorRecurrenceCount(count) => {
@@ -134,6 +148,9 @@ impl Floetask {
         operation::focus(view::EDITOR_ID)
     }
 
+    /// Saves the todo and, when its notes changed, the note file first. A
+    /// todo without `note:` gets one named after its text, so the user never
+    /// has to name or create the file.
     fn save_editor(&mut self) -> Task<Message> {
         let Some(Dialog::Editor(editor)) = &self.dialog else {
             return Task::none();
@@ -142,37 +159,28 @@ impl Floetask {
         if text.trim().is_empty() {
             return self.toast_error(tr("empty_todo"));
         }
-        let target = editor.target.clone();
-        self.dialog = None;
-        let input = self.input_options();
-        match target {
-            Some(target) => self.change_active_file(move |service, path, options| {
-                service.update(path, &target, &text, &input, options)
-            }),
-            None => self.change_active_file(move |service, path, options| service.add(path, &text, &input, options)),
-        }
-    }
-
-    /// Sets or clears `note:` in the dialog text. Setting uses the typed name
-    /// or, when the field is empty, the name suggested from the text.
-    fn apply_note(&mut self, set: bool) -> Task<Message> {
-        let Some(Dialog::Editor(editor)) = &mut self.dialog else {
+        let note = match NoteSave::from_editor(editor) {
+            Ok(note) => note,
+            Err(error) => return self.toast_error(error.to_string()),
+        };
+        let Some(path) = self.active_path() else {
             return Task::none();
         };
-        if !set {
-            editor.note.clear();
-            rewrite(editor, |todo| todo.with_note(None));
-            return Task::none();
-        }
-        match editor.note_choice() {
-            Some(Ok(name)) => {
-                editor.note = name.to_string();
-                rewrite(editor, |todo| todo.with_note(Some(&name)));
-                Task::none()
-            }
-            Some(Err(error)) => self.toast_error(error.to_string()),
-            None => self.toast_error(tr("empty_todo")),
-        }
+        let target = editor.target.clone();
+        self.dialog = None;
+        let (todo_files, notes) = (self.services.todo_files.clone(), self.services.notes.clone());
+        let (input, options) = (self.input_options(), self.file_options());
+        let saved = path.clone();
+        Task::perform(
+            async move {
+                let text = note.write(&notes, &path, text)?;
+                match target {
+                    Some(target) => todo_files.update(&path, &target, &text, &input, &options),
+                    None => todo_files.add(&path, &text, &input, &options),
+                }
+            },
+            move |result| Message::Saved(saved.clone(), result),
+        )
     }
 
     fn active_calendar(&mut self) -> Option<&mut Calendar> {
@@ -198,6 +206,46 @@ impl Floetask {
             other => {
                 self.dialog = other;
                 Task::none()
+            }
+        }
+    }
+}
+
+/// What saving the dialog does with the note file.
+pub(crate) enum NoteSave {
+    /// The notes did not change: leave the file alone.
+    Keep,
+    /// Write the file the todo's `note:` already names.
+    Existing(NoteName, String),
+    /// Create a file under a free variant of this name and add `note:`.
+    New(NoteName, String),
+}
+
+impl NoteSave {
+    pub(crate) fn from_editor(editor: &Editor) -> Result<Self, NoteError> {
+        if !editor.note_changed() {
+            return Ok(NoteSave::Keep);
+        }
+        let body = editor.note_text();
+        Ok(match editor.note_target().transpose()? {
+            Some(name) => NoteSave::Existing(name, body),
+            None if body.trim().is_empty() => NoteSave::Keep,
+            None => NoteSave::New(editor.new_note_name(), body),
+        })
+    }
+
+    /// Writes the note file and returns the todo text to save.
+    pub(crate) fn write(self, notes: &NoteService, todo_file: &Path, text: String) -> Result<String, AppError> {
+        match self {
+            NoteSave::Keep => Ok(text),
+            NoteSave::Existing(name, body) => {
+                notes.write(todo_file, &name, &body)?;
+                Ok(text)
+            }
+            NoteSave::New(name, body) => {
+                let name = notes.unused_name(todo_file, name);
+                notes.write(todo_file, &name, &body)?;
+                Ok(edit_text(&text, |todo| todo.with_note(Some(&name))))
             }
         }
     }

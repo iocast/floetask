@@ -15,10 +15,24 @@ impl Floetask {
     pub(super) fn update_list(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::OpenTodo(target) => {
-                let text = Todo::parse(&target.raw).editable_text();
+                let todo = Todo::parse(&target.raw);
                 self.row_menu = None;
-                self.dialog = Some(Dialog::Editor(Box::new(Editor::new(Some(target), &text))));
-                operation::focus(view::EDITOR_ID)
+                self.dialog = Some(Dialog::Editor(Box::new(Editor::new(
+                    Some(target.clone()),
+                    &todo.editable_text(),
+                ))));
+                let focus = operation::focus(view::EDITOR_ID);
+                // Fill the notes field from the note file, if there is one.
+                match (self.active_path(), todo.note_name().and_then(Result::ok)) {
+                    (Some(path), Some(name)) => {
+                        let notes = self.services.notes.clone();
+                        let load = Task::perform(async move { notes.read(&path, &name) }, move |result| {
+                            Message::NoteLoaded(target.clone(), result)
+                        });
+                        Task::batch([focus, load])
+                    }
+                    _ => focus,
+                }
             }
             Message::ToggleComplete(target) => {
                 self.change_active_file(move |service, path, options| service.toggle_complete(path, &target, options))

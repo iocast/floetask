@@ -18,7 +18,7 @@ use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
 use floetask_domain::{Date, TodoDocument};
 
-use crate::app::{Dialog, Floetask, Message, Startup, ViewToggle};
+use crate::app::{Dialog, Floetask, Message, NoteSave, Startup, ViewToggle};
 use iced::widget::text_editor;
 
 const TODO_PATH: &str = "/test/todo.txt";
@@ -455,28 +455,83 @@ fn notes_link_open_and_warn_when_orphaned() {
     assert!(app.services.ports.files.exists(&note_path("shopping.md")));
 }
 
+/// Puts `text` in the open dialog's notes field.
+fn type_note(app: &mut Floetask, text: &str) {
+    if let Some(Dialog::Editor(editor)) = &mut app.dialog {
+        editor.note = iced::widget::text_editor::Content::with_text(text);
+    }
+}
+
+/// What saving the open dialog writes: the todo text it would save.
+fn save_notes(app: &Floetask) -> Result<String, AppError> {
+    let Some(Dialog::Editor(editor)) = &app.dialog else {
+        panic!("editor closed")
+    };
+    let note = NoteSave::from_editor(editor).map_err(AppError::from)?;
+    note.write(&app.services.notes, Path::new(TODO_PATH), editor.text())
+}
+
 #[test]
-fn editor_suggests_and_sets_a_note_name() {
-    let runtime = runtime();
-    let _tokio = runtime.enter();
+fn notes_typed_in_a_new_todo_create_the_file_and_tag() {
     let mut app = app();
     let _ = app.update(Message::NewTodo);
     if let Some(Dialog::Editor(editor)) = &mut app.dialog {
         editor.set_text("(A) Write report +work");
     }
-    snapshot(&app, "editor-note");
-    let _ = app.update(Message::EditorApplyNote(true));
-    let Some(Dialog::Editor(editor)) = &mut app.dialog else {
-        panic!("editor closed")
-    };
-    assert_eq!(editor.text(), "(A) Write report +work note:write-report.md");
+    assert_eq!(save_notes(&app), Ok("(A) Write report +work".to_owned()));
 
-    editor.note = "Bad Name".to_owned();
-    let _ = app.update(Message::EditorApplyNote(true));
-    assert!(app.toasts.iter().any(|toast| toast.error));
-    let _ = app.update(Message::EditorApplyNote(false));
+    type_note(&mut app, "# Outline\n- intro");
+    snapshot(&app, "editor-note");
+    assert_eq!(
+        save_notes(&app),
+        Ok("(A) Write report +work note:write-report.md".to_owned())
+    );
+    let files = &app.services.ports.files;
+    assert_eq!(
+        files.read(&note_path("write-report.md")).unwrap(),
+        "# Outline\n- intro\n"
+    );
+    // Another todo with the same text never overwrites that note.
+    assert_eq!(
+        save_notes(&app),
+        Ok("(A) Write report +work note:write-report-2.md".to_owned())
+    );
+}
+
+#[test]
+fn editing_a_todo_loads_and_saves_its_note() {
+    let mut app = app();
+    let slides = app
+        .listing
+        .todos()
+        .find(|entry| entry.todo.note() == Some("slides"))
+        .unwrap();
+    let target = TodoRef::new(slides.line, &slides.todo);
+    let _ = app.update(Message::OpenTodo(target.clone()));
+    let _ = app.update(Message::NoteLoaded(target, Ok(Some("# Slides\n".to_owned()))));
     let Some(Dialog::Editor(editor)) = &app.dialog else {
         panic!("editor closed")
     };
-    assert_eq!(editor.text(), "(A) Write report +work");
+    assert_eq!(editor.note_text(), "# Slides");
+    let text = editor.text();
+    // Unchanged notes are not written back.
+    assert_eq!(save_notes(&app), Ok(text.clone()));
+
+    type_note(&mut app, "# Slides\nAgenda first");
+    assert_eq!(save_notes(&app), Ok(text));
+    assert_eq!(
+        app.services.ports.files.read(&note_path("slides.md")).unwrap(),
+        "# Slides\nAgenda first\n"
+    );
+}
+
+#[test]
+fn notes_are_not_saved_under_an_invalid_name() {
+    let mut app = app();
+    let _ = app.update(Message::NewTodo);
+    if let Some(Dialog::Editor(editor)) = &mut app.dialog {
+        editor.set_text("Task note:Bad");
+    }
+    type_note(&mut app, "text");
+    assert!(matches!(save_notes(&app), Err(AppError::Note(_))));
 }

@@ -36,6 +36,8 @@ use crate::i18n::tr;
 use crate::theme::Colors;
 
 pub use dialog::{Calendar, DateKey, Dialog, Editor, Pending};
+#[cfg(test)]
+pub(crate) use editing::NoteSave;
 pub use message::{Message, SettingChange, ViewToggle};
 
 /// What the composition root hands to the GUI.
@@ -277,8 +279,8 @@ impl Floetask {
             | M::EditorApplyRecurrence(_)
             | M::EditorPomodoros(_)
             | M::EditorApplyPomodoros(_)
-            | M::EditorNote(_)
-            | M::EditorApplyNote(_)
+            | M::EditorNoteAction(_)
+            | M::NoteLoaded(..)
             | M::SaveEditor
             | M::CalendarMonth(_)
             | M::CalendarPick(_) => self.update_editing(message),

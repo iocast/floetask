@@ -75,6 +75,19 @@ impl NoteName {
     pub fn segments(&self) -> impl Iterator<Item = &str> {
         self.0.split('/')
     }
+
+    /// The same name with `-n` before the extension, to pick a file that
+    /// does not exist yet: `write-report.md` becomes `write-report-2.md`.
+    pub fn with_suffix(&self, n: u32) -> NoteName {
+        let file_start = self.0.rfind('/').map_or(0, |slash| slash + 1);
+        match self.0[file_start..].rfind('.').filter(|&dot| dot > 0) {
+            Some(dot) => {
+                let dot = file_start + dot;
+                NoteName(format!("{}-{n}{}", &self.0[..dot], &self.0[dot..]))
+            }
+            None => NoteName(format!("{}-{n}", self.0)),
+        }
+    }
 }
 
 impl std::fmt::Display for NoteName {
@@ -97,6 +110,14 @@ impl Todo {
     pub fn with_note(&self, name: Option<&NoteName>) -> Todo {
         self.with_extension(NOTE_KEY, name.map(NoteName::as_str))
     }
+}
+
+/// Name used when the todo text gives nothing to slugify.
+const FALLBACK_NAME: &str = "note";
+
+/// The name for a new note: the slugified todo text, or `note.md`.
+pub fn default_name(todo: &Todo) -> NoteName {
+    suggest_name(todo).unwrap_or_else(|| NoteName(format!("{FALLBACK_NAME}.{DEFAULT_EXTENSION}")))
 }
 
 /// Suggests a note name by slugifying the todo text, e.g. `write-report.md`.
@@ -189,6 +210,15 @@ mod tests {
         assert_eq!(suggest("+work @office"), None);
         let long = suggest(&"word ".repeat(30)).unwrap();
         assert!(long.len() <= SUGGESTION_MAX_LEN + 3 && !long.contains("-.md"));
+    }
+
+    #[test]
+    fn suffixes_go_before_the_extension() {
+        let suffixed = |value: &str| NoteName::parse(value).unwrap().with_suffix(2).to_string();
+        assert_eq!(suffixed("write-report.md"), "write-report-2.md");
+        assert_eq!(suffixed("work/q4.plan.md"), "work/q4.plan-2.md");
+        assert_eq!(suffixed(".hidden.md"), ".hidden-2.md");
+        assert_eq!(default_name(&Todo::parse("+work")).to_string(), "note.md");
     }
 
     #[test]

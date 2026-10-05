@@ -77,6 +77,38 @@ impl NoteService {
         Ok(path)
     }
 
+    /// The text of a note, or `None` when its file does not exist yet.
+    pub fn read(&self, todo_file: &Path, name: &NoteName) -> Result<Option<String>, AppError> {
+        let path = Self::note_path(todo_file, name);
+        if self.files.exists(&path) {
+            self.files.read(&path).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Writes a note's text, creating the notes folder when needed.
+    pub fn write(&self, todo_file: &Path, name: &NoteName, text: &str) -> Result<(), AppError> {
+        let mut content = text.to_owned();
+        if !content.is_empty() && !content.ends_with('\n') {
+            content.push('\n');
+        }
+        self.files.write(&Self::note_path(todo_file, name), &content, true)
+    }
+
+    /// `name`, or `name-2`, `name-3`, ... if that file already exists, so a
+    /// new note never overwrites one another todo links to.
+    pub fn unused_name(&self, todo_file: &Path, name: NoteName) -> NoteName {
+        let taken = |candidate: &NoteName| self.files.exists(&Self::note_path(todo_file, candidate));
+        if !taken(&name) {
+            return name;
+        }
+        (2..)
+            .map(|n| name.with_suffix(n))
+            .find(|candidate| !taken(candidate))
+            .expect("some suffix is free")
+    }
+
     /// The note that deleting `target` would leave without any todo in the
     /// document linking to it. The file itself is kept either way.
     pub fn orphaned_by_delete(document: &TodoDocument, target: &TodoRef) -> Option<NoteName> {
@@ -170,6 +202,18 @@ mod tests {
         assert!(matches!(result, Err(AppError::Note(_))));
         assert!(fake.opened.lock().unwrap().is_empty());
         assert!(fake.files.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn new_notes_get_a_free_name_and_a_final_newline() {
+        let (service, fake) = service();
+        let name = NoteName::parse("plan.md").unwrap();
+        assert_eq!(service.read(&todo_file(), &name), Ok(None));
+        service.write(&todo_file(), &name, "# Plan").unwrap();
+        assert_eq!(service.read(&todo_file(), &name), Ok(Some("# Plan\n".to_owned())));
+        assert_eq!(service.unused_name(&todo_file(), name.clone()).to_string(), "plan-2.md");
+        fake.write(&note_file("plan-2.md"), "", false).unwrap();
+        assert_eq!(service.unused_name(&todo_file(), name).to_string(), "plan-3.md");
     }
 
     #[test]

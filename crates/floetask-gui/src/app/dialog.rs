@@ -7,7 +7,7 @@ use iced::widget::text_editor;
 use floetask_application::TodoRef;
 use floetask_domain::date::first_of_month;
 use floetask_domain::listing::Attribute;
-use floetask_domain::note::suggest_name;
+use floetask_domain::note::default_name;
 use floetask_domain::{Date, NoteError, NoteName, RecurrenceUnit};
 
 /// The date extensions that have a picker.
@@ -62,8 +62,11 @@ pub struct Editor {
     pub recurrence_unit: RecurrenceUnit,
     pub recurrence_strict: bool,
     pub pomodoros: String,
-    /// The note name being typed; empty means "use the suggestion".
-    pub note: String,
+    /// The todo's notes in Markdown, saved to its `note:` file.
+    pub note: text_editor::Content,
+    /// The note text as read from disk, to tell whether the user changed it.
+    /// Empty while the file is missing or still loading.
+    pub note_loaded: String,
 }
 
 impl Editor {
@@ -78,10 +81,8 @@ impl Editor {
             recurrence_unit: RecurrenceUnit::Week,
             recurrence_strict: false,
             pomodoros: "1".to_owned(),
-            note: floetask_domain::Todo::from_user_text(text)
-                .note()
-                .unwrap_or_default()
-                .to_owned(),
+            note: text_editor::Content::new(),
+            note_loaded: String::new(),
         }
     }
 
@@ -90,14 +91,36 @@ impl Editor {
         text.strip_suffix('\n').map(str::to_owned).unwrap_or(text)
     }
 
-    /// The note name to use: the typed one, or one suggested from the text.
-    pub fn note_choice(&self) -> Option<Result<NoteName, NoteError>> {
-        let typed = self.note.trim();
-        if typed.is_empty() {
-            suggest_name(&floetask_domain::Todo::from_user_text(&self.text())).map(Ok)
-        } else {
-            Some(NoteName::parse(typed))
+    pub fn note_text(&self) -> String {
+        let text = self.note.text();
+        text.strip_suffix('\n').map(str::to_owned).unwrap_or(text)
+    }
+
+    /// Shows a note read from disk, unless the user already started typing.
+    pub fn load_note(&mut self, text: &str) {
+        if self.note_text().is_empty() {
+            let text = text.strip_suffix('\n').unwrap_or(text);
+            self.note = text_editor::Content::with_text(text);
+            self.note_loaded = text.to_owned();
         }
+    }
+
+    /// Whether saving should write the note file: the text differs from
+    /// what was loaded. An empty note that was never written stays unwritten.
+    pub fn note_changed(&self) -> bool {
+        self.note_text() != self.note_loaded
+    }
+
+    /// The note file this todo links to: its `note:` value, or the name a
+    /// new note would get. `None` when the `note:` value is invalid.
+    pub fn note_target(&self) -> Option<Result<NoteName, NoteError>> {
+        let todo = floetask_domain::Todo::from_user_text(&self.text());
+        todo.note_name()
+    }
+
+    /// The name a new note gets from the todo text, e.g. `write-report.md`.
+    pub fn new_note_name(&self) -> NoteName {
+        default_name(&floetask_domain::Todo::from_user_text(&self.text()))
     }
 
     pub fn set_text(&mut self, text: &str) {

@@ -32,7 +32,7 @@ Priority tags used below:
 | Hidden | `h:1` | Todo hidden from list but its attributes still feed autocomplete and the drawer. |
 | Pomodoro | `pm:N` | Parsed and displayed only; no timer. |
 | Stored priority | `pri:X` | floetask moves the priority here on completion and restores it on un-completion. |
-| Note | `note:name.md` | Links a notes file in `notes/` next to the todo file (P1). See [NOTE-EXTENSION.md](NOTE-EXTENSION.md). |
+| Note | `note:name.md` | Links a Markdown notes file in `notes/` next to the todo file, written from the add/edit dialog; the file and tag are created automatically (P1). See [NOTE-EXTENSION.md](NOTE-EXTENSION.md). |
 | Other `key:value` | any | Preserved verbatim on round-trip. |
 
 ### 1.2 Parsed todo object
@@ -202,6 +202,7 @@ Optional setting that displays dates as `overdue` / `elapsed`, `last week`, `tod
   - Threshold date picker.
   - Recurrence picker (unit + count + strict toggle).
   - Pomodoro picker (number).
+- **Notes** (P1): a Markdown field for the todo's notes. Saving writes them to the `note:` file, creating the file and the tag from the task text when the todo has none (see [NOTE-EXTENSION.md](NOTE-EXTENSION.md)).
 - **Bulk creation** (setting): each line in the field becomes a separate todo; the Add button shows the count, e.g. `Add (3)`.
 - Empty input shows a non-blocking warning (toast).
 - Creating a todo from the search box: `Ctrl+Enter` in the search field saves its text as a new todo.

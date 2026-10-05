@@ -80,8 +80,9 @@ pub enum Message {
     EditorApplyRecurrence(bool),
     EditorPomodoros(String),
     EditorApplyPomodoros(bool),
-    EditorNote(String),
-    EditorApplyNote(bool),
+    EditorNoteAction(text_editor::Action),
+    /// The note file of the todo being edited, read from disk (`None`: missing).
+    NoteLoaded(TodoRef, Result<Option<String>, AppError>),
     SaveEditor,
 
     // Calendar (row date picker or editor)
