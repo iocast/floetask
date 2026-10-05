@@ -328,6 +328,7 @@ impl Floetask {
 
             M::ToggleMainView
             | M::BoardGrouped(_)
+            | M::ToggleBoardGroup(_)
             | M::BoardPress(..)
             | M::BoardHover(..)
             | M::BoardRelease

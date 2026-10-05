@@ -77,6 +77,8 @@ pub struct AppState {
     pub main_view: MainView,
     /// The board splits into one board per group when the list is grouped.
     pub board_grouped: bool,
+    /// Keys of the board groups the user collapsed (`BoardGroup::key`).
+    pub collapsed_board_groups: Vec<String>,
     pub window: WindowState,
 }
 
@@ -93,6 +95,7 @@ impl Default for AppState {
             collapsed_sections: Vec::new(),
             main_view: MainView::default(),
             board_grouped: true,
+            collapsed_board_groups: Vec::new(),
             window: WindowState::default(),
         }
     }
@@ -120,6 +123,16 @@ impl AppState {
         }
         if self.active_file >= self.files.len() {
             self.active_file = self.files.len().saturating_sub(1);
+        }
+    }
+
+    /// Collapses a board group, or expands it again.
+    pub fn toggle_board_group(&mut self, key: &str) {
+        match self.collapsed_board_groups.iter().position(|k| k == key) {
+            Some(index) => {
+                self.collapsed_board_groups.remove(index);
+            }
+            None => self.collapsed_board_groups.push(key.to_owned()),
         }
     }
 

@@ -26,6 +26,16 @@ pub struct BoardGroup {
     pub lanes: Vec<Lane>,
 }
 
+impl BoardGroup {
+    /// A stable name for the group, e.g. `priority:A` or `projects:` for
+    /// todos without a project, so a collapsed group stays collapsed across
+    /// refreshes and restarts.
+    pub fn key(&self) -> String {
+        let attribute = self.attribute.map(Attribute::key).unwrap_or_default();
+        format!("{attribute}:{}", self.values.join(","))
+    }
+}
+
 /// Where a lane is: which group's board, which column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LaneId {
@@ -318,6 +328,8 @@ x 2026-10-01 Sent invoice
             ]
         );
         assert_eq!(board.lane_of(2), Some(LaneId { group: 2, lane: 3 }));
+        assert_eq!(board.groups[0].key(), "priority:A");
+        assert_eq!(board.groups[2].key(), "priority:");
 
         // Without groups the same sort order lands on one board.
         let flat = board_sorted(&columns, &Query::Empty, &sorting, false);

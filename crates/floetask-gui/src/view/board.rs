@@ -95,13 +95,32 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
 }
 
 /// One group's header above its own board.
+/// A click on the header collapses the group's board to just its header.
 fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup) -> Element<'a, Message> {
+    let colors = app.colors();
     let count = group.lanes.iter().map(|lane| lane.todos.len()).sum();
+    let key = group.key();
+    let collapsed = app.state.collapsed_board_groups.contains(&key);
     let mut content = column![].spacing(8);
     if let Some(header) = group_header(app, group.attribute, &group.values, count) {
+        let chevron = icon(
+            if collapsed {
+                Icon::ChevronRight
+            } else {
+                Icon::ChevronDown
+            },
+            16.0,
+            colors.muted,
+        );
+        let header = mouse_area(row![chevron, header].spacing(2).align_y(Alignment::Center))
+            .on_press(Message::ToggleBoardGroup(key))
+            .interaction(mouse::Interaction::Pointer);
         content = content.push(header);
     }
-    content.push(lanes(app, index, group, false)).into()
+    if !collapsed {
+        content = content.push(lanes(app, index, group, false));
+    }
+    content.into()
 }
 
 /// The columns of one board. `fill` stretches them to the window height

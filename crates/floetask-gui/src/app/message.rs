@@ -128,6 +128,8 @@ pub enum Message {
     ToggleMainView,
     /// Turns the board's one-board-per-group layout on or off.
     BoardGrouped(bool),
+    /// Collapses or expands the board group with this key.
+    ToggleBoardGroup(String),
     /// A card was pressed in a lane: start dragging it.
     BoardPress(TodoRef, LaneId),
     /// The mouse entered (`true`) or left a lane.

@@ -34,6 +34,10 @@ impl Floetask {
                 self.refresh();
                 self.persist_state()
             }
+            Message::ToggleBoardGroup(key) => {
+                self.state.toggle_board_group(&key);
+                self.persist_state()
+            }
             Message::BoardPress(target, lane) => {
                 self.drag = Some(BoardDrag { target, from: lane });
                 self.board_hover = Some(lane);

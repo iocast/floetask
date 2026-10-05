@@ -789,3 +789,29 @@ fn contexts_are_highlighted_inside_the_todo_text() {
     // the snapshot; the segments themselves are tested in the domain.
     snapshot(&app, "inline-contexts");
 }
+
+#[test]
+fn board_groups_collapse_from_their_header() {
+    // Call mom (A) is the only todo due 2026-10-04, Prepare slides (B) is due 2026-10-06.
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let _ = app.update(Message::MoveSort(0, 1));
+    assert!(simulator(app.view()).find("2026-10-04").is_ok());
+    let messages = click(&app, "(A)");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::ToggleBoardGroup(key) if key == "priority:A"))
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.state.collapsed_board_groups, ["priority:A"]);
+    let mut ui = simulator(app.view());
+    assert!(ui.find("2026-10-04").is_err(), "collapsed group hides its board");
+    assert!(ui.find("2026-10-06").is_ok());
+    drop(ui);
+    snapshot(&app, "board-collapsed");
+    let _ = app.update(Message::ToggleBoardGroup("priority:A".to_owned()));
+    assert!(simulator(app.view()).find("2026-10-04").is_ok());
+}
