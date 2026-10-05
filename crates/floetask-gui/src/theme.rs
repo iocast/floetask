@@ -23,6 +23,8 @@ pub struct Colors {
     pub text: Color,
     pub muted: Color,
     pub primary: Color,
+    /// Projects: a blue between the indigo accent and the green contexts.
+    pub project: Color,
     pub success: Color,
     pub warning: Color,
     pub danger: Color,
@@ -48,6 +50,7 @@ impl Colors {
         text: rgb(0x1a1d23),
         muted: rgb(0x6b7280),
         primary: rgb(0x4f46e5),
+        project: rgb(0x0284c7),
         success: rgb(0x16a34a),
         warning: rgb(0xd97706),
         danger: rgb(0xe5484d),
@@ -66,6 +69,7 @@ impl Colors {
         text: rgb(0xe8eaed),
         muted: rgb(0x8b919c),
         primary: rgb(0x818cf8),
+        project: rgb(0x38bdf8),
         success: rgb(0x4ade80),
         warning: rgb(0xfbbf24),
         danger: rgb(0xf87171),
@@ -84,6 +88,7 @@ impl Colors {
         apply(&mut self.background, &custom.background);
         apply(&mut self.text, &custom.text);
         apply(&mut self.primary, &custom.primary);
+        apply(&mut self.project, &custom.project);
         apply(&mut self.success, &custom.success);
         apply(&mut self.warning, &custom.warning);
         apply(&mut self.danger, &custom.danger);

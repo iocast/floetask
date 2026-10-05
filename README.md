@@ -66,7 +66,7 @@ columns = ["todo", "doing", "in-review", "done"]  # statuses, plus "done" for co
 
 ### colors.toml
 
-Any of `background`, `text`, `primary`, `success`, `warning`, `danger`, `navigation` (cards and panels), `priority_a`, `priority_b`, `priority_c`, `priority_other`, per mode:
+Any of `background`, `text`, `primary`, `project`, `success` (contexts), `warning`, `danger`, `navigation` (cards and panels), `priority_a`, `priority_b`, `priority_c`, `priority_other`, per mode:
 
 ```toml
 [light]

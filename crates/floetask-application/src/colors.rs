@@ -7,6 +7,7 @@ pub struct PaletteOverrides {
     pub background: Option<String>,
     pub text: Option<String>,
     pub primary: Option<String>,
+    pub project: Option<String>,
     pub success: Option<String>,
     pub warning: Option<String>,
     pub danger: Option<String>,

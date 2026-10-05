@@ -224,7 +224,7 @@ pub(crate) fn meta<'a>(
             project.clone(),
             None,
             project.clone(),
-            colors.primary,
+            colors.project,
         ));
         empty = false;
     }

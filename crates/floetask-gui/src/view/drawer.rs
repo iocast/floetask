@@ -96,11 +96,8 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
     let attribute = summary.attribute;
     let collapsed = app.state.collapsed_sections.contains(&attribute);
     let hidden = app.state.view.hidden_categories.contains(&attribute);
-    let title_color = if summary.has_overdue() {
-        colors.danger
-    } else {
-        colors.muted
-    };
+    // Overdue dates are red on their own chips; the section title stays calm.
+    let title_color = colors.muted;
     let header = row![
         button(
             row![
@@ -149,6 +146,7 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
             Some(true) => colors.danger,
             _ if value.overdue => colors.danger,
             // Same colours as the chips on the todo cards.
+            _ if attribute == Attribute::Projects => colors.project,
             _ if attribute == Attribute::Contexts => colors.success,
             _ => colors.primary,
         };
