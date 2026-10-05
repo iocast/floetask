@@ -61,8 +61,8 @@ When multi-line input is used, line breaks inside a todo are stored as the DLE c
 - Setting a status replaces the tag in place; setting `todo` removes it. Completing a todo removes the tag, so a reopened todo is `todo`; the next occurrence of a recurring todo starts as `todo`.
 - The list hides `someday` by default; a Filters toggle, a drawer filter on that status, or a search for `status:someday` shows it. `waiting` is styled distinctly.
 - Default sort and grouping: `doing`, `todo`, `waiting`, `someday`, then custom statuses.
-- `config.toml` `[statuses]` sets the order (custom statuses included) and which statuses are hidden by default.
-- The add/edit dialog has a status picker; cards show a status chip for every status except `todo`; the drawer has a Status section.
+- `config.toml` `[statuses]` sets the order (custom statuses included) and which statuses are hidden by default; Settings → Statuses edits it (§10).
+- The add/edit dialog has a status picker offering the global statuses plus any status that only the active file's board has a column for; cards show a status chip for every status except `todo`; the drawer has a Status section.
 
 ---
 
@@ -150,6 +150,7 @@ A kanban view of the active file, built on the `status:` extension (1.5).
 - **Switching:** a title-bar button and `Ctrl+Alt+B` switch between the list and the board. The choice is remembered in `state.toml`.
 - **Columns:** each column is a status (`todo`, `doing`, a custom value such as `in-review`) or `done`, which holds completed todos (done is never a status). Default columns: To do, Doing, Waiting, Done.
 - **Per file:** every todo file has its own columns, edited in a Columns dialog on the board (add a known status, type a new one, reorder, remove, reset). They are stored in `config.toml` as `[[boards]]` entries with the file path and the column keys; a file with the default columns has no entry. A board always keeps at least one column.
+- **Column statuses stay per file:** a column for a status that is not in the global list (e.g. `in-review`) does not add it to `[statuses]`. The todo dialog's status picker offers it while that file is active. To use a status everywhere, add it in Settings → Statuses.
 - **Cards:** the same card as the list (priority bar, checkbox, text, chips) without the status chip, sorted inside a column by the Sorting tab criteria.
 - **Drag and drop:** press a card, move to another column (it is outlined) and release to move the card there. Dropping on a status column sets `status:` in place (`todo` removes the tag) and reopens a completed todo; dropping on Done completes it, adding the next occurrence of a recurring todo. Pressing and releasing in the same column opens the todo for editing. `Escape` cancels a drag.
 - **What is shown:** search, attribute filters and view toggles apply as in the list, except that a status with a column is always shown (a Someday column shows `someday` todos) and the Done column shows completed todos even when the list hides them. Open todos whose status has no column appear in a trailing "Other statuses" column, unless their status is hidden by default; completed todos without a Done column are not shown.
@@ -320,7 +321,20 @@ Both writes must be done so that a crash cannot lose todos: append to done first
 
 ## 10. Settings (P0 / P1)
 
-Settings dialog (`Ctrl+,`) with these settings:
+Settings dialog (`Ctrl+,`). A sidebar on the left lists the sections (Todos, Dates, Statuses, Appearance, Notifications, Files); the right side shows the chosen section. Every setting shows its name with a short description underneath in grey, and its control on the right.
+
+| Section | Settings |
+|---|---|
+| Todos | append creation date, bulk todo creation |
+| Dates | convert relative dates, human-friendly dates, week start |
+| Statuses | the global status list (below) |
+| Appearance | theme, language, zoom, compact mode, disable animations |
+| Notifications | notifications, notification threshold |
+| Files | safe writes; shows where the settings file is |
+
+**Status management** (Statuses section): the global statuses of the `status:` extension (1.5) in sort order, each with its name, key and a description (built-in meaning, or "Your own status"). Each status can be moved up or down and marked hidden (left out of the list by default; not for `todo`). Custom statuses can be added (same rules as status values) and removed; the four built-in ones cannot be removed. Changes are saved to `[statuses]` in `config.toml` right away and re-sort and re-filter the list.
+
+All settings:
 
 | Setting | Type | Default |
 |---|---|---|

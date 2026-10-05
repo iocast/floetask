@@ -4,13 +4,25 @@ use iced::Task;
 
 use floetask_application::ThemePreference;
 
-use super::{Dialog, Floetask, Message, SettingChange};
+use super::{Dialog, Floetask, Message, SettingChange, SettingsDialog};
 
 impl Floetask {
     pub(super) fn update_settings(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::OpenSettings => {
-                self.dialog = Some(Dialog::Settings);
+                self.dialog = Some(Dialog::Settings(SettingsDialog::default()));
+                Task::none()
+            }
+            Message::SettingsSection(section) => {
+                if let Some(Dialog::Settings(dialog)) = &mut self.dialog {
+                    dialog.section = section;
+                }
+                Task::none()
+            }
+            Message::SettingsStatusInput(text) => {
+                if let Some(Dialog::Settings(dialog)) = &mut self.dialog {
+                    dialog.status_input = text.to_lowercase().replace(' ', "-");
+                }
                 Task::none()
             }
             Message::Setting(change) => {
@@ -53,6 +65,26 @@ impl Floetask {
                 affects_list = true;
             }
             SettingChange::Language(language) => s.language = language,
+            SettingChange::StatusAdd(status) => {
+                if s.statuses.add(&status)
+                    && let Some(Dialog::Settings(dialog)) = &mut self.dialog
+                {
+                    dialog.status_input.clear();
+                }
+                affects_list = true;
+            }
+            SettingChange::StatusRemove(status) => {
+                s.statuses.remove(&status);
+                affects_list = true;
+            }
+            SettingChange::StatusMove(index, step) => {
+                s.statuses.move_status(index, step);
+                affects_list = true;
+            }
+            SettingChange::StatusHidden(status, hidden) => {
+                s.statuses.set_hidden(&status, hidden);
+                affects_list = true;
+            }
         }
         self.settings = std::mem::take(&mut self.settings).normalized();
         if affects_list {

@@ -172,10 +172,54 @@ pub enum Pending {
     DeleteSavedFilter(usize),
 }
 
+/// A page of the settings dialog, chosen in its sidebar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SettingsSection {
+    #[default]
+    Todos,
+    Dates,
+    Statuses,
+    Appearance,
+    Notifications,
+    Files,
+}
+
+impl SettingsSection {
+    /// Sidebar order.
+    pub const ALL: [SettingsSection; 6] = [
+        SettingsSection::Todos,
+        SettingsSection::Dates,
+        SettingsSection::Statuses,
+        SettingsSection::Appearance,
+        SettingsSection::Notifications,
+        SettingsSection::Files,
+    ];
+
+    /// Translation key of the section title.
+    pub fn key(self) -> &'static str {
+        match self {
+            SettingsSection::Todos => "section_todos",
+            SettingsSection::Dates => "section_dates",
+            SettingsSection::Statuses => "section_statuses",
+            SettingsSection::Appearance => "section_appearance",
+            SettingsSection::Notifications => "section_notifications",
+            SettingsSection::Files => "section_files",
+        }
+    }
+}
+
+/// The settings dialog's own state; the settings live in `Floetask`.
+#[derive(Debug, Default)]
+pub struct SettingsDialog {
+    pub section: SettingsSection,
+    /// A new status being typed on the Statuses page.
+    pub status_input: String,
+}
+
 #[derive(Debug)]
 pub enum Dialog {
     Editor(Box<Editor>),
-    Settings,
+    Settings(SettingsDialog),
     Confirm {
         message: String,
         detail: Option<String>,

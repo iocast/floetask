@@ -87,6 +87,14 @@ impl BoardColumns {
         self.0.iter().map(|column| column.key().to_owned()).collect()
     }
 
+    /// The statuses that have a column, in column order.
+    pub fn statuses(&self) -> impl Iterator<Item = &str> {
+        self.0.iter().filter_map(|column| match column {
+            Column::Status(status) => Some(status.as_str()),
+            Column::Done => None,
+        })
+    }
+
     /// Whether some column shows open todos with `status`.
     pub fn has_status(&self, status: &str) -> bool {
         self.0

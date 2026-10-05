@@ -120,6 +120,8 @@ pub enum Message {
     OpenSettings,
     Setting(SettingChange),
     ToggleTheme,
+    SettingsSection(super::SettingsSection),
+    SettingsStatusInput(String),
 
     // Dialogs
     // Status board
@@ -165,6 +167,10 @@ pub enum SettingChange {
     Zoom(u16),
     Theme(floetask_application::ThemePreference),
     WeekStart(floetask_domain::WeekStart),
+    StatusAdd(String),
+    StatusRemove(String),
+    StatusMove(usize, isize),
+    StatusHidden(String, bool),
     Language(String),
 }
 

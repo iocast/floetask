@@ -90,6 +90,18 @@ impl Floetask {
             .unwrap_or_default()
     }
 
+    /// Statuses offered in the todo dialog: the global list, then statuses
+    /// that only the active file's board has a column for.
+    pub(crate) fn status_options(&self) -> Vec<String> {
+        let mut options = self.settings.statuses.names().to_vec();
+        for status in self.active_board_columns().statuses() {
+            if !options.iter().any(|known| known == status) {
+                options.push(status.to_owned());
+            }
+        }
+        options
+    }
+
     /// Saves the columns from the dialog for the active file.
     pub(super) fn save_board_columns(&mut self, columns: Vec<String>) -> Task<Message> {
         let Some(path) = self.active_path() else {

@@ -170,6 +170,37 @@ fn english(key: &str) -> Option<&'static str> {
         "previous_month" => "Previous month",
         "next_month" => "Next month",
         "section_todos" => "Todos",
+        "section_dates" => "Dates",
+        "section_statuses" => "Statuses",
+        "section_files" => "Files",
+        "append_creation_date_desc" => "New todos start with today's date, as todo.txt allows.",
+        "bulk_creation_desc" => "In the add dialog, every line becomes its own todo.",
+        "convert_relative_dates_desc" => "Words like tomorrow or next friday in due: and t: are saved as real dates.",
+        "human_friendly_dates_desc" => "Dates read as today, tomorrow or next week instead of 2026-10-05.",
+        "week_start_desc" => "First day of the week in calendars and for this week and next week.",
+        "theme_desc" => "Light, dark, or follow your system.",
+        "language_desc" => "Language of the interface.",
+        "zoom_desc" => "Makes everything in the window larger or smaller.",
+        "compact_desc" => "Tighter rows, so more todos fit on screen.",
+        "disable_animations_desc" => "Turns off motion; floetask has no animations yet.",
+        "notifications_desc" => "A system notification when a todo becomes due.",
+        "notification_threshold_desc" => "How many days before the due date you are notified.",
+        "safe_writes_desc" => {
+            "Writes to a temporary file first and keeps a backup, so a crash cannot corrupt your todo file."
+        }
+        "config_file" => "Settings file",
+        "config_file_desc" => "Where these settings are saved. Board columns and statuses live here too.",
+        "statuses_desc" => {
+            "Statuses for the status: tag, in the order the list sorts them. Hidden statuses stay out of the list until you ask for them. A board column can add a status for one file only."
+        }
+        "status_todo_desc" => "Not started. The same as having no status: tag.",
+        "status_doing_desc" => "Actively being worked on.",
+        "status_waiting_desc" => "Blocked on someone or something else.",
+        "status_someday_desc" => "Parked, not committed to.",
+        "status_custom_desc" => "Your own status.",
+        "status_hidden" => "Hidden",
+        "remove_status" => "Remove status",
+        "add_status" => "Add status",
         "section_notifications" => "Notifications",
         "section_appearance" => "Appearance",
         "notifications" => "Due-date notifications",

@@ -81,7 +81,7 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
         Some(dialog) => {
             let content = match dialog {
                 Dialog::Editor(state) => editor::view(app, state),
-                Dialog::Settings => settings::view(app),
+                Dialog::Settings(dialog) => settings::view(app, dialog),
                 Dialog::Confirm { message, detail, .. } => dialogs::confirm(app, message, detail.as_deref()),
                 Dialog::Rename { attribute, from, input } => dialogs::rename(app, *attribute, from, input),
                 Dialog::RowDate { calendar, .. } => dialogs::date(app, calendar),

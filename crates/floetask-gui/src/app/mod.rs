@@ -37,7 +37,7 @@ use crate::i18n::tr;
 use crate::theme::Colors;
 
 pub use board::BoardDrag;
-pub use dialog::{Calendar, DateKey, Dialog, Editor, Pending};
+pub use dialog::{Calendar, DateKey, Dialog, Editor, Pending, SettingsDialog, SettingsSection};
 #[cfg(test)]
 pub(crate) use editing::NoteSave;
 pub use message::{Message, SettingChange, ViewToggle};
@@ -321,7 +321,9 @@ impl Floetask {
             | M::AskDeleteSavedFilter(_)
             | M::ToggleSuppress(_) => self.update_search(message),
 
-            M::OpenSettings | M::Setting(_) | M::ToggleTheme => self.update_settings(message),
+            M::OpenSettings | M::Setting(_) | M::ToggleTheme | M::SettingsSection(_) | M::SettingsStatusInput(_) => {
+                self.update_settings(message)
+            }
 
             M::ToggleMainView
             | M::BoardPress(..)

@@ -18,7 +18,7 @@ use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
 use floetask_domain::{Date, TodoDocument};
 
-use crate::app::{Dialog, Floetask, Message, NoteSave, Startup, ViewToggle};
+use crate::app::{Dialog, Floetask, Message, NoteSave, SettingChange, Startup, ViewToggle};
 use iced::widget::text_editor;
 
 const TODO_PATH: &str = "/test/todo.txt";
@@ -642,5 +642,63 @@ fn board_columns_are_set_per_file() {
         ["todo", "doing", "done", "in-review", "someday"]
     );
     assert_eq!(board_lane_bodies(&app)[4], vec!["Learn Rust"]);
+    // The column's status is offered for this file only, not added globally.
+    assert!(!app.settings.statuses.names().contains(&"in-review".to_owned()));
+    assert_eq!(app.status_options().last().map(String::as_str), Some("in-review"));
     assert_eq!(board_lane_bodies(&app)[5], vec!["Legal review"]);
+}
+
+#[test]
+fn settings_sidebar_switches_sections_and_describes_settings() {
+    let mut app = app();
+    let _ = app.update(Message::OpenSettings);
+    let mut ui = simulator(app.view());
+    for text in ["Todos", "Dates", "Statuses", "Appearance", "Notifications", "Files"] {
+        assert!(ui.find(text).is_ok(), "missing section {text}");
+    }
+    assert!(ui.find("In the add dialog, every line becomes its own todo.").is_ok());
+    drop(ui);
+    let messages = click(&app, "Appearance");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::SettingsSection(crate::app::SettingsSection::Appearance)))
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert!(
+        simulator(app.view())
+            .find("Light, dark, or follow your system.")
+            .is_ok()
+    );
+    snapshot(&app, "settings-appearance");
+}
+
+#[test]
+fn statuses_are_managed_in_settings() {
+    let mut app = app();
+    let _ = app.update(Message::OpenSettings);
+    let _ = app.update(Message::SettingsSection(crate::app::SettingsSection::Statuses));
+    let _ = app.update(Message::SettingsStatusInput("In Review".to_owned()));
+    let _ = app.update(Message::Setting(SettingChange::StatusAdd("in-review".to_owned())));
+    let _ = app.update(Message::Setting(SettingChange::StatusMove(4, -1)));
+    let _ = app.update(Message::Setting(SettingChange::StatusHidden(
+        "waiting".to_owned(),
+        true,
+    )));
+    snapshot(&app, "settings-statuses");
+    assert_eq!(
+        app.settings.statuses.names(),
+        ["doing", "todo", "waiting", "in-review", "someday"]
+    );
+    assert!(app.listing.todos().all(|t| t.todo.status() != Some("waiting")));
+    assert!(app.status_options().contains(&"in-review".to_owned()));
+    let Some(Dialog::Settings(dialog)) = &app.dialog else {
+        panic!("settings closed")
+    };
+    assert!(dialog.status_input.is_empty());
+    let _ = app.update(Message::Setting(SettingChange::StatusRemove("in-review".to_owned())));
+    let _ = app.update(Message::Setting(SettingChange::StatusRemove("doing".to_owned())));
+    assert_eq!(app.settings.statuses.names(), ["doing", "todo", "waiting", "someday"]);
 }

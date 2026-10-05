@@ -59,6 +59,47 @@ impl StatusSet {
         Self { order: names, hidden }
     }
 
+    /// Whether a status is one of the four with a defined meaning. These can
+    /// be reordered and hidden but not removed.
+    pub fn is_built_in(status: &str) -> bool {
+        BUILT_IN_STATUSES.contains(&status)
+    }
+
+    /// Adds a custom status at the end of the order. Returns `false` for
+    /// invalid or already known names.
+    pub fn add(&mut self, status: &str) -> bool {
+        let new = is_valid_status(status) && !self.order.iter().any(|name| name == status);
+        if new {
+            self.order.push(status.to_owned());
+        }
+        new
+    }
+
+    /// Removes a custom status. Built-in statuses stay.
+    pub fn remove(&mut self, status: &str) {
+        if !Self::is_built_in(status) {
+            self.order.retain(|name| name != status);
+            self.hidden.retain(|name| name != status);
+        }
+    }
+
+    /// Moves the status at `index` one step up (`-1`) or down (`1`).
+    pub fn move_status(&mut self, index: usize, step: isize) {
+        let target = index as isize + step;
+        if index < self.order.len() && target >= 0 && (target as usize) < self.order.len() {
+            self.order.swap(index, target as usize);
+        }
+    }
+
+    /// Hides a status from the default list or shows it again. `todo` is
+    /// always shown, since it is what a todo without a tag has.
+    pub fn set_hidden(&mut self, status: &str, hidden: bool) {
+        self.hidden.retain(|name| name != status);
+        if hidden && status != DEFAULT_STATUS && is_valid_status(status) {
+            self.hidden.push(status.to_owned());
+        }
+    }
+
     /// Every known status in display order, for pickers.
     pub fn names(&self) -> &[String] {
         &self.order
@@ -109,6 +150,23 @@ mod tests {
         assert!(!set.is_hidden("waiting"));
         assert!(set.rank("doing") < set.rank("todo"));
         assert_eq!(set.rank("review"), 4);
+    }
+
+    #[test]
+    fn manage_custom_statuses() {
+        let mut set = StatusSet::default();
+        assert!(set.add("in-review"));
+        assert!(!set.add("in-review"));
+        assert!(!set.add("Bad"));
+        set.move_status(4, -1);
+        assert_eq!(set.names(), ["doing", "todo", "waiting", "in-review", "someday"]);
+        set.set_hidden("in-review", true);
+        set.set_hidden("todo", true);
+        assert_eq!(set.hidden(), ["someday", "in-review"]);
+        set.remove("in-review");
+        set.remove("waiting");
+        assert_eq!(set.names(), ["doing", "todo", "waiting", "someday"]);
+        assert_eq!(set.hidden(), ["someday"]);
     }
 
     #[test]

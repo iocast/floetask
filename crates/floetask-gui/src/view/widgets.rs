@@ -20,7 +20,8 @@ pub fn modal<'a>(base: Element<'a, Message>, content: Element<'a, Message>, colo
     .into()
 }
 
-/// A square icon button with a tooltip. `active` highlights toggled tools.
+/// A square icon button with a tooltip. `active` highlights toggled tools;
+/// without a message the button is disabled and its icon greyed out.
 pub fn icon_button<'a>(
     glyph: Icon,
     hint: &'a str,
@@ -28,7 +29,11 @@ pub fn icon_button<'a>(
     colors: Colors,
     active: bool,
 ) -> Element<'a, Message> {
-    let tint = if active { colors.primary } else { colors.text };
+    let tint = match (&message, active) {
+        (None, _) => colors.muted,
+        (Some(_), true) => colors.primary,
+        (Some(_), false) => colors.text,
+    };
     let content = button(center(icon(glyph, 18.0, tint)))
         .width(34)
         .height(34)

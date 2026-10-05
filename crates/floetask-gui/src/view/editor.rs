@@ -135,14 +135,7 @@ fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
         popover(anchor, calendar, Message::EditorCloseCalendar).align_left()
     };
     let current_status = todo.status_tag().unwrap_or(DEFAULT_STATUS);
-    let mut statuses: Vec<StatusChoice> = app
-        .settings
-        .statuses
-        .names()
-        .iter()
-        .cloned()
-        .map(StatusChoice)
-        .collect();
+    let mut statuses: Vec<StatusChoice> = app.status_options().into_iter().map(StatusChoice).collect();
     if !statuses.iter().any(|choice| choice.0 == current_status) {
         statuses.push(StatusChoice(current_status.to_owned()));
     }
