@@ -28,7 +28,7 @@ use floetask_application::{
     ThemePreference,
 };
 use floetask_domain::listing::{
-    AttributeSummary, Board, DateContext, LaneId, TodoListing, build_board, build_listing, known_names,
+    AttributeSummary, Board, BoardLayout, DateContext, LaneId, TodoListing, build_board, build_listing, known_names,
     summarize_attributes,
 };
 use floetask_domain::search::Query;
@@ -327,6 +327,7 @@ impl Floetask {
             }
 
             M::ToggleMainView
+            | M::BoardGrouped(_)
             | M::BoardPress(..)
             | M::BoardHover(..)
             | M::BoardRelease
@@ -407,7 +408,10 @@ impl Floetask {
             &self.search.query,
             &dates,
             &self.settings.statuses,
-            &self.active_board_columns(),
+            &BoardLayout {
+                columns: self.active_board_columns(),
+                grouped: self.state.board_grouped,
+            },
         );
         let (projects, contexts) = known_names(document);
         // A few file checks, one per distinct note; cheap enough to run here.

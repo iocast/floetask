@@ -86,6 +86,9 @@ fn english(key: &str) -> Option<&'static str> {
         "show_board" => "Show as board (Ctrl+Alt+B)",
         "show_list" => "Show as list (Ctrl+Alt+B)",
         "board_columns" => "Columns",
+        "board_group" => "Group",
+        "board_group_by" => "Group by {}",
+        "board_group_hint" => "One board per group. Off keeps the sort order on a single board.",
         "board_other" => "Other statuses",
         "board_columns_title" => "Board columns for {}",
         "board_columns_hint" => {

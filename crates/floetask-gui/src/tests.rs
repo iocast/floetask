@@ -731,3 +731,19 @@ fn grouping_gives_each_group_its_own_board() {
     assert!(app.drag.is_none());
     assert!(app.dialog.is_none());
 }
+
+#[test]
+fn grouping_switch_keeps_sorting_on_one_board() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let _ = app.update(Message::MoveSort(0, 1));
+    assert!(app.board.is_grouped());
+    assert!(simulator(app.view()).find("Group by priority").is_ok());
+
+    let _ = app.update(Message::BoardGrouped(false));
+    assert!(!app.state.board_grouped);
+    assert!(!app.board.is_grouped());
+    // Still sorted by priority inside the column.
+    assert_eq!(board_lane_bodies(&app)[0], vec!["Call mom", "Buy milk"]);
+    snapshot(&app, "board-ungrouped");
+}

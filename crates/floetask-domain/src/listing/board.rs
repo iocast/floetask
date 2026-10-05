@@ -68,6 +68,23 @@ impl Board {
     }
 }
 
+/// How one file's board is laid out.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct BoardLayout {
+    pub columns: BoardColumns,
+    /// Split into one board per group when the list is grouped. Off keeps
+    /// the sort order on a single board.
+    pub grouped: bool,
+}
+
+/// The attribute the board would group by: the list's grouping attribute,
+/// except status, since the columns already are statuses.
+pub fn board_grouping(sorting: &Sorting) -> Option<Attribute> {
+    sorting
+        .grouping_attribute()
+        .filter(|attribute| *attribute != Attribute::Status)
+}
+
 /// Lays a document out on its board. Search, attribute filters and view
 /// toggles apply as in the list, with two differences: a status that has a
 /// column is always shown (a `someday` column shows `someday` todos), and
@@ -76,8 +93,9 @@ impl Board {
 /// unless their status is hidden by default.
 ///
 /// When the list is grouped (the first sort criterion, unless the list is
-/// in file order), every group gets its own board with the same columns.
-/// Grouping by status is ignored, since the columns already are statuses.
+/// in file order) and the layout asks for groups, every group gets its own
+/// board with the same columns. Grouping by status is ignored, since the
+/// columns already are statuses.
 pub fn build_board(
     document: &TodoDocument,
     options: &ViewOptions,
@@ -85,8 +103,9 @@ pub fn build_board(
     query: &Query,
     dates: &DateContext,
     statuses: &StatusSet,
-    columns: &BoardColumns,
+    layout: &BoardLayout,
 ) -> Board {
+    let columns = &layout.columns;
     let toggles = ViewOptions {
         show_completed: true,
         ..options.clone()
@@ -111,9 +130,7 @@ pub fn build_board(
         .collect();
     todos.sort_by(|a, b| Sorting::compare(&sorting.criteria, &a.todo, &b.todo, statuses).then(a.line.cmp(&b.line)));
 
-    let grouping = sorting
-        .grouping_attribute()
-        .filter(|attribute| *attribute != Attribute::Status);
+    let grouping = board_grouping(sorting).filter(|_| layout.grouped);
     let groups: Vec<(Option<Attribute>, Vec<String>, Vec<ListedTodo>)> = match grouping {
         Some(attribute) => group_by(attribute, todos, dates)
             .into_iter()
@@ -188,10 +205,10 @@ x 2026-10-01 Sent invoice
 ";
 
     fn board(columns: &BoardColumns, query: &Query) -> Board {
-        board_sorted(columns, query, &Sorting::default())
+        board_sorted(columns, query, &Sorting::default(), true)
     }
 
-    fn board_sorted(columns: &BoardColumns, query: &Query, sorting: &Sorting) -> Board {
+    fn board_sorted(columns: &BoardColumns, query: &Query, sorting: &Sorting, grouped: bool) -> Board {
         let dates = DateContext {
             today: parse_iso("2026-10-05").unwrap(),
             week_start: WeekStart::Monday,
@@ -208,7 +225,10 @@ x 2026-10-01 Sent invoice
             query,
             &dates,
             &StatusSet::default(),
-            columns,
+            &BoardLayout {
+                columns: columns.clone(),
+                grouped,
+            },
         )
     }
 
@@ -257,11 +277,8 @@ x 2026-10-01 Sent invoice
     fn grouping_gives_each_group_its_own_board() {
         let mut sorting = Sorting::default();
         sorting.criteria.retain(|c| c.attribute != Attribute::Status);
-        let board = board_sorted(
-            &BoardColumns::from_keys(["todo", "doing", "done"]),
-            &Query::Empty,
-            &sorting,
-        );
+        let columns = BoardColumns::from_keys(["todo", "doing", "done"]);
+        let board = board_sorted(&columns, &Query::Empty, &sorting, true);
         assert!(board.is_grouped());
         let groups: Vec<_> = board
             .groups
@@ -292,5 +309,11 @@ x 2026-10-01 Sent invoice
             ]
         );
         assert_eq!(board.lane_of(2), Some(LaneId { group: 2, lane: 3 }));
+
+        // Without groups the same sort order lands on one board.
+        let flat = board_sorted(&columns, &Query::Empty, &sorting, false);
+        assert!(!flat.is_grouped());
+        let todo_lane: Vec<_> = flat.groups[0].lanes[0].todos.iter().map(|t| t.todo.body()).collect();
+        assert_eq!(todo_lane, ["Urgent plain", "Plain task"]);
     }
 }

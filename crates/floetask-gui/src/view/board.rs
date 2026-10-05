@@ -7,18 +7,18 @@
 //! it, and releasing the button anywhere on the board drops the card on the
 //! column under the cursor.
 
-use iced::widget::{Column, button, checkbox, column, container, mouse_area, row, scrollable, space, text};
+use iced::widget::{Column, button, checkbox, column, container, mouse_area, row, scrollable, space, text, toggler};
 use iced::{Alignment, Color, Element, Fill, mouse};
 
 use floetask_application::TodoRef;
 use floetask_domain::board::Column as BoardColumn;
-use floetask_domain::listing::{BoardGroup, Lane, LaneId, ListedTodo};
+use floetask_domain::listing::{BoardGroup, Lane, LaneId, ListedTodo, board_grouping};
 
 use super::icons::{Icon, icon};
 use super::list::{body, group_header, meta, status_label};
-use super::widgets::caption;
+use super::widgets::{caption, with_tooltip};
 use crate::app::{Floetask, Message};
-use crate::i18n::tr;
+use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
 
 /// Width of one column.
@@ -26,8 +26,25 @@ const LANE_WIDTH: f32 = 290.0;
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
+    // Grouping only applies when the list is grouped by something other
+    // than status; otherwise the switch is shown disabled.
+    let grouping = board_grouping(&app.state.sorting);
+    let group_label = match grouping {
+        Some(attribute) => trf("board_group_by", &[&tr(attribute.key()).to_lowercase()]),
+        None => tr("board_group").to_owned(),
+    };
+    let group_switch: iced::widget::Row<'_, Message> = row![
+        text(group_label).size(13),
+        toggler(app.state.board_grouped && grouping.is_some())
+            .on_toggle_maybe(grouping.map(|_| Message::BoardGrouped as fn(bool) -> Message))
+            .size(18),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let group_switch = with_tooltip(group_switch, tr("board_group_hint"), colors);
     let toolbar = row![
         space().width(Fill),
+        group_switch,
         button(
             row![icon(Icon::Board, 14.0, colors.text), text(tr("board_columns")).size(13)]
                 .spacing(6)
@@ -36,7 +53,9 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         .padding([6, 10])
         .style(theme::ghost(colors, false))
         .on_press(Message::OpenBoardColumns),
-    ];
+    ]
+    .spacing(12)
+    .align_y(Alignment::Center);
     let scrollbar = || scrollable::Scrollbar::new().width(4).scroller_width(4);
     let boards: Element<'_, Message> = if app.board.is_grouped() {
         // Swimlanes: the whole page scrolls both ways; columns grow with

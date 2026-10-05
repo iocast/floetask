@@ -75,6 +75,8 @@ pub struct AppState {
     pub files_drawer_open: bool,
     pub collapsed_sections: Vec<Attribute>,
     pub main_view: MainView,
+    /// The board splits into one board per group when the list is grouped.
+    pub board_grouped: bool,
     pub window: WindowState,
 }
 
@@ -90,6 +92,7 @@ impl Default for AppState {
             files_drawer_open: true,
             collapsed_sections: Vec::new(),
             main_view: MainView::default(),
+            board_grouped: true,
             window: WindowState::default(),
         }
     }

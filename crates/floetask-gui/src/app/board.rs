@@ -28,6 +28,12 @@ impl Floetask {
                 self.drag = None;
                 self.persist_state()
             }
+            Message::BoardGrouped(on) => {
+                self.state.board_grouped = on;
+                self.drag = None;
+                self.refresh();
+                self.persist_state()
+            }
             Message::BoardPress(target, lane) => {
                 self.drag = Some(BoardDrag { target, from: lane });
                 self.board_hover = Some(lane);

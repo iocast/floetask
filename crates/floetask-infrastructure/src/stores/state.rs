@@ -47,6 +47,8 @@ struct StateFile {
     collapsed_sections: Vec<String>,
     /// `list` or `board`.
     main_view: String,
+    /// Missing in older files: grouped.
+    board_grouped: Option<bool>,
     files: Vec<FileEntry>,
     sorting: Option<SortingFile>,
     view: Option<ViewFile>,
@@ -120,6 +122,7 @@ impl From<&AppState> for StateFile {
             .to_owned(),
             files_drawer_open: Some(state.files_drawer_open),
             collapsed_sections: state.collapsed_sections.iter().map(|a| a.key().to_owned()).collect(),
+            board_grouped: Some(state.board_grouped),
             main_view: match state.main_view {
                 MainView::List => "list",
                 MainView::Board => "board",
@@ -227,6 +230,7 @@ impl From<StateFile> for AppState {
             },
             files_drawer_open: file.files_drawer_open.unwrap_or(defaults.files_drawer_open),
             collapsed_sections: attributes(&file.collapsed_sections),
+            board_grouped: file.board_grouped.unwrap_or(defaults.board_grouped),
             main_view: match file.main_view.as_str() {
                 "board" => MainView::Board,
                 _ => MainView::List,
@@ -289,6 +293,7 @@ mod tests {
         state.drawer_tab = DrawerTab::Sorting;
         state.collapsed_sections.push(Attribute::Due);
         state.main_view = MainView::Board;
+        state.board_grouped = false;
         store.save(&state).unwrap();
         assert_eq!(store.load(), state);
     }
