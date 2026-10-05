@@ -13,6 +13,7 @@ use floetask_application::{NoteStatus, TodoRef};
 use floetask_domain::date::format_iso;
 use floetask_domain::human_date::display_bucket;
 use floetask_domain::listing::{Attribute, ListedTodo};
+use floetask_domain::todo::TextSegment;
 use floetask_domain::{Date, Todo};
 
 use super::LIST_ID;
@@ -145,25 +146,41 @@ fn todo_row<'a>(
         .into()
 }
 
-/// The description: Markdown when it uses Markdown syntax, plain text
-/// otherwise. Completed todos are struck through and muted.
+/// The todo text with its contexts in place. Markdown when it uses Markdown
+/// syntax; otherwise plain text with each context as a green oval that
+/// filters the list when clicked. Completed todos are struck through and
+/// muted.
 pub(crate) fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Element<'a, Message> {
     let size = if app.settings.compact { 14 } else { 15 };
-    if todo.is_complete() {
-        return rich_text([span(todo.body()).strikethrough(true).color(colors.muted)])
-            .size(size)
-            .on_link_click(Message::OpenLink)
-            .into();
+    if !todo.is_complete()
+        && let Some(content) = app.markdown.get(&todo.display_text())
+    {
+        let mut style = markdown::Style::from_palette(app.theme().palette());
+        style.inline_code_color = colors.text;
+        style.inline_code_highlight.background = colors.hover.into();
+        return markdown::view(content.items(), markdown::Settings::with_text_size(size, style)).map(Message::OpenLink);
     }
-    match app.markdown.get(todo.body()) {
-        Some(content) => {
-            let mut style = markdown::Style::from_palette(app.theme().palette());
-            style.inline_code_color = colors.text;
-            style.inline_code_highlight.background = colors.hover.into();
-            markdown::view(content.items(), markdown::Settings::with_text_size(size, style)).map(Message::OpenLink)
-        }
-        None => text(todo.body()).size(size).into(),
+    let done = todo.is_complete();
+    if !done && todo.contexts().is_empty() {
+        return text(todo.body()).size(size).into();
     }
+    let spans: Vec<_> = todo
+        .text_segments()
+        .into_iter()
+        .map(|segment| match segment {
+            TextSegment::Text(words) => span(words)
+                .strikethrough(done)
+                .color_maybe(done.then_some(colors.muted)),
+            TextSegment::Context(name) => span(format!("@{name}"))
+                .color(if done { colors.muted } else { colors.success })
+                .strikethrough(done)
+                .background(colors.tint(colors.success, 0.15))
+                .border(iced::border::rounded(8))
+                .padding([0, 4])
+                .link(Message::ChipFilter(Attribute::Contexts, name)),
+        })
+        .collect();
+    rich_text(spans).size(size).on_link_click(|message| message).into()
 }
 
 /// Attributes under the text: projects, contexts, dates, recurrence,
@@ -228,17 +245,7 @@ pub(crate) fn meta<'a>(
         ));
         empty = false;
     }
-    for context in todo.contexts() {
-        chips = chips.push(chip(
-            Attribute::Contexts,
-            context.clone(),
-            None,
-            // On the card a context keeps its `@`, as typed in the todo.
-            format!("@{context}"),
-            colors.success,
-        ));
-        empty = false;
-    }
+    // Contexts have no chip here: they are highlighted inside the text.
     for (key, attribute, date) in [
         (DateKey::Due, Attribute::Due, todo.due()),
         (DateKey::Threshold, Attribute::Threshold, todo.threshold()),

@@ -426,11 +426,12 @@ impl Floetask {
         self.projects = projects;
         self.contexts = contexts;
 
-        let bodies: BTreeSet<&str> = self.listing.todos().map(|entry| entry.todo.body()).collect();
-        self.markdown.retain(|body, _| bodies.contains(body.as_str()));
+        let bodies: BTreeSet<String> = self.listing.todos().map(|entry| entry.todo.display_text()).collect();
+        self.markdown.retain(|body, _| bodies.contains(body));
         for body in bodies {
-            if crate::view::list::looks_like_markdown(body) && !self.markdown.contains_key(body) {
-                self.markdown.insert(body.to_owned(), markdown::Content::parse(body));
+            if crate::view::list::looks_like_markdown(&body) && !self.markdown.contains_key(&body) {
+                let content = markdown::Content::parse(&body);
+                self.markdown.insert(body, content);
             }
         }
 

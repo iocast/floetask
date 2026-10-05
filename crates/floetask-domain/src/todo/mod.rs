@@ -7,6 +7,7 @@
 mod completion;
 mod edit;
 mod parse;
+mod text;
 mod tokens;
 
 use crate::date::Date;
@@ -15,6 +16,7 @@ use crate::recurrence::Recurrence;
 use crate::status::DEFAULT_STATUS;
 
 pub use completion::Completion;
+pub use text::TextSegment;
 
 /// Separator stored in the file for line breaks inside one todo (the DLE control character).
 pub const MULTILINE_SEPARATOR: char = '\u{10}';

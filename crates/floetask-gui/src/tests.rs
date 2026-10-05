@@ -25,7 +25,7 @@ const TODO_PATH: &str = "/test/todo.txt";
 const SAMPLE: &str = "\
 (A) Call mom +family @phone due:2026-10-04
 (B) Prepare slides +work due:2026-10-06 note:slides status:doing
-Buy milk @errands note:shopping
+Buy milk note:shopping
 x 2026-10-03 2026-10-01 Send invoice +work
 Legal review +work status:waiting
 Learn Rust status:someday
@@ -215,7 +215,6 @@ fn list_shows_grouped_todos() {
     let app = app();
     let mut ui = simulator(app.view());
     for text in [
-        "Call mom",
         "Prepare slides",
         "Buy milk",
         "Legal review",
@@ -224,10 +223,15 @@ fn list_shows_grouped_todos() {
         "Waiting",
         "Done",
         "family",
-        "@errands",
     ] {
         assert!(ui.find(text).is_ok(), "missing {text}");
     }
+    // "Call mom @phone" is rich text, which the simulator cannot search.
+    assert!(
+        app.listing
+            .todos()
+            .any(|entry| entry.todo.display_text() == "Call mom @phone")
+    );
     assert!(ui.find("Learn Rust").is_err(), "someday is hidden by default");
     drop(ui);
     snapshot(&app, "list");
@@ -770,4 +774,18 @@ fn board_follows_filters_and_sorting() {
     let _ = app.update(Message::MoveSort(2, -2));
     let groups: Vec<String> = app.board.groups.iter().map(|g| g.values.join(",")).collect();
     assert_eq!(groups, ["family", "work", ""]);
+}
+
+#[test]
+fn contexts_are_highlighted_inside_the_todo_text() {
+    let mut app = app();
+    let line = "2026-08-17 SAP Cloud Logging @ktbe mit @DanielWalther besprechen +pitch";
+    let _ = app.update(Message::FileLoaded(
+        PathBuf::from(TODO_PATH),
+        Ok(TodoDocument::parse(&format!("{line}\n"), &[])),
+    ));
+    assert_eq!(app.listing.counts.visible, 1);
+    // The simulator cannot click a single span, so the ovals are checked in
+    // the snapshot; the segments themselves are tested in the domain.
+    snapshot(&app, "inline-contexts");
 }

@@ -43,7 +43,7 @@ pub(super) fn parse(line: &str) -> Todo {
         completed,
         priority,
         created,
-        body: body_text(&description),
+        body: visible_text(&description, false),
         description,
         projects: Vec::new(),
         contexts: Vec::new(),
@@ -95,12 +95,16 @@ fn push_unique(list: &mut Vec<String>, name: &str) {
     }
 }
 
-fn body_text(description: &str) -> String {
+/// The description without tags, with line breaks restored. Contexts stay
+/// in place when `keep_contexts` is set, since they often read as part of the
+/// sentence ("talk to @alice").
+pub(super) fn visible_text(description: &str, keep_contexts: bool) -> String {
+    let keep = |word: &str| !is_tag(word) || keep_contexts && matches!(classify(word), TokenKind::Context(_));
     description
         .split(MULTILINE_SEPARATOR)
         .map(|line| {
             line.split([' ', '\t'])
-                .filter(|word| !word.is_empty() && !is_tag(word))
+                .filter(|word| !word.is_empty() && keep(word))
                 .collect::<Vec<_>>()
                 .join(" ")
         })
