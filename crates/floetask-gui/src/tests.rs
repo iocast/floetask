@@ -747,3 +747,27 @@ fn grouping_switch_keeps_sorting_on_one_board() {
     assert_eq!(board_lane_bodies(&app)[0], vec!["Call mom", "Buy milk"]);
     snapshot(&app, "board-ungrouped");
 }
+
+#[test]
+fn board_follows_filters_and_sorting() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let _ = app.update(Message::FilterValue(Attribute::Projects, "work".to_owned(), false));
+    assert_eq!(
+        board_lane_bodies(&app),
+        vec![
+            vec![],
+            vec!["Prepare slides"],
+            vec!["Legal review"],
+            vec!["Send invoice"]
+        ]
+    );
+    let _ = app.update(Message::ResetFilters);
+    let _ = app.update(Message::ViewToggle(ViewToggle::Completed, false));
+    assert!(board_lane_bodies(&app)[3].is_empty());
+    // Sorting changes reach the board too: sorted by project, +work first.
+    let _ = app.update(Message::ViewToggle(ViewToggle::Completed, true));
+    let _ = app.update(Message::MoveSort(2, -2));
+    let groups: Vec<String> = app.board.groups.iter().map(|g| g.values.join(",")).collect();
+    assert_eq!(groups, ["family", "work", ""]);
+}

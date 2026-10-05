@@ -85,11 +85,11 @@ pub fn board_grouping(sorting: &Sorting) -> Option<Attribute> {
         .filter(|attribute| *attribute != Attribute::Status)
 }
 
-/// Lays a document out on its board. Search, attribute filters and view
-/// toggles apply as in the list, with two differences: a status that has a
-/// column is always shown (a `someday` column shows `someday` todos), and
-/// completed todos appear in a `done` column even when the list hides them.
-/// Open todos whose status has no column go to a trailing "other" lane,
+/// Lays a document out on its board. Search, attribute filters, view
+/// toggles and sorting (including file order) apply exactly as in the list,
+/// so the board always shows what the list shows. One addition: a status
+/// that has a column is always shown (a `someday` column shows `someday`
+/// todos). Open todos whose status has no column go to a trailing "other" lane,
 /// unless their status is hidden by default.
 ///
 /// When the list is grouped (the first sort criterion, unless the list is
@@ -106,16 +106,12 @@ pub fn build_board(
     layout: &BoardLayout,
 ) -> Board {
     let columns = &layout.columns;
-    let toggles = ViewOptions {
-        show_completed: true,
-        ..options.clone()
-    };
     let shown = |todo: &Todo| {
         let status_shown = match todo.status() {
             Some(status) => columns.has_status(status) || options.passes_status(todo, statuses, query),
             None => true,
         };
-        toggles.passes_toggles(todo, dates)
+        options.passes_toggles(todo, dates)
             && status_shown
             && options.passes_filters(todo, dates)
             && query.matches(todo, dates.today)
@@ -128,7 +124,14 @@ pub fn build_board(
             todo: entry.todo.clone(),
         })
         .collect();
-    todos.sort_by(|a, b| Sorting::compare(&sorting.criteria, &a.todo, &b.todo, statuses).then(a.line.cmp(&b.line)));
+    if sorting.file_order {
+        // Documents list todos in file order already.
+        if sorting.completed_last {
+            todos.sort_by_key(|entry| entry.todo.is_complete());
+        }
+    } else {
+        todos.sort_by(|a, b| Sorting::compare(&sorting.criteria, &a.todo, &b.todo, statuses).then(a.line.cmp(&b.line)));
+    }
 
     let grouping = board_grouping(sorting).filter(|_| layout.grouped);
     let groups: Vec<(Option<Attribute>, Vec<String>, Vec<ListedTodo>)> = match grouping {
@@ -209,18 +212,24 @@ x 2026-10-01 Sent invoice
     }
 
     fn board_sorted(columns: &BoardColumns, query: &Query, sorting: &Sorting, grouped: bool) -> Board {
+        board_with(columns, query, sorting, grouped, &ViewOptions::default())
+    }
+
+    fn board_with(
+        columns: &BoardColumns,
+        query: &Query,
+        sorting: &Sorting,
+        grouped: bool,
+        options: &ViewOptions,
+    ) -> Board {
         let dates = DateContext {
             today: parse_iso("2026-10-05").unwrap(),
             week_start: WeekStart::Monday,
             human_friendly: false,
         };
-        let options = ViewOptions {
-            show_completed: false,
-            ..ViewOptions::default()
-        };
         build_board(
             &TodoDocument::parse(FILE, &[]),
-            &options,
+            options,
             sorting,
             query,
             &dates,
@@ -315,5 +324,28 @@ x 2026-10-01 Sent invoice
         assert!(!flat.is_grouped());
         let todo_lane: Vec<_> = flat.groups[0].lanes[0].todos.iter().map(|t| t.todo.body()).collect();
         assert_eq!(todo_lane, ["Urgent plain", "Plain task"]);
+    }
+
+    #[test]
+    fn view_toggles_and_file_order_apply_like_in_the_list() {
+        let hide_completed = ViewOptions {
+            show_completed: false,
+            ..ViewOptions::default()
+        };
+        let board = board_with(
+            &BoardColumns::default(),
+            &Query::Empty,
+            &Sorting::default(),
+            true,
+            &hide_completed,
+        );
+        assert!(bodies(&board)[3].is_empty(), "Done column follows Show completed");
+
+        let file_order = Sorting {
+            file_order: true,
+            ..Sorting::default()
+        };
+        let board = board_sorted(&BoardColumns::default(), &Query::Empty, &file_order, true);
+        assert_eq!(bodies(&board)[0], ["Plain task", "Urgent plain"]);
     }
 }
