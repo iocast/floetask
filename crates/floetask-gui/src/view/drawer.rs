@@ -7,10 +7,10 @@ use floetask_application::DrawerTab;
 use floetask_domain::listing::AttributeSummary;
 
 use super::icons::{Icon, icon};
-use super::list::attribute_label;
+use super::list::{attribute_label, status_label};
 use super::widgets::{caption, icon_button, switch};
 use crate::app::{Floetask, Message, ViewToggle};
-use crate::i18n::tr;
+use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
 
 const WIDTH: f32 = 300.0;
@@ -180,23 +180,32 @@ fn filters(app: &Floetask) -> Element<'_, Message> {
     let toggle = |label: &'static str, value: bool, which: ViewToggle| {
         switch(tr(label), value, move |on| Message::ViewToggle(which, on))
     };
-    column![
-        toggle("show_completed", view.show_completed, ViewToggle::Completed),
-        toggle("show_hidden", view.show_hidden, ViewToggle::Hidden),
-        toggle(
-            "show_hidden_attributes",
-            view.show_hidden_attributes,
-            ViewToggle::HiddenAttributes
-        ),
-        toggle(
-            "show_future_threshold",
-            view.show_future_threshold,
-            ViewToggle::FutureThreshold
-        ),
-        toggle("show_future_due", view.show_future_due, ViewToggle::FutureDue),
-    ]
-    .spacing(16)
-    .into()
+    let hidden_statuses: Vec<String> = app.settings.statuses.hidden().iter().map(|s| status_label(s)).collect();
+    let mut toggles = column![];
+    if !hidden_statuses.is_empty() {
+        let label = trf("show_hidden_statuses", &[&hidden_statuses.join(", ").to_lowercase()]);
+        toggles = toggles.push(switch(label, view.show_hidden_statuses, |on| {
+            Message::ViewToggle(ViewToggle::HiddenStatuses, on)
+        }));
+    }
+    toggles
+        .extend([
+            toggle("show_completed", view.show_completed, ViewToggle::Completed),
+            toggle("show_hidden", view.show_hidden, ViewToggle::Hidden),
+            toggle(
+                "show_hidden_attributes",
+                view.show_hidden_attributes,
+                ViewToggle::HiddenAttributes,
+            ),
+            toggle(
+                "show_future_threshold",
+                view.show_future_threshold,
+                ViewToggle::FutureThreshold,
+            ),
+            toggle("show_future_due", view.show_future_due, ViewToggle::FutureDue),
+        ])
+        .spacing(16)
+        .into()
 }
 
 fn sorting(app: &Floetask, colors: Colors) -> Element<'_, Message> {

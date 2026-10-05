@@ -1,6 +1,6 @@
 //! User settings, stored in the config file.
 
-use floetask_domain::WeekStart;
+use floetask_domain::{StatusSet, WeekStart};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ThemePreference {
@@ -51,6 +51,8 @@ pub struct Settings {
     /// Lines starting with one of these are ignored and preserved.
     pub exclude_lines_with_prefix: Vec<String>,
     pub watcher: WatcherOptions,
+    /// Workflow statuses for `status:`: display order and hidden ones.
+    pub statuses: StatusSet,
 }
 
 impl Default for Settings {
@@ -71,6 +73,7 @@ impl Default for Settings {
             language: "system".to_owned(),
             exclude_lines_with_prefix: Vec::new(),
             watcher: WatcherOptions::default(),
+            statuses: StatusSet::default(),
         }
     }
 }

@@ -17,7 +17,8 @@ impl Todo {
     /// Marks the todo complete on `today`.
     ///
     /// The creation date is set to today when missing, the priority moves to
-    /// `pri:X`, and a recurring todo produces its next occurrence.
+    /// `pri:X`, the `status:` tag is removed (done is not a status), and a
+    /// recurring todo produces its next occurrence, which starts as `todo`.
     pub fn complete(&self, today: Date) -> Completion {
         if self.complete {
             return Completion {
@@ -26,9 +27,10 @@ impl Todo {
             };
         }
         let next = self.next_occurrence(today);
+        let without_status = self.with_status(None);
         let with_stored_priority = match self.priority {
-            Some(priority) => self.with_extension("pri", Some(&priority.to_string())),
-            None => self.clone(),
+            Some(priority) => without_status.with_extension("pri", Some(&priority.to_string())),
+            None => without_status,
         };
         let completed = with_stored_priority.rebuild(
             Head {
@@ -89,7 +91,10 @@ impl Todo {
             (due, threshold)
         };
 
-        let mut next = self.with_date_extension("due", Some(due)).with_created(Some(today));
+        let mut next = self
+            .with_status(None)
+            .with_date_extension("due", Some(due))
+            .with_created(Some(today));
         if let Some(threshold) = threshold {
             next = next.with_date_extension("t", Some(threshold));
         }

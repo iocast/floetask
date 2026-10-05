@@ -4,12 +4,14 @@ use iced::keyboard::{Key, key::Named};
 use iced::widget::{Column, button, checkbox, column, container, pick_list, row, text, text_editor, text_input};
 use iced::{Alignment, Border, Element, Fill};
 
+use floetask_domain::status::DEFAULT_STATUS;
 use floetask_domain::todo::Todo;
 use floetask_domain::{Priority, RecurrenceUnit};
 
 use super::EDITOR_ID;
 use super::calendar;
 use super::icons::{Icon, icon};
+use super::list::status_label;
 use super::popover::popover;
 use super::widgets::{caption, primary_button, secondary_button, title};
 use crate::app::{DateKey, Editor, Floetask, Message};
@@ -125,12 +127,29 @@ fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
         });
         popover(anchor, calendar, Message::EditorCloseCalendar).align_left()
     };
+    let current_status = todo.status_tag().unwrap_or(DEFAULT_STATUS);
+    let mut statuses: Vec<StatusChoice> = app
+        .settings
+        .statuses
+        .names()
+        .iter()
+        .cloned()
+        .map(StatusChoice)
+        .collect();
+    if !statuses.iter().any(|choice| choice.0 == current_status) {
+        statuses.push(StatusChoice(current_status.to_owned()));
+    }
     column![
         caption(tr("details"), colors),
         row![
             text(tr("priority")).size(13).color(colors.muted),
             pick_list(priorities, Some(PriorityChoice(todo.priority())), |choice| {
                 Message::EditorPriority(choice.0)
+            })
+            .text_size(13),
+            text(tr("status")).size(13).color(colors.muted),
+            pick_list(statuses, Some(StatusChoice(current_status.to_owned())), |choice| {
+                Message::EditorStatus(choice.0)
             })
             .text_size(13),
             date_button(DateKey::Due, todo.due()),
@@ -223,6 +242,16 @@ impl std::fmt::Display for PriorityChoice {
             Some(priority) => write!(f, "({priority})"),
             None => write!(f, "–"),
         }
+    }
+}
+
+/// Status option for the pick list, shown with its display name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StatusChoice(String);
+
+impl std::fmt::Display for StatusChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", status_label(&self.0))
     }
 }
 

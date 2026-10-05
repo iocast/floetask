@@ -3,12 +3,14 @@ use std::cmp::Ordering;
 use super::DateContext;
 use crate::date::{Date, format_iso};
 use crate::human_date;
+use crate::status::StatusSet;
 use crate::todo::Todo;
 
 /// A todo attribute that can be filtered, sorted and grouped by.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Attribute {
     Priority,
+    Status,
     Projects,
     Contexts,
     Due,
@@ -21,8 +23,9 @@ pub enum Attribute {
 
 impl Attribute {
     /// Drawer order.
-    pub const ALL: [Attribute; 9] = [
+    pub const ALL: [Attribute; 10] = [
         Attribute::Priority,
+        Attribute::Status,
         Attribute::Projects,
         Attribute::Contexts,
         Attribute::Due,
@@ -37,6 +40,7 @@ impl Attribute {
     pub fn key(self) -> &'static str {
         match self {
             Attribute::Priority => "priority",
+            Attribute::Status => "status",
             Attribute::Projects => "projects",
             Attribute::Contexts => "contexts",
             Attribute::Due => "due",
@@ -80,6 +84,7 @@ impl Attribute {
     pub fn values(self, todo: &Todo, dates: &DateContext) -> Vec<String> {
         match self {
             Attribute::Priority => todo.priority().map(|p| p.to_string()).into_iter().collect(),
+            Attribute::Status => todo.status().map(str::to_owned).into_iter().collect(),
             Attribute::Projects => todo.projects().to_vec(),
             Attribute::Contexts => todo.contexts().to_vec(),
             Attribute::Recurrence => todo.recurrence().map(|r| r.to_string()).into_iter().collect(),
@@ -101,8 +106,9 @@ impl Attribute {
     }
 
     /// Compares two todos by this attribute in ascending order. Todos missing
-    /// the attribute are `None`, so the caller can keep them last.
-    pub fn compare(self, a: &Todo, b: &Todo) -> Option<Ordering> {
+    /// the attribute are `None`, so the caller can keep them last. Statuses
+    /// follow the user's status order.
+    pub fn compare(self, a: &Todo, b: &Todo, statuses: &StatusSet) -> Option<Ordering> {
         fn both<T>(a: Option<T>, b: Option<T>, cmp: impl Fn(&T, &T) -> Ordering) -> Option<Ordering> {
             match (a, b) {
                 (Some(a), Some(b)) => Some(cmp(&a, &b)),
@@ -112,6 +118,7 @@ impl Attribute {
         let first_name = |names: &[String]| names.first().map(|n| n.to_lowercase());
         match self {
             Attribute::Priority => both(a.priority(), b.priority(), Ord::cmp),
+            Attribute::Status => both(a.status(), b.status(), |x, y| statuses.compare(x, y)),
             Attribute::Projects => both(first_name(a.projects()), first_name(b.projects()), Ord::cmp),
             Attribute::Contexts => both(first_name(a.contexts()), first_name(b.contexts()), Ord::cmp),
             Attribute::Recurrence => both(a.recurrence(), b.recurrence(), |x, y| x.semantic_cmp(y)),
@@ -123,6 +130,7 @@ impl Attribute {
     pub fn has_value(self, todo: &Todo) -> bool {
         match self {
             Attribute::Priority => todo.priority().is_some(),
+            Attribute::Status => todo.status().is_some(),
             Attribute::Projects => !todo.projects().is_empty(),
             Attribute::Contexts => !todo.contexts().is_empty(),
             Attribute::Recurrence => todo.recurrence().is_some(),

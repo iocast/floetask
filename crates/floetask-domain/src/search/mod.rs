@@ -64,6 +64,23 @@ impl Query {
         }
     }
 
+    /// Whether the search looks for `needle` as text, e.g. `status:someday`.
+    /// Used to show todos that are hidden by default once asked for.
+    pub fn mentions(&self, needle: &str) -> bool {
+        fn in_expr(expr: &Expr, needle: &str) -> bool {
+            match expr {
+                Expr::And(a, b) | Expr::Or(a, b) => in_expr(a, needle) || in_expr(b, needle),
+                Expr::Text(text) => text.contains(needle),
+                _ => false,
+            }
+        }
+        match self {
+            Query::Empty => false,
+            Query::Literal(text) => text.contains(needle),
+            Query::Expression(expr) => in_expr(expr, needle),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         matches!(self, Query::Empty)
     }

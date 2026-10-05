@@ -141,6 +141,50 @@ fn recurrence_business_days() {
     assert_eq!(next.due(), Some(d("2024-03-11")));
 }
 
+#[test]
+fn status_defaults_to_todo_and_is_ignored_when_done() {
+    assert_eq!(Todo::parse("Plain task").status(), Some("todo"));
+    let doing = Todo::parse("(A) Write report +work status:doing due:2026-10-10");
+    assert_eq!(doing.status(), Some("doing"));
+    assert_eq!(doing.body(), "Write report");
+    assert_eq!(Todo::parse("x 2026-10-01 Old status:doing").status(), None);
+    // Custom values are kept; invalid ones are not a status but stay as text.
+    assert_eq!(Todo::parse("Review status:in-review").status(), Some("in-review"));
+    assert_eq!(Todo::parse("Odd status:Doing").status(), Some("todo"));
+    assert_eq!(
+        Todo::parse("Twice status:waiting status:doing").status(),
+        Some("waiting")
+    );
+}
+
+#[test]
+fn set_status_replaces_in_place_and_todo_removes_it() {
+    let todo = Todo::parse("Call bob status:waiting who:bob");
+    assert_eq!(todo.with_status(Some("doing")).raw(), "Call bob status:doing who:bob");
+    assert_eq!(todo.with_status(Some("todo")).raw(), "Call bob who:bob");
+    assert_eq!(todo.with_status(None).raw(), "Call bob who:bob");
+    assert_eq!(
+        Todo::parse("Call bob").with_status(Some("doing")).raw(),
+        "Call bob status:doing"
+    );
+    assert_eq!(
+        Todo::parse("Odd status:Doing x").with_status(Some("doing")).raw(),
+        "Odd status:doing x"
+    );
+}
+
+#[test]
+fn completing_removes_status_and_reopening_gives_todo() {
+    let todo = Todo::parse("(A) Ship it status:doing +work");
+    let done = todo.complete(d("2026-10-05")).completed;
+    assert_eq!(done.raw(), "x 2026-10-05 2026-10-05 Ship it +work pri:A");
+    assert_eq!(done.uncomplete().status(), Some("todo"));
+
+    let recurring = Todo::parse("Water plants status:doing rec:1w");
+    let next = recurring.complete(d("2026-10-05")).next.unwrap();
+    assert_eq!(next.status_tag(), None);
+}
+
 proptest! {
     #[test]
     fn parse_preserves_raw(line in "[ -~\u{10}]{0,80}") {
@@ -155,6 +199,16 @@ proptest! {
         prop_assert_eq!(same_priority.raw(), line.as_str());
         let not_renamed = todo.with_project_renamed("zz-none", "x");
         prop_assert_eq!(not_renamed.raw(), line.as_str());
+    }
+
+    #[test]
+    fn status_edits_touch_only_the_status_token(text in "[a-z]{1,8}( [a-z]{1,8}){0,4}", status in "[a-z][a-z0-9_-]{0,8}") {
+        let line = format!("{text} +p status:{status} @c");
+        let todo = Todo::parse(&line);
+        prop_assert_eq!(todo.status_tag(), Some(status.as_str()));
+        let changed = todo.with_status(Some("doing")).with_status(Some(status.as_str()));
+        let expected = if status == "todo" { format!("{text} +p @c") } else { line.clone() };
+        prop_assert_eq!(changed.raw(), expected.as_str());
     }
 
     #[test]

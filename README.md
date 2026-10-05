@@ -50,6 +50,10 @@ week_start = "monday"           # monday, saturday, sunday
 language = "system"
 exclude_lines_with_prefix = ["##"]
 
+[statuses]                      # the status: extension
+order = ["doing", "todo", "waiting", "someday"]  # sort order; add your own, e.g. "in-review"
+hidden = ["someday"]            # left out of the list unless asked for
+
 [watcher]
 debounce_ms = 100
 polling = false
@@ -79,6 +83,7 @@ The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New tod
 The theme follows the system until you pick light or dark in Settings (or press `Ctrl+Alt+D`).
 
 - **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
+- **Status** with `status:doing`, `status:waiting`, `status:someday` or your own value ([STATUS-EXTENSION.md](STATUS-EXTENSION.md)); the dialog has a status picker. The list groups by status (doing, to do, waiting), hides `someday` until you turn it on in the Filters tab, filter on it or search for `status:someday`, and completing a todo removes its status.
 - **Edit** by clicking a todo or pressing `Enter` on the selected one. Hover a todo for Edit, Copy, Archive and Delete.
 - **Complete** with the checkbox or `Space`. Completing a `rec:` todo adds its next occurrence.
 - **Filter** with the chips on a todo or in the drawer (`Ctrl+B`): click to include, Alt+click to exclude, right-click a project or context to rename or remove it across the file.

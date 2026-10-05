@@ -12,6 +12,7 @@ mod tokens;
 use crate::date::Date;
 use crate::priority::Priority;
 use crate::recurrence::Recurrence;
+use crate::status::DEFAULT_STATUS;
 
 pub use completion::Completion;
 
@@ -20,7 +21,7 @@ pub const MULTILINE_SEPARATOR: char = '\u{10}';
 
 /// Extension keys with a meaning in floetask. They are shown as chips, not in
 /// the body text.
-pub const KNOWN_KEYS: [&str; 6] = ["due", "t", "rec", "h", "pm", "pri"];
+pub const KNOWN_KEYS: [&str; 7] = ["due", "t", "rec", "h", "pm", "pri", "status"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Todo {
@@ -41,6 +42,8 @@ pub struct Todo {
     pm: Option<u32>,
     hidden: bool,
     stored_priority: Option<Priority>,
+    /// Value of the first valid `status:` tag, as written.
+    status_tag: Option<String>,
 }
 
 impl Todo {
@@ -139,6 +142,18 @@ impl Todo {
     /// Priority saved in `pri:X` when the todo was completed.
     pub fn stored_priority(&self) -> Option<Priority> {
         self.stored_priority
+    }
+
+    /// The `status:` value as written in the line, if any.
+    pub fn status_tag(&self) -> Option<&str> {
+        self.status_tag.as_deref()
+    }
+
+    /// The workflow status of an open todo: the `status:` value, or `todo`
+    /// without one. Completed todos have none, because done is not a status
+    /// and a leftover tag must be ignored.
+    pub fn status(&self) -> Option<&str> {
+        (!self.complete).then(|| self.status_tag().unwrap_or(DEFAULT_STATUS))
     }
 
     pub fn is_empty(&self) -> bool {

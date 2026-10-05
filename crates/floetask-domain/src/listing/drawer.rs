@@ -6,6 +6,7 @@ use crate::date::parse_iso;
 use crate::document::TodoDocument;
 use crate::human_date::DateBucket;
 use crate::search::Query;
+use crate::status::StatusSet;
 
 /// One value in a drawer section, e.g. project `work` used by 3 todos.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +37,7 @@ pub fn summarize_attributes(
     options: &ViewOptions,
     query: &Query,
     dates: &DateContext,
+    statuses: &StatusSet,
 ) -> Vec<AttributeSummary> {
     let toggles = ViewOptions {
         show_hidden: options.show_hidden || options.show_hidden_attributes,
@@ -52,6 +54,7 @@ pub fn summarize_attributes(
             let mut values: Vec<AttributeValue> = Vec::new();
             for entry in &candidates {
                 let counted = options.passes_toggles(entry.todo, dates)
+                    && options.passes_status(entry.todo, statuses, query)
                     && options.passes_filters(entry.todo, dates)
                     && query.matches(entry.todo, dates.today);
                 for value in attribute.values(entry.todo, dates) {
@@ -66,7 +69,7 @@ pub fn summarize_attributes(
                     }
                 }
             }
-            values.sort_by(|a, b| compare_values(attribute, &a.value, &b.value));
+            values.sort_by(|a, b| compare_values(attribute, &a.value, &b.value, statuses));
             AttributeSummary { attribute, values }
         })
         .filter(|summary| !summary.values.is_empty())
@@ -92,8 +95,9 @@ fn is_overdue(value: &str, dates: &DateContext) -> bool {
     }
 }
 
-fn compare_values(attribute: Attribute, a: &str, b: &str) -> Ordering {
+fn compare_values(attribute: Attribute, a: &str, b: &str, statuses: &StatusSet) -> Ordering {
     match attribute {
+        Attribute::Status => statuses.compare(a, b),
         Attribute::Pomodoro => a.parse::<u32>().ok().cmp(&b.parse::<u32>().ok()),
         _ => a.to_lowercase().cmp(&b.to_lowercase()).then(a.cmp(b)),
     }
@@ -114,7 +118,7 @@ mod tests {
         };
         let mut options = ViewOptions::default();
         options.toggle_filter(Attribute::Projects, "x", false);
-        let summary = summarize_attributes(&doc, &options, &Query::Empty, &dates);
+        let summary = summarize_attributes(&doc, &options, &Query::Empty, &dates, &StatusSet::default());
         let projects = summary.iter().find(|s| s.attribute == Attribute::Projects).unwrap();
         let counts: Vec<_> = projects.values.iter().map(|v| (v.value.as_str(), v.count)).collect();
         assert_eq!(counts, vec![("x", 2), ("y", 0), ("z", 0)]);

@@ -16,10 +16,12 @@ pub mod natural_date;
 pub mod priority;
 pub mod recurrence;
 pub mod search;
+pub mod status;
 pub mod todo;
 
 pub use date::{Date, WeekStart};
 pub use document::{DocumentError, TodoDocument};
 pub use priority::Priority;
 pub use recurrence::{Recurrence, RecurrenceUnit};
+pub use status::StatusSet;
 pub use todo::Todo;

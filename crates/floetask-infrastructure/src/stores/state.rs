@@ -78,6 +78,7 @@ struct ViewFile {
     show_future_threshold: bool,
     show_future_due: bool,
     show_hidden_attributes: bool,
+    show_hidden_statuses: bool,
     hidden_categories: Vec<String>,
     filters: Vec<FilterFile>,
 }
@@ -158,6 +159,7 @@ impl From<&ViewOptions> for ViewFile {
             show_future_threshold: view.show_future_threshold,
             show_future_due: view.show_future_due,
             show_hidden_attributes: view.show_hidden_attributes,
+            show_hidden_statuses: view.show_hidden_statuses,
             hidden_categories: view.hidden_categories.iter().map(|a| a.key().to_owned()).collect(),
             filters: view
                 .filters
@@ -195,6 +197,7 @@ impl From<StateFile> for AppState {
                     show_future_threshold: view.show_future_threshold,
                     show_future_due: view.show_future_due,
                     show_hidden_attributes: view.show_hidden_attributes,
+                    show_hidden_statuses: view.show_hidden_statuses,
                     hidden_categories: attributes(&view.hidden_categories),
                     filters: view
                         .filters
@@ -231,8 +234,9 @@ impl From<StateFile> for AppState {
     }
 }
 
-/// Unknown attributes are dropped and missing ones appended, so the sort
-/// list always covers every attribute exactly once.
+/// Unknown attributes are dropped and missing ones (added in a newer
+/// version, such as status) are inserted at their default position, so the
+/// sort list always covers every attribute exactly once.
 fn sorting_from_file(file: SortingFile) -> Sorting {
     let mut criteria: Vec<SortCriterion> = Vec::new();
     for entry in file.criteria {
@@ -245,9 +249,9 @@ fn sorting_from_file(file: SortingFile) -> Sorting {
             });
         }
     }
-    for default in Sorting::default().criteria {
+    for (index, default) in Sorting::default().criteria.into_iter().enumerate() {
         if !criteria.iter().any(|c| c.attribute == default.attribute) {
-            criteria.push(default);
+            criteria.insert(index.min(criteria.len()), default);
         }
     }
     Sorting {

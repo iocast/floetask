@@ -262,6 +262,7 @@ impl Floetask {
             | M::EditorAccept
             | M::EditorDismissSuggestions
             | M::EditorPriority(_)
+            | M::EditorStatus(_)
             | M::EditorOpenCalendar(_)
             | M::EditorCloseCalendar
             | M::EditorRecurrenceCount(_)
@@ -355,8 +356,15 @@ impl Floetask {
             &self.state.sorting,
             &self.search.query,
             &dates,
+            &self.settings.statuses,
         );
-        let summaries = summarize_attributes(document, &self.state.view, &self.search.query, &dates);
+        let summaries = summarize_attributes(
+            document,
+            &self.state.view,
+            &self.search.query,
+            &dates,
+            &self.settings.statuses,
+        );
         let (projects, contexts) = known_names(document);
         self.listing = listing;
         self.summaries = summaries;

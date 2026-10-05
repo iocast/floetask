@@ -51,6 +51,18 @@ When multi-line input is used, line breaks inside a todo are stored as the DLE c
 
 **Rust notes:** the `todo_txt` crate (4.2.x) exists, but the extras floetask supports (`rec:`, `t:`, `h:`, `pm:`, `pri:`, DLE, exclusion prefixes, exact round-trip) suggest writing a small own parser in a `core` crate with property tests for round-trip. Use `chrono` (or `jiff`) for dates.
 
+### 1.5 Workflow status: the `status:` extension (P1)
+
+`status:<value>` gives an open todo a workflow state. The full requirements are in [STATUS-EXTENSION.md](STATUS-EXTENSION.md); in short:
+
+- Values are one lowercase token of `[a-z0-9_-]`. No tag means `todo`; done is never a status. At most one tag; the first valid one counts.
+- Built-in values: `todo`, `doing`, `waiting`, `someday`. Unknown values are kept unchanged and treated as open.
+- Setting a status replaces the tag in place; setting `todo` removes it. Completing a todo removes the tag, so a reopened todo is `todo`; the next occurrence of a recurring todo starts as `todo`.
+- The list hides `someday` by default; a Filters toggle, a drawer filter on that status, or a search for `status:someday` shows it. `waiting` is styled distinctly.
+- Default sort and grouping: `doing`, `todo`, `waiting`, `someday`, then custom statuses.
+- `config.toml` `[statuses]` sets the order (custom statuses included) and which statuses are hidden by default.
+- The add/edit dialog has a status picker; cards show a status chip for every status except `todo`; the drawer has a Status section.
+
 ---
 
 ## 2. Files (P0 / P1)
@@ -203,7 +215,7 @@ Toggled with `Ctrl+B`; `Escape` closes. Three tabs:
 
 ### 6.1 Attributes tab
 
-- One collapsible section per attribute: priority, projects, contexts, due, t, rec, pm, created, completed (open/closed state persisted).
+- One collapsible section per attribute: priority, status, projects, contexts, due, t, rec, pm, created, completed (open/closed state persisted).
 - Each value shows a count of todos having it; counts reflect the filtered set; overdue sections show a red indicator.
 - Click a value to **include** filter; second action (modifier-click) to **exclude** filter. Multiple values combine (include = must match one of; exclude = must match none).
 - Hide a whole category (e.g. hide every todo that has any context).
@@ -217,10 +229,11 @@ Toggled with `Ctrl+B`; `Escape` closes. Three tabs:
 - Show attributes from hidden todos in drawer.
 - Show todos with future threshold dates.
 - Show todos with future due dates.
+- Show todos whose status is hidden by default (`someday`).
 
 ### 6.3 Sorting tab
 
-- Ordered list of sort attributes (default order: priority, projects, contexts, due, t, completed, created, rec, pm). Reorder by drag and drop.
+- Ordered list of sort attributes (default order: status, priority, projects, contexts, due, t, completed, created, rec, pm). Reorder by drag and drop.
 - Per attribute: invert direction.
 - Recurrence sorts by semantic length (1d < 1w < 1m < 1y; relative before strict; missing last).
 - Missing values always sort last regardless of direction.

@@ -69,6 +69,7 @@ pub enum Message {
     EditorAccept,
     EditorDismissSuggestions,
     EditorPriority(Option<Priority>),
+    EditorStatus(String),
     EditorOpenCalendar(DateKey),
     EditorCloseCalendar,
     EditorRecurrenceCount(String),
@@ -125,6 +126,7 @@ pub enum ViewToggle {
     Completed,
     Hidden,
     HiddenAttributes,
+    HiddenStatuses,
     FutureThreshold,
     FutureDue,
 }

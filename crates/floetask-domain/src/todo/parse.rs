@@ -3,6 +3,7 @@ use super::{KNOWN_KEYS, MULTILINE_SEPARATOR, Todo};
 use crate::date::parse_iso;
 use crate::priority::Priority;
 use crate::recurrence::Recurrence;
+use crate::status::is_valid_status;
 
 pub(super) fn parse(line: &str) -> Todo {
     let mut rest = line;
@@ -53,6 +54,7 @@ pub(super) fn parse(line: &str) -> Todo {
         pm: None,
         hidden: false,
         stored_priority: None,
+        status_tag: None,
     };
     read_tags(&mut todo);
     todo
@@ -81,6 +83,7 @@ fn apply_known_extension(todo: &mut Todo, key: &str, value: &str) {
         "rec" if todo.rec.is_none() => todo.rec = Recurrence::parse(value),
         "pm" if todo.pm.is_none() => todo.pm = value.parse().ok(),
         "h" => todo.hidden |= value == "1",
+        "status" if todo.status_tag.is_none() && is_valid_status(value) => todo.status_tag = Some(value.to_owned()),
         "pri" if todo.stored_priority.is_none() => todo.stored_priority = value.chars().next().and_then(Priority::new),
         _ => {}
     }

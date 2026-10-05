@@ -4,6 +4,7 @@ use super::Todo;
 use super::tokens::{TokenKind, classify, remove_span, tokens};
 use crate::date::{Date, format_iso};
 use crate::priority::Priority;
+use crate::status::DEFAULT_STATUS;
 
 /// The leading part of a todo.txt line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +72,12 @@ impl Todo {
 
     pub fn with_date_extension(&self, key: &str, date: Option<Date>) -> Todo {
         self.with_extension(key, date.map(format_iso).as_deref())
+    }
+
+    /// Sets the workflow status, replacing the existing `status:` tag in
+    /// place. `None` and `todo` remove the tag, since no tag means `todo`.
+    pub fn with_status(&self, status: Option<&str>) -> Todo {
+        self.with_extension("status", status.filter(|s| *s != DEFAULT_STATUS))
     }
 
     pub fn with_project_renamed(&self, from: &str, to: &str) -> Todo {

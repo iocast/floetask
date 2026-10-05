@@ -57,6 +57,10 @@ impl Floetask {
                         rewrite(editor, |todo| todo.with_priority(priority));
                         Task::none()
                     }
+                    Message::EditorStatus(status) => {
+                        rewrite(editor, |todo| todo.with_status(Some(&status)));
+                        Task::none()
+                    }
                     Message::EditorOpenCalendar(key) => {
                         editor.calendar = match &editor.calendar {
                             Some(calendar) if calendar.key == key => None,

@@ -3,6 +3,7 @@ use crate::date::format_iso;
 use crate::document::TodoDocument;
 use crate::human_date;
 use crate::search::Query;
+use crate::status::StatusSet;
 use crate::todo::Todo;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,11 +48,13 @@ pub fn build_listing(
     sorting: &Sorting,
     query: &Query,
     dates: &DateContext,
+    statuses: &StatusSet,
 ) -> TodoListing {
     let mut visible: Vec<ListedTodo> = document
         .todos()
         .filter(|entry| {
             options.passes_toggles(entry.todo, dates)
+                && options.passes_status(entry.todo, statuses, query)
                 && options.passes_filters(entry.todo, dates)
                 && query.matches(entry.todo, dates.today)
         })
@@ -79,7 +82,9 @@ pub fn build_listing(
             }]
         }
         Some(attribute) => {
-            visible.sort_by(|a, b| Sorting::compare(&sorting.criteria, &a.todo, &b.todo).then(a.line.cmp(&b.line)));
+            visible.sort_by(|a, b| {
+                Sorting::compare(&sorting.criteria, &a.todo, &b.todo, statuses).then(a.line.cmp(&b.line))
+            });
             group_by(attribute, visible, dates)
         }
     };
@@ -120,6 +125,7 @@ mod tests {
     use super::*;
     use crate::date::{WeekStart, parse_iso};
     use crate::listing::SortCriterion;
+    use crate::search::Interpretation;
 
     fn dates() -> DateContext {
         DateContext {
@@ -135,6 +141,14 @@ mod tests {
             .iter()
             .map(|g| g.todos.iter().map(|t| t.todo.raw()).collect())
             .collect()
+    }
+
+    /// The default sorting without the status criterion, so groups follow
+    /// priority.
+    fn by_priority() -> Sorting {
+        let mut sorting = Sorting::default();
+        sorting.criteria.retain(|c| c.attribute != Attribute::Status);
+        sorting
     }
 
     const FILE: &str = "\
@@ -153,9 +167,10 @@ later t:2024-04-01
         let listing = build_listing(
             &doc,
             &ViewOptions::default(),
-            &Sorting::default(),
+            &by_priority(),
             &Query::Empty,
             &dates(),
+            &StatusSet::default(),
         );
         assert_eq!(
             lines(&listing),
@@ -185,7 +200,14 @@ later t:2024-04-01
             attribute: Attribute::Priority,
             descending: true,
         };
-        let listing = build_listing(&doc, &ViewOptions::default(), &sorting, &Query::Empty, &dates());
+        let listing = build_listing(
+            &doc,
+            &ViewOptions::default(),
+            &sorting,
+            &Query::Empty,
+            &dates(),
+            &StatusSet::default(),
+        );
         assert_eq!(listing.groups[0].values, vec!["B".to_owned()]);
         assert!(listing.groups.last().unwrap().values.is_empty());
     }
@@ -198,7 +220,14 @@ later t:2024-04-01
             completed_last: true,
             ..Sorting::default()
         };
-        let listing = build_listing(&doc, &ViewOptions::default(), &sorting, &Query::Empty, &dates());
+        let listing = build_listing(
+            &doc,
+            &ViewOptions::default(),
+            &sorting,
+            &Query::Empty,
+            &dates(),
+            &StatusSet::default(),
+        );
         assert_eq!(listing.groups.len(), 1);
         assert_eq!(
             listing.groups[0].todos.last().unwrap().todo.raw(),
@@ -216,17 +245,38 @@ later t:2024-04-01
             ..ViewOptions::default()
         };
         options.toggle_filter(Attribute::Priority, "A", false);
-        let listing = build_listing(&doc, &options, &Sorting::default(), &Query::Empty, &dates());
+        let listing = build_listing(
+            &doc,
+            &options,
+            &Sorting::default(),
+            &Query::Empty,
+            &dates(),
+            &StatusSet::default(),
+        );
         assert_eq!(listing.counts.visible, 2);
 
         let mut options = ViewOptions::default();
         options.toggle_filter(Attribute::Projects, "work", true);
-        let listing = build_listing(&doc, &options, &Sorting::default(), &Query::Empty, &dates());
+        let listing = build_listing(
+            &doc,
+            &options,
+            &Sorting::default(),
+            &Query::Empty,
+            &dates(),
+            &StatusSet::default(),
+        );
         assert!(listing.todos().all(|t| !t.todo.projects().contains(&"work".to_owned())));
 
         let mut options = ViewOptions::default();
         options.toggle_hidden_category(Attribute::Due);
-        let listing = build_listing(&doc, &options, &Sorting::default(), &Query::Empty, &dates());
+        let listing = build_listing(
+            &doc,
+            &options,
+            &Sorting::default(),
+            &Query::Empty,
+            &dates(),
+            &StatusSet::default(),
+        );
         assert!(listing.todos().all(|t| t.todo.due().is_none()));
     }
 
@@ -244,8 +294,64 @@ later t:2024-04-01
             human_friendly: true,
             ..dates()
         };
-        let listing = build_listing(&doc, &ViewOptions::default(), &sorting, &Query::Empty, &dates);
+        let listing = build_listing(
+            &doc,
+            &ViewOptions::default(),
+            &sorting,
+            &Query::Empty,
+            &dates,
+            &StatusSet::default(),
+        );
         assert_eq!(listing.groups[0].values, vec!["tomorrow".to_owned()]);
         assert_eq!(listing.groups[1].values, vec!["next week".to_owned()]);
+    }
+
+    #[test]
+    fn default_sort_groups_by_status_and_hides_someday() {
+        let file = "\
+Learn Rust status:someday
+Write report status:doing
+Plain task
+Legal review status:waiting
+Review PR status:in-review
+x 2024-03-01 done status:doing
+";
+        let doc = TodoDocument::parse(file, &[]);
+        let statuses = StatusSet::default();
+        let listing = build_listing(
+            &doc,
+            &ViewOptions::default(),
+            &Sorting::default(),
+            &Query::Empty,
+            &dates(),
+            &statuses,
+        );
+        let headers: Vec<_> = listing.groups.iter().map(|g| g.values.join(",")).collect();
+        assert_eq!(headers, vec!["doing", "todo", "waiting", "in-review", ""]);
+
+        let mut options = ViewOptions::default();
+        options.toggle_filter(Attribute::Status, "someday", false);
+        let listing = build_listing(&doc, &options, &Sorting::default(), &Query::Empty, &dates(), &statuses);
+        assert_eq!(lines(&listing), vec![vec!["Learn Rust status:someday"]]);
+
+        let Interpretation::Ready(query) = Query::interpret("status:someday") else {
+            panic!("query should be ready");
+        };
+        let listing = build_listing(
+            &doc,
+            &ViewOptions::default(),
+            &Sorting::default(),
+            &query,
+            &dates(),
+            &statuses,
+        );
+        assert_eq!(listing.counts.visible, 1);
+
+        let options = ViewOptions {
+            show_hidden_statuses: true,
+            ..ViewOptions::default()
+        };
+        let listing = build_listing(&doc, &options, &Sorting::default(), &Query::Empty, &dates(), &statuses);
+        assert_eq!(listing.groups[3].values, vec!["someday".to_owned()]);
     }
 }

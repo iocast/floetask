@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::SettingsStore;
 use floetask_application::{AppError, Settings, ThemePreference, WatcherOptions};
-use floetask_domain::WeekStart;
+use floetask_domain::{StatusSet, WeekStart};
 
 use super::{read_toml, write_toml};
 
@@ -59,6 +59,32 @@ struct SettingsFile {
     language: String,
     exclude_lines_with_prefix: Vec<String>,
     watcher: WatcherFile,
+    statuses: StatusesFile,
+}
+
+/// `[statuses]`: the user's workflow statuses for the `status:` extension.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(default)]
+struct StatusesFile {
+    /// Display and sort order; custom statuses go here too.
+    order: Vec<String>,
+    /// Statuses left out of the default list, like `someday`.
+    hidden: Vec<String>,
+}
+
+impl Default for StatusesFile {
+    fn default() -> Self {
+        Self::from(&StatusSet::default())
+    }
+}
+
+impl From<&StatusSet> for StatusesFile {
+    fn from(statuses: &StatusSet) -> Self {
+        Self {
+            order: statuses.names().to_vec(),
+            hidden: statuses.hidden().to_vec(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -119,6 +145,7 @@ impl From<&Settings> for SettingsFile {
                 polling: s.watcher.polling,
                 poll_interval_ms: s.watcher.poll_interval_ms,
             },
+            statuses: StatusesFile::from(&s.statuses),
         }
     }
 }
@@ -153,6 +180,7 @@ impl From<SettingsFile> for Settings {
                 polling: f.watcher.polling,
                 poll_interval_ms: f.watcher.poll_interval_ms,
             },
+            statuses: StatusSet::new(f.statuses.order, f.statuses.hidden),
         }
     }
 }
@@ -188,5 +216,26 @@ mod tests {
         assert!(settings.watcher.polling);
         assert_eq!(settings.watcher.debounce_ms, 100);
         assert!(settings.safe_writes);
+        assert_eq!(settings.statuses, StatusSet::default());
+    }
+
+    #[test]
+    fn reads_custom_statuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(
+            &path,
+            "[statuses]\norder = [\"doing\", \"in-review\", \"todo\"]\nhidden = [\"someday\", \"delegated\"]\n",
+        )
+        .unwrap();
+        let store = TomlSettingsStore::new(path);
+        let settings = store.load().unwrap();
+        assert_eq!(
+            settings.statuses.names(),
+            ["doing", "in-review", "todo", "waiting", "someday"]
+        );
+        assert!(settings.statuses.is_hidden("delegated"));
+        store.save(&settings).unwrap();
+        assert_eq!(store.load().unwrap(), settings);
     }
 }

@@ -56,7 +56,11 @@ pub fn with_tooltip<'a>(
 }
 
 /// A label with a switch, for settings and view toggles.
-pub fn switch<'a>(label: &'a str, value: bool, on_toggle: impl Fn(bool) -> Message + 'a) -> Element<'a, Message> {
+pub fn switch<'a>(
+    label: impl text::IntoFragment<'a>,
+    value: bool,
+    on_toggle: impl Fn(bool) -> Message + 'a,
+) -> Element<'a, Message> {
     row![text(label).size(14).width(Fill), toggler(value).on_toggle(on_toggle)]
         .spacing(12)
         .align_y(alignment::Vertical::Center)

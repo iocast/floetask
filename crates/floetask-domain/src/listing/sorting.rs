@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use super::Attribute;
+use crate::status::StatusSet;
 use crate::todo::Todo;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,7 +10,9 @@ pub struct SortCriterion {
     pub descending: bool,
 }
 
-/// Sorting tab settings. The first criterion also groups the list.
+/// Sorting tab settings. The first criterion also groups the list. By
+/// default that is the workflow status, so `doing` comes first, then `todo`,
+/// `waiting` and `someday`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sorting {
     pub criteria: Vec<SortCriterion>,
@@ -22,6 +25,7 @@ pub struct Sorting {
 impl Default for Sorting {
     fn default() -> Self {
         let order = [
+            Attribute::Status,
             Attribute::Priority,
             Attribute::Projects,
             Attribute::Contexts,
@@ -69,7 +73,7 @@ impl Sorting {
 
     /// Compares by the given criteria. Missing values always sort last,
     /// whatever the direction.
-    pub fn compare(criteria: &[SortCriterion], a: &Todo, b: &Todo) -> Ordering {
+    pub fn compare(criteria: &[SortCriterion], a: &Todo, b: &Todo, statuses: &StatusSet) -> Ordering {
         for criterion in criteria {
             let attribute = criterion.attribute;
             let ordering = match (attribute.has_value(a), attribute.has_value(b)) {
@@ -77,7 +81,7 @@ impl Sorting {
                 (false, true) => Ordering::Greater,
                 (false, false) => Ordering::Equal,
                 (true, true) => {
-                    let ascending = attribute.compare(a, b).unwrap_or(Ordering::Equal);
+                    let ascending = attribute.compare(a, b, statuses).unwrap_or(Ordering::Equal);
                     if criterion.descending {
                         ascending.reverse()
                     } else {

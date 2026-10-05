@@ -1,4 +1,6 @@
 use super::{Attribute, DateContext};
+use crate::search::Query;
+use crate::status::StatusSet;
 use crate::todo::Todo;
 
 /// A drawer filter on one attribute value.
@@ -19,6 +21,8 @@ pub struct ViewOptions {
     pub show_future_due: bool,
     /// Drawer counts include attributes of `h:1` todos.
     pub show_hidden_attributes: bool,
+    /// Show todos whose status is hidden by default, such as `someday`.
+    pub show_hidden_statuses: bool,
     /// Hide every todo that has any value for these attributes.
     pub hidden_categories: Vec<Attribute>,
     pub filters: Vec<AttributeFilter>,
@@ -32,6 +36,7 @@ impl Default for ViewOptions {
             show_future_threshold: false,
             show_future_due: true,
             show_hidden_attributes: true,
+            show_hidden_statuses: false,
             hidden_categories: Vec::new(),
             filters: Vec::new(),
         }
@@ -46,6 +51,19 @@ impl ViewOptions {
             && (self.show_hidden || !todo.is_hidden())
             && (self.show_future_threshold || todo.threshold().is_none_or(|t| t <= dates.today))
             && (self.show_future_due || todo.due().is_none_or(|d| d <= dates.today))
+    }
+
+    /// Hides open todos whose status is hidden by default (`someday`) unless
+    /// the user asks for them: with the toggle, a drawer filter on that
+    /// status, or a search for `status:<value>`.
+    pub fn passes_status(&self, todo: &Todo, statuses: &StatusSet, query: &Query) -> bool {
+        let Some(status) = todo.status() else {
+            return true;
+        };
+        !statuses.is_hidden(status)
+            || self.show_hidden_statuses
+            || self.filter_state(Attribute::Status, status) == Some(false)
+            || query.mentions(&format!("status:{status}"))
     }
 
     /// Attribute filters and hidden categories. Include filters on one

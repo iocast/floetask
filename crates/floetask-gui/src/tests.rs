@@ -18,14 +18,17 @@ use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
 use floetask_domain::{Date, TodoDocument};
 
-use crate::app::{Dialog, Floetask, Message, Startup};
+use crate::app::{Dialog, Floetask, Message, Startup, ViewToggle};
+use iced::widget::text_editor;
 
 const TODO_PATH: &str = "/test/todo.txt";
 const SAMPLE: &str = "\
 (A) Call mom +family @phone due:2026-10-04
-(B) Prepare slides +work due:2026-10-06
+(B) Prepare slides +work due:2026-10-06 status:doing
 Buy milk @errands
 x 2026-10-03 2026-10-01 Send invoice +work
+Legal review +work status:waiting
+Learn Rust status:someday
 ";
 
 #[derive(Default)]
@@ -196,15 +199,51 @@ fn list_shows_grouped_todos() {
         "Call mom",
         "Prepare slides",
         "Buy milk",
-        "(A)",
-        "(B)",
+        "Legal review",
+        "Doing",
+        "TO DO",
+        "Waiting",
+        "DONE",
         "+family",
         "@errands",
     ] {
         assert!(ui.find(text).is_ok(), "missing {text}");
     }
+    assert!(ui.find("Learn Rust").is_err(), "someday is hidden by default");
     drop(ui);
     snapshot(&app, "list");
+}
+
+#[test]
+fn someday_todos_show_on_request() {
+    let mut app = app();
+    let _ = app.update(Message::ViewToggle(ViewToggle::HiddenStatuses, true));
+    let mut ui = simulator(app.view());
+    assert!(ui.find("Learn Rust").is_ok());
+    assert!(ui.find("Someday").is_ok());
+}
+
+#[test]
+fn editor_status_picker_rewrites_the_status_token() {
+    let mut app = app();
+    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::EditorAction(text_editor::Action::Edit(
+        text_editor::Edit::Paste(std::sync::Arc::new("Ask legal +work".to_owned())),
+    )));
+    let _ = app.update(Message::EditorStatus("waiting".to_owned()));
+    let _ = app.update(Message::EditorStatus("doing".to_owned()));
+    let Some(Dialog::Editor(editor)) = &app.dialog else {
+        panic!("editor closed")
+    };
+    assert_eq!(editor.text(), "Ask legal +work status:doing");
+    assert!(simulator(app.view()).find("Doing").is_ok());
+    snapshot(&app, "editor-status");
+
+    let _ = app.update(Message::EditorStatus("todo".to_owned()));
+    let Some(Dialog::Editor(editor)) = &app.dialog else {
+        panic!("editor closed")
+    };
+    assert_eq!(editor.text(), "Ask legal +work");
 }
 
 #[test]
@@ -290,7 +329,7 @@ fn keyboard_moves_selection() {
     let _ = app.update(down());
     let _ = app.update(down());
     assert_eq!(app.selected, Some(1));
-    assert_eq!(app.selected_todo().unwrap().todo.body(), "Prepare slides");
+    assert_eq!(app.selected_todo().unwrap().todo.body(), "Call mom");
 }
 
 #[test]

@@ -54,10 +54,13 @@ fn group_header<'a>(app: &'a Floetask, group: &'a Group) -> Option<Element<'a, M
     let colors = app.colors();
     let mut label = Row::new().spacing(8).align_y(Alignment::Center);
     if group.values.is_empty() {
-        label = label.push(caption(
-            &trf("no_value", &[&tr(attribute.key()).to_lowercase()]),
-            colors,
-        ));
+        // Only completed todos have no status: done is not a status.
+        let empty_label = if attribute == Attribute::Status {
+            tr("status_done").to_owned()
+        } else {
+            trf("no_value", &[&tr(attribute.key()).to_lowercase()])
+        };
+        label = label.push(caption(&empty_label, colors));
     }
     for value in &group.values {
         let shown = caption(&attribute_label(attribute, value), colors);
@@ -177,6 +180,19 @@ fn meta<'a>(
             None,
             priority.to_string(),
             colors.priority(priority),
+        ));
+        empty = false;
+    }
+    if let Some(status) = todo.status_tag()
+        && !todo.is_complete()
+    {
+        let (glyph, color) = status_style(status, colors);
+        chips = chips.push(chip(
+            Attribute::Status,
+            status.to_owned(),
+            Some(glyph),
+            status_label(status),
+            color,
         ));
         empty = false;
     }
@@ -333,7 +349,28 @@ pub(crate) fn attribute_label(attribute: Attribute, value: &str) -> String {
         Attribute::Projects => format!("+{value}"),
         Attribute::Contexts => format!("@{value}"),
         Attribute::Priority => format!("({value})"),
+        Attribute::Status => status_label(value),
         _ => tr(value).to_owned(),
+    }
+}
+
+/// A status name for display: built-in statuses are translated, custom
+/// ones are shown as written.
+pub(crate) fn status_label(status: &str) -> String {
+    let key = format!("status_{status}");
+    match tr(&key) {
+        translated if translated != key => translated.to_owned(),
+        _ => status.to_owned(),
+    }
+}
+
+/// Icon and colour of a status chip. `waiting` stands out, since the todo
+/// is blocked on someone else.
+fn status_style(status: &str, colors: Colors) -> (Icon, Color) {
+    match status {
+        "doing" => (Icon::Play, colors.primary),
+        "waiting" => (Icon::Hourglass, colors.warning),
+        _ => (Icon::Status, colors.muted),
     }
 }
 
