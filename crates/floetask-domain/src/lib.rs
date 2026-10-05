@@ -8,6 +8,7 @@
 //! GUI. "Today" is always passed in, so every rule is deterministic and
 //! unit-testable.
 
+pub mod board;
 pub mod date;
 pub mod document;
 pub mod human_date;

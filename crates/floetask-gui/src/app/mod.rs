@@ -3,6 +3,7 @@
 //! `update` is split by concern into the sibling modules; each handler only
 //! calls application services and changes presentation state.
 
+mod board;
 mod dialog;
 mod drawer;
 mod editing;
@@ -27,7 +28,7 @@ use floetask_application::{
     ThemePreference,
 };
 use floetask_domain::listing::{
-    AttributeSummary, DateContext, TodoListing, build_listing, known_names, summarize_attributes,
+    AttributeSummary, Board, DateContext, TodoListing, build_board, build_listing, known_names, summarize_attributes,
 };
 use floetask_domain::search::Query;
 use floetask_domain::{Date, TodoDocument};
@@ -35,6 +36,7 @@ use floetask_domain::{Date, TodoDocument};
 use crate::i18n::tr;
 use crate::theme::Colors;
 
+pub use board::BoardDrag;
 pub use dialog::{Calendar, DateKey, Dialog, Editor, Pending};
 #[cfg(test)]
 pub(crate) use editing::NoteSave;
@@ -83,6 +85,12 @@ pub struct Floetask {
     /// Every registered file, loaded. The active one is shown.
     pub(crate) documents: HashMap<PathBuf, TodoDocument>,
     pub(crate) listing: TodoListing,
+    /// The active file on the status board.
+    pub(crate) board: Board,
+    /// The card being dragged on the board.
+    pub(crate) drag: Option<BoardDrag>,
+    /// Board column under the mouse.
+    pub(crate) board_hover: Option<usize>,
     pub(crate) summaries: Vec<AttributeSummary>,
     pub(crate) projects: BTreeSet<String>,
     pub(crate) contexts: BTreeSet<String>,
@@ -144,6 +152,9 @@ impl Floetask {
             today,
             documents: HashMap::new(),
             listing: TodoListing::default(),
+            board: Board::default(),
+            drag: None,
+            board_hover: None,
             summaries: Vec::new(),
             projects: BTreeSet::new(),
             contexts: BTreeSet::new(),
@@ -312,6 +323,17 @@ impl Floetask {
 
             M::OpenSettings | M::Setting(_) | M::ToggleTheme => self.update_settings(message),
 
+            M::ToggleMainView
+            | M::BoardPress(..)
+            | M::BoardHover(..)
+            | M::BoardRelease
+            | M::OpenBoardColumns
+            | M::BoardColumnInput(_)
+            | M::BoardColumnAdd(_)
+            | M::BoardColumnMove(..)
+            | M::BoardColumnRemove(_)
+            | M::BoardColumnsReset => self.update_board(message),
+
             M::ConfirmDialog => self.confirm_dialog(),
             M::CloseDialog => self.close_dialog(),
         }
@@ -375,6 +397,15 @@ impl Floetask {
             &dates,
             &self.settings.statuses,
         );
+        let board = build_board(
+            document,
+            &self.state.view,
+            &self.state.sorting,
+            &self.search.query,
+            &dates,
+            &self.settings.statuses,
+            &self.active_board_columns(),
+        );
         let (projects, contexts) = known_names(document);
         // A few file checks, one per distinct note; cheap enough to run here.
         let note_statuses = match self.active_path() {
@@ -382,6 +413,7 @@ impl Floetask {
             None => HashMap::new(),
         };
         self.listing = listing;
+        self.board = board;
         self.note_statuses = note_statuses;
         self.summaries = summaries;
         self.projects = projects;
@@ -440,6 +472,7 @@ impl Floetask {
             Some(Dialog::Confirm { pending, .. }) => self.run_pending(pending),
             Some(Dialog::Rename { attribute, from, input }) => self.rename_value(attribute, from, input),
             Some(Dialog::SaveFilter { name }) => self.save_filter(name),
+            Some(Dialog::BoardColumns { columns, .. }) => self.save_board_columns(columns),
             Some(Dialog::Editor(editor)) => {
                 self.dialog = Some(Dialog::Editor(editor));
                 self.update_editing(Message::SaveEditor)

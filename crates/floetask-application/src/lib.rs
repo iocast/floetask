@@ -23,7 +23,7 @@ pub use notes::{NoteService, NoteStatus};
 pub use notifications::{DueNotification, NotificationService};
 pub use saved_filters::SavedFilter;
 pub use settings::{Settings, ThemePreference, WatcherOptions};
-pub use state::{AppState, DrawerTab, TodoFileEntry, WindowState};
+pub use state::{AppState, DrawerTab, MainView, TodoFileEntry, WindowState};
 pub use todo_files::{FileOptions, InputOptions, TodoFileService, TodoRef};
 
 use std::sync::Arc;

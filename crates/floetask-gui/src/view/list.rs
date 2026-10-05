@@ -104,7 +104,7 @@ fn todo_row<'a>(
         .style(theme::round_checkbox(colors));
 
     let mut details = column![body(app, todo, colors)].spacing(6).width(Fill);
-    if let Some(meta) = meta(app, todo, &target, grouped_by, colors) {
+    if let Some(meta) = meta(app, todo, &target, grouped_by, true, colors) {
         details = details.push(meta);
     }
 
@@ -128,7 +128,7 @@ fn todo_row<'a>(
 
 /// The description: Markdown when it uses Markdown syntax, plain text
 /// otherwise. Completed todos are struck through and muted.
-fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Element<'a, Message> {
+pub(crate) fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Element<'a, Message> {
     let size = if app.settings.compact { 14 } else { 15 };
     if todo.is_complete() {
         return rich_text([span(todo.body()).strikethrough(true).color(colors.muted)])
@@ -148,12 +148,14 @@ fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Element<'a, Me
 }
 
 /// Attributes under the text: projects, contexts, dates, recurrence,
-/// pomodoros and links. Chips filter the list when clicked.
-fn meta<'a>(
+/// pomodoros and links, plus the status unless `show_status` is off (the
+/// board column already names it). Chips filter the list when clicked.
+pub(crate) fn meta<'a>(
     app: &'a Floetask,
     todo: &'a Todo,
     target: &TodoRef,
     grouped_by: Option<Attribute>,
+    show_status: bool,
     colors: Colors,
 ) -> Option<Element<'a, Message>> {
     let mut chips = Row::new().spacing(6).align_y(Alignment::Center);
@@ -185,6 +187,7 @@ fn meta<'a>(
     }
     if let Some(status) = todo.status_tag()
         && !todo.is_complete()
+        && show_status
     {
         let (glyph, color) = status_style(status, colors);
         chips = chips.push(chip(

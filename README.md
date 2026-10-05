@@ -58,6 +58,10 @@ hidden = ["someday"]            # left out of the list unless asked for
 debounce_ms = 100
 polling = false
 poll_interval_ms = 1000
+
+[[boards]]                      # board columns of one todo file; the Columns dialog writes these
+file = "C:/Users/me/todo.txt"
+columns = ["todo", "doing", "in-review", "done"]  # statuses, plus "done" for completed todos
 ```
 
 ### colors.toml
@@ -84,6 +88,7 @@ The theme follows the system until you pick light or dark in Settings (or press 
 
 - **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
 - **Status** with `status:doing`, `status:waiting`, `status:someday` or your own value ([STATUS-EXTENSION.md](STATUS-EXTENSION.md)); the dialog has a status picker. The list groups by status (doing, to do, waiting), hides `someday` until you turn it on in the Filters tab, filter on it or search for `status:someday`, and completing a todo removes its status.
+- **Board** with the title-bar button or `Ctrl+Alt+B`: one column per status, plus Done. Drag a card to another column to change its status, or to Done to complete it. **Columns** on the board sets the columns for that file.
 - **Edit** by clicking a todo or pressing `Enter` on the selected one. Hover a todo for Edit, Copy, Archive and Delete.
 - **Complete** with the checkbox or `Space`. Completing a `rec:` todo adds its next occurrence.
 - **Filter** with the chips on a todo or in the drawer (`Ctrl+B`): click to include, Alt+click to exclude, right-click a project or context to rename or remove it across the file.
@@ -102,6 +107,7 @@ The theme follows the system until you pick light or dark in Settings (or press 
 | `Ctrl+,` | Settings |
 | `Ctrl+B` | Filter drawer |
 | `Ctrl+Alt+H` | File drawer |
+| `Ctrl+Alt+B` | Switch between list and board |
 | `Ctrl+Alt+D` | Toggle light/dark |
 | `Ctrl+W` / `Ctrl+Q` | Quit |
 | `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete |
@@ -114,6 +120,7 @@ Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE)
 Not done yet:
 
 - System tray, dock badge, start minimised (P2).
+- The status board has no keyboard navigation and no reordering inside a column; cards follow the sort order.
 - Native or in-app menu bar (P2); every action is reachable by shortcut or UI.
 - Translations other than English; the language setting only offers English.
 - Packaging (P2).

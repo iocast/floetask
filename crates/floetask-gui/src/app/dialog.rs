@@ -193,4 +193,9 @@ pub enum Dialog {
     SaveFilter {
         name: String,
     },
+    /// The active file's board columns, as keys, while being edited.
+    BoardColumns {
+        columns: Vec<String>,
+        input: String,
+    },
 }

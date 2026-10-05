@@ -143,6 +143,19 @@ Splash screens for: no file open (open/create buttons), file has no todos (add b
 - Zoom 50–150 % in 10 % steps. iced: apply via the application `scale_factor`.
 - Disable animations toggle (relevant only if floetask adds animations).
 
+### 3.7 Status board (P1)
+
+A kanban view of the active file, built on the `status:` extension (1.5).
+
+- **Switching:** a title-bar button and `Ctrl+Alt+B` switch between the list and the board. The choice is remembered in `state.toml`.
+- **Columns:** each column is a status (`todo`, `doing`, a custom value such as `in-review`) or `done`, which holds completed todos (done is never a status). Default columns: To do, Doing, Waiting, Done.
+- **Per file:** every todo file has its own columns, edited in a Columns dialog on the board (add a known status, type a new one, reorder, remove, reset). They are stored in `config.toml` as `[[boards]]` entries with the file path and the column keys; a file with the default columns has no entry. A board always keeps at least one column.
+- **Cards:** the same card as the list (priority bar, checkbox, text, chips) without the status chip, sorted inside a column by the Sorting tab criteria.
+- **Drag and drop:** press a card, move to another column (it is outlined) and release to move the card there. Dropping on a status column sets `status:` in place (`todo` removes the tag) and reopens a completed todo; dropping on Done completes it, adding the next occurrence of a recurring todo. Pressing and releasing in the same column opens the todo for editing. `Escape` cancels a drag.
+- **What is shown:** search, attribute filters and view toggles apply as in the list, except that a status with a column is always shown (a Someday column shows `someday` todos) and the Done column shows completed todos even when the list hides them. Open todos whose status has no column appear in a trailing "Other statuses" column, unless their status is hidden by default; completed todos without a Done column are not shown.
+
+**iced notes:** iced 0.14 has no drag and drop. The board uses `mouse_area`: pressing a card starts the drag, each column reports entering and leaving, and a release anywhere on the board drops on the column under the cursor.
+
 ---
 
 ## 4. Dates, deferral, recurrence (P0 / P1)

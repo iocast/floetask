@@ -32,6 +32,16 @@ pub enum DrawerTab {
     Sorting,
 }
 
+/// How the active file is shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MainView {
+    /// The grouped, sorted list.
+    #[default]
+    List,
+    /// The status board with one column per status.
+    Board,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WindowState {
     pub width: f32,
@@ -64,6 +74,7 @@ pub struct AppState {
     /// The collapsible file list on the left.
     pub files_drawer_open: bool,
     pub collapsed_sections: Vec<Attribute>,
+    pub main_view: MainView,
     pub window: WindowState,
 }
 
@@ -78,6 +89,7 @@ impl Default for AppState {
             drawer_tab: DrawerTab::default(),
             files_drawer_open: true,
             collapsed_sections: Vec::new(),
+            main_view: MainView::default(),
             window: WindowState::default(),
         }
     }

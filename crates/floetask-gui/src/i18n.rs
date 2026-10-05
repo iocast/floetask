@@ -82,6 +82,18 @@ fn english(key: &str) -> Option<&'static str> {
         "status_waiting" => "Waiting",
         "status_someday" => "Someday",
         "status_done" => "Done",
+        // Status board
+        "show_board" => "Show as board (Ctrl+Alt+B)",
+        "show_list" => "Show as list (Ctrl+Alt+B)",
+        "board_columns" => "Columns",
+        "board_other" => "Other statuses",
+        "board_columns_title" => "Board columns for {}",
+        "board_columns_hint" => {
+            "Each column is a status; Done holds completed todos. Drag a card to another column to change its status."
+        }
+        "column_placeholder" => "Status, e.g. in-review",
+        "remove_column" => "Remove column",
+        "reset_columns" => "Reset",
         "set" => "Set",
         "clear" => "Clear",
         "today" => "Today",

@@ -7,6 +7,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use floetask_domain::board::Column;
 use floetask_domain::listing::Attribute;
 use floetask_domain::natural_date::rewrite_relative_dates;
 use floetask_domain::todo::Todo;
@@ -170,6 +171,19 @@ impl TodoFileService {
             let completion = todo.toggle_complete(today);
             std::iter::once(completion.completed).chain(completion.next).collect()
         })
+    }
+
+    /// Moves a todo to a board column: sets its status, or completes it for
+    /// the `done` column (a recurring todo adds its next occurrence).
+    pub fn move_to_column(
+        &self,
+        path: &Path,
+        target: &TodoRef,
+        column: &Column,
+        options: &FileOptions,
+    ) -> Result<TodoDocument, AppError> {
+        let today = self.today();
+        self.replace(path, target, options, |todo| todo.moved_to(column, today))
     }
 
     /// Sets or clears a date extension (`due`, `t`) from the inline picker.

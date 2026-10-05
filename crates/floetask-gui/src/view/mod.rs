@@ -4,6 +4,7 @@
 //! above it) and the drawer as a floating panel on the right. Dialogs are
 //! modal cards; toasts sit bottom-right.
 
+mod board;
 mod calendar;
 mod dialogs;
 mod drawer;
@@ -20,6 +21,8 @@ mod widgets;
 
 use iced::widget::{column, container, mouse_area, row, space, stack, text};
 use iced::{Element, Fill, Length, mouse, window};
+
+use floetask_application::MainView;
 
 use crate::app::{Dialog, Floetask, Message};
 use crate::theme;
@@ -83,6 +86,7 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
                 Dialog::Rename { attribute, from, input } => dialogs::rename(app, *attribute, from, input),
                 Dialog::RowDate { calendar, .. } => dialogs::date(app, calendar),
                 Dialog::SaveFilter { name } => dialogs::save_filter(app, name),
+                Dialog::BoardColumns { columns, input } => dialogs::board_columns(app, columns, input),
             };
             widgets::modal(base, content, colors)
         }
@@ -116,6 +120,7 @@ fn body(app: &Floetask) -> Element<'_, Message> {
     match app.active_document() {
         None => empty::no_file(app),
         Some(document) if document.todo_count() == 0 => empty::no_todos(app),
+        Some(_) if app.state.main_view == MainView::Board => board::view(app),
         Some(_) if app.listing.counts.visible == 0 => empty::nothing_visible(app),
         Some(_) => list::view(app),
     }

@@ -1,13 +1,15 @@
 //! Confirmation, rename, date and save-filter dialogs.
 
-use iced::widget::{column, container, row, space, text, text_input};
+use iced::widget::{button, column, container, row, space, text, text_input};
 use iced::{Alignment, Element, Fill};
 
+use floetask_domain::board::{Column, DONE_COLUMN};
 use floetask_domain::listing::Attribute;
 
 use super::calendar;
-use super::list::attribute_label;
-use super::widgets::{danger_button, primary_button, secondary_button, title};
+use super::icons::Icon;
+use super::list::{attribute_label, status_label};
+use super::widgets::{danger_button, icon_button, primary_button, secondary_button, title};
 use crate::app::{Calendar, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
@@ -79,6 +81,98 @@ pub fn save_filter<'a>(app: &'a Floetask, name: &'a str) -> Element<'a, Message>
     .spacing(16)
     .width(460)
     .into()
+}
+
+/// Edits the board columns of the active file: reorder, remove, add a
+/// known status or type a new one.
+pub fn board_columns<'a>(app: &'a Floetask, columns: &'a [String], input: &'a str) -> Element<'a, Message> {
+    let colors = app.colors();
+    let file = app
+        .state
+        .active_entry()
+        .map(|entry| entry.file_name())
+        .unwrap_or_default();
+    let last = columns.len().saturating_sub(1);
+    let rows = column(columns.iter().enumerate().map(|(index, key)| {
+        let step = |glyph: Icon, label: &'static str, message: Message, enabled: bool| {
+            icon_button(glyph, tr(label), enabled.then_some(message), colors, false)
+        };
+        row![
+            text(column_label(key)).size(14).width(Fill),
+            text(key.as_str())
+                .size(12)
+                .color(colors.muted)
+                .font(iced::Font::MONOSPACE),
+            step(Icon::ArrowUp, "move_up", Message::BoardColumnMove(index, -1), index > 0),
+            step(
+                Icon::ArrowDown,
+                "move_down",
+                Message::BoardColumnMove(index, 1),
+                index < last
+            ),
+            step(
+                Icon::Trash,
+                "remove_column",
+                Message::BoardColumnRemove(index),
+                last > 0
+            ),
+        ]
+        .spacing(4)
+        .align_y(Alignment::Center)
+        .into()
+    }))
+    .spacing(2);
+
+    let mut known: Vec<String> = app.settings.statuses.names().to_vec();
+    known.push(DONE_COLUMN.to_owned());
+    let suggestions = row(known.into_iter().filter(|key| !columns.contains(key)).map(|key| {
+        button(text(column_label(&key)).size(12))
+            .padding([3, 10])
+            .style(theme::chip(colors.primary, colors, false))
+            .on_press(Message::BoardColumnAdd(Some(key)))
+            .into()
+    }))
+    .spacing(6)
+    .wrap();
+    let valid = Column::parse(input).is_some() && !columns.iter().any(|key| key == input);
+    let add = row![
+        text_input(tr("column_placeholder"), input)
+            .on_input(Message::BoardColumnInput)
+            .on_submit_maybe(valid.then_some(Message::BoardColumnAdd(None)))
+            .padding(8)
+            .size(13)
+            .style(theme::input(colors)),
+        secondary_button(tr("add"), Message::BoardColumnAdd(None), colors),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    column![
+        title(trf("board_columns_title", &[&file])),
+        text(tr("board_columns_hint")).size(13).color(colors.muted),
+        rows,
+        suggestions,
+        add,
+        row![
+            secondary_button(tr("reset_columns"), Message::BoardColumnsReset, colors),
+            space().width(Fill),
+            secondary_button(tr("cancel"), Message::CloseDialog, colors),
+            primary_button(tr("save"), Message::ConfirmDialog, colors),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    ]
+    .spacing(16)
+    .width(480)
+    .into()
+}
+
+fn column_label(key: &str) -> String {
+    if key == DONE_COLUMN {
+        tr("status_done").to_owned()
+    } else {
+        status_label(key)
+    }
 }
 
 fn raw_text(content: &str, colors: Colors) -> Element<'_, Message> {

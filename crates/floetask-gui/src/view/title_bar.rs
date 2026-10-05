@@ -6,6 +6,8 @@
 use iced::widget::{button, center, center_x, container, mouse_area, row, rule, space, stack};
 use iced::{Alignment, Element, Fill};
 
+use floetask_application::MainView;
+
 use super::icons::{Icon, icon};
 use super::search;
 use super::widgets::icon_button;
@@ -34,7 +36,15 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     .padding([0, 8])
     .align_y(Alignment::Center);
 
+    let on_board = app.state.main_view == MainView::Board;
     let right = row![
+        icon_button(
+            if on_board { Icon::List } else { Icon::Board },
+            tr(if on_board { "show_list" } else { "show_board" }),
+            has_file.then_some(Message::ToggleMainView),
+            colors,
+            false,
+        ),
         icon_button(
             Icon::Filter,
             tr("toggle_drawer"),

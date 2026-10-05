@@ -47,10 +47,12 @@ pub enum Icon {
     Play,
     Hourglass,
     Status,
+    Board,
+    List,
 }
 
 impl Icon {
-    const ALL: [Icon; 39] = [
+    const ALL: [Icon; 41] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -90,6 +92,8 @@ impl Icon {
         Icon::Play,
         Icon::Hourglass,
         Icon::Status,
+        Icon::Board,
+        Icon::List,
     ];
 
     /// The SVG body (elements inside the 24×24 canvas).
@@ -155,6 +159,8 @@ impl Icon {
             Icon::Play => r#"<path d="M8 5v14l11-7z"/>"#,
             Icon::Hourglass => r#"<path d="M6 3h12M6 21h12M7 3v3a5 5 0 0 0 10 0V3M7 21v-3a5 5 0 0 1 10 0v3"/>"#,
             Icon::Status => r#"<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/>"#,
+            Icon::Board => r#"<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>"#,
+            Icon::List => r#"<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>"#,
             Icon::Link => r#"<path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>"#,
         }
     }

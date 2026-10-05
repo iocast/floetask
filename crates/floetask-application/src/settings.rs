@@ -1,5 +1,9 @@
 //! User settings, stored in the config file.
 
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+use floetask_domain::board::BoardColumns;
 use floetask_domain::{StatusSet, WeekStart};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -53,6 +57,9 @@ pub struct Settings {
     pub watcher: WatcherOptions,
     /// Workflow statuses for `status:`: display order and hidden ones.
     pub statuses: StatusSet,
+    /// Board columns per todo file. Files without an entry use the default
+    /// columns.
+    pub boards: BTreeMap<PathBuf, BoardColumns>,
 }
 
 impl Default for Settings {
@@ -74,6 +81,7 @@ impl Default for Settings {
             exclude_lines_with_prefix: Vec::new(),
             watcher: WatcherOptions::default(),
             statuses: StatusSet::default(),
+            boards: BTreeMap::new(),
         }
     }
 }
@@ -81,6 +89,21 @@ impl Default for Settings {
 impl Settings {
     pub const ZOOM_RANGE: std::ops::RangeInclusive<u16> = 50..=150;
     pub const NOTIFICATION_THRESHOLD_MAX: u8 = 10;
+
+    /// The board columns of a todo file.
+    pub fn board_columns(&self, file: &Path) -> BoardColumns {
+        self.boards.get(file).cloned().unwrap_or_default()
+    }
+
+    /// Sets a file's board columns; the default columns remove the entry so
+    /// the config file only lists real customisations.
+    pub fn set_board_columns(&mut self, file: &Path, columns: BoardColumns) {
+        if columns == BoardColumns::default() {
+            self.boards.remove(file);
+        } else {
+            self.boards.insert(file.to_path_buf(), columns);
+        }
+    }
 
     /// Clamps values a hand-edited config file may have out of range.
     pub fn normalized(mut self) -> Self {

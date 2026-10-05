@@ -186,6 +186,37 @@ pub fn row(colors: Colors, hovered: bool, selected: bool) -> impl Fn(&Theme) -> 
     }
 }
 
+/// A column of the status board; the drop target is outlined while a card
+/// is dragged over it.
+pub fn lane(colors: Colors, drop_target: bool) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(if drop_target {
+            colors.tint(colors.primary, 0.08)
+        } else {
+            colors.hover
+        }),
+        border: Border {
+            radius: 12.0.into(),
+            width: if drop_target { 2.0 } else { 1.0 },
+            color: if drop_target { colors.primary } else { colors.border },
+        },
+        ..container::Style::default()
+    }
+}
+
+/// A card on the status board. The dragged card is outlined.
+pub fn board_card(colors: Colors, dragged: bool) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.surface),
+        border: Border {
+            radius: 10.0.into(),
+            width: if dragged { 2.0 } else { 1.0 },
+            color: if dragged { colors.primary } else { colors.border },
+        },
+        ..container::Style::default()
+    }
+}
+
 /// The thin coloured bar marking a todo's priority.
 pub fn accent(color: Color) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {

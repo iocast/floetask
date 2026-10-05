@@ -241,3 +241,24 @@ fn archiving_moves_notes_into_the_done_notes_folder() {
     );
     assert_eq!(files.get(TODO), "open note:s.md\n");
 }
+
+#[test]
+fn moving_on_the_board_sets_status_or_completes() {
+    let files = MemoryFiles::with(&[(TODO, "a\nWrite report +work\n")]);
+    let service = service(&files);
+    let options = FileOptions::default();
+    let doing = Column::Status("doing".to_owned());
+    service
+        .move_to_column(Path::new(TODO), &target(1, "Write report +work"), &doing, &options)
+        .unwrap();
+    assert_eq!(files.get(TODO), "a\nWrite report +work status:doing\n");
+    service
+        .move_to_column(
+            Path::new(TODO),
+            &target(1, "Write report +work status:doing"),
+            &Column::Done,
+            &options,
+        )
+        .unwrap();
+    assert_eq!(files.get(TODO), "a\nx 2024-03-13 2024-03-13 Write report +work\n");
+}

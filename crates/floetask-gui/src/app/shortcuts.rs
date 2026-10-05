@@ -54,6 +54,7 @@ impl Floetask {
             ("o", false, false) => Message::OpenFileDialog,
             (",", false, false) => Message::OpenSettings,
             ("b", false, false) => Message::ToggleDrawer,
+            ("b", true, false) => Message::ToggleMainView,
             ("d", true, false) => Message::ToggleTheme,
             ("w", false, false) | ("q", false, false) => Message::Quit,
             (digit, false, false) => {
@@ -65,6 +66,9 @@ impl Floetask {
     }
 
     fn escape(&mut self) -> Task<Message> {
+        if self.drag.take().is_some() {
+            return Task::none();
+        }
         if let Some(super::Dialog::Editor(editor)) = &self.dialog
             && editor.calendar.is_some()
         {

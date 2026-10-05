@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::StateStore;
-use floetask_application::{AppError, AppState, DrawerTab, TodoFileEntry, WindowState};
+use floetask_application::{AppError, AppState, DrawerTab, MainView, TodoFileEntry, WindowState};
 use floetask_domain::listing::{Attribute, AttributeFilter, SortCriterion, Sorting, ViewOptions};
 
 use super::{read_toml, write_toml};
@@ -45,6 +45,8 @@ struct StateFile {
     drawer_tab: String,
     files_drawer_open: Option<bool>,
     collapsed_sections: Vec<String>,
+    /// `list` or `board`.
+    main_view: String,
     files: Vec<FileEntry>,
     sorting: Option<SortingFile>,
     view: Option<ViewFile>,
@@ -118,6 +120,11 @@ impl From<&AppState> for StateFile {
             .to_owned(),
             files_drawer_open: Some(state.files_drawer_open),
             collapsed_sections: state.collapsed_sections.iter().map(|a| a.key().to_owned()).collect(),
+            main_view: match state.main_view {
+                MainView::List => "list",
+                MainView::Board => "board",
+            }
+            .to_owned(),
             files: state
                 .files
                 .iter()
@@ -220,6 +227,10 @@ impl From<StateFile> for AppState {
             },
             files_drawer_open: file.files_drawer_open.unwrap_or(defaults.files_drawer_open),
             collapsed_sections: attributes(&file.collapsed_sections),
+            main_view: match file.main_view.as_str() {
+                "board" => MainView::Board,
+                _ => MainView::List,
+            },
             window: file
                 .window
                 .map(|w| WindowState {
@@ -277,6 +288,7 @@ mod tests {
         state.view.toggle_filter(Attribute::Projects, "work", true);
         state.drawer_tab = DrawerTab::Sorting;
         state.collapsed_sections.push(Attribute::Due);
+        state.main_view = MainView::Board;
         store.save(&state).unwrap();
         assert_eq!(store.load(), state);
     }

@@ -122,6 +122,21 @@ pub enum Message {
     ToggleTheme,
 
     // Dialogs
+    // Status board
+    ToggleMainView,
+    /// A card was pressed in a lane: start dragging it.
+    BoardPress(TodoRef, usize),
+    /// The mouse entered (`true`) or left a lane.
+    BoardHover(usize, bool),
+    BoardRelease,
+    OpenBoardColumns,
+    BoardColumnInput(String),
+    /// Adds the given column, or the typed one for `None`.
+    BoardColumnAdd(Option<String>),
+    BoardColumnMove(usize, isize),
+    BoardColumnRemove(usize),
+    BoardColumnsReset,
+
     ConfirmDialog,
     CloseDialog,
 }

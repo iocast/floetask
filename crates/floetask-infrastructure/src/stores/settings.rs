@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::SettingsStore;
 use floetask_application::{AppError, Settings, ThemePreference, WatcherOptions};
+use floetask_domain::board::BoardColumns;
 use floetask_domain::{StatusSet, WeekStart};
 
 use super::{read_toml, write_toml};
@@ -60,6 +61,14 @@ struct SettingsFile {
     exclude_lines_with_prefix: Vec<String>,
     watcher: WatcherFile,
     statuses: StatusesFile,
+    /// `[[boards]]`: board columns of one todo file each.
+    boards: Vec<BoardFile>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BoardFile {
+    file: PathBuf,
+    columns: Vec<String>,
 }
 
 /// `[statuses]`: the user's workflow statuses for the `status:` extension.
@@ -146,6 +155,14 @@ impl From<&Settings> for SettingsFile {
                 poll_interval_ms: s.watcher.poll_interval_ms,
             },
             statuses: StatusesFile::from(&s.statuses),
+            boards: s
+                .boards
+                .iter()
+                .map(|(file, columns)| BoardFile {
+                    file: file.clone(),
+                    columns: columns.keys(),
+                })
+                .collect(),
         }
     }
 }
@@ -181,6 +198,11 @@ impl From<SettingsFile> for Settings {
                 poll_interval_ms: f.watcher.poll_interval_ms,
             },
             statuses: StatusSet::new(f.statuses.order, f.statuses.hidden),
+            boards: f
+                .boards
+                .into_iter()
+                .map(|board| (board.file, BoardColumns::from_keys(board.columns)))
+                .collect(),
         }
     }
 }
@@ -237,5 +259,21 @@ mod tests {
         assert!(settings.statuses.is_hidden("delegated"));
         store.save(&settings).unwrap();
         assert_eq!(store.load().unwrap(), settings);
+    }
+
+    #[test]
+    fn board_columns_round_trip_per_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TomlSettingsStore::new(dir.path().join("config.toml"));
+        let mut settings = Settings::default();
+        let file = dir.path().join("todo.txt");
+        settings.set_board_columns(&file, BoardColumns::from_keys(["doing", "in-review", "done"]));
+        store.save(&settings).unwrap();
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded.board_columns(&file).keys(), ["doing", "in-review", "done"]);
+        assert_eq!(
+            loaded.board_columns(&dir.path().join("other.txt")),
+            BoardColumns::default()
+        );
     }
 }

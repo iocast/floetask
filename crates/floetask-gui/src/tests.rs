@@ -547,3 +547,100 @@ fn notes_are_not_saved_under_an_invalid_name() {
     type_note(&mut app, "text");
     assert!(matches!(save_notes(&app), Err(AppError::Note(_))));
 }
+
+fn board_lane_bodies(app: &Floetask) -> Vec<Vec<String>> {
+    app.board
+        .lanes
+        .iter()
+        .map(|lane| lane.todos.iter().map(|t| t.todo.body().to_owned()).collect())
+        .collect()
+}
+
+#[test]
+fn board_shows_a_column_per_status() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    assert_eq!(app.state.main_view, floetask_application::MainView::Board);
+    assert_eq!(
+        board_lane_bodies(&app),
+        vec![
+            vec!["Call mom", "Buy milk"],
+            vec!["Prepare slides"],
+            vec!["Legal review"],
+            vec!["Send invoice"],
+        ]
+    );
+    let mut ui = simulator(app.view());
+    for text in ["TO DO", "DOING", "WAITING", "DONE", "Columns", "Learn Rust"] {
+        assert_eq!(ui.find(text).is_ok(), text != "Learn Rust", "{text}");
+    }
+    drop(ui);
+    snapshot(&app, "board");
+}
+
+#[test]
+fn dragging_a_card_moves_it_to_another_column() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let messages = click(&app, "Buy milk");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::BoardPress(target, 0) if target.line == 2))
+    );
+    // Keep the button held: drop the release the click also produced.
+    for message in messages.into_iter().filter(|m| !matches!(m, Message::BoardRelease)) {
+        let _ = app.update(message);
+    }
+    // Entering the next column can arrive before leaving the first.
+    let _ = app.update(Message::BoardHover(1, true));
+    let _ = app.update(Message::BoardHover(0, false));
+    assert_eq!(app.board_hover, Some(1));
+    snapshot(&app, "board-drag");
+
+    let target = app.drag.as_ref().unwrap().target.clone();
+    let _ = app.update(Message::BoardRelease);
+    assert!(app.drag.is_none());
+    // The drop runs the move in the background; run it here and feed the result back.
+    let moved = app.services.todo_files.move_to_column(
+        Path::new(TODO_PATH),
+        &target,
+        &floetask_domain::board::Column::Status("doing".to_owned()),
+        &app.file_options(),
+    );
+    let _ = app.update(Message::Saved(PathBuf::from(TODO_PATH), moved));
+    assert_eq!(board_lane_bodies(&app)[1], vec!["Prepare slides", "Buy milk"]);
+}
+
+#[test]
+fn pressing_and_releasing_in_place_opens_the_todo() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let messages = click(&app, "Legal review");
+    assert!(matches!(messages.last(), Some(Message::BoardRelease)));
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
+}
+
+#[test]
+fn board_columns_are_set_per_file() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let _ = app.update(Message::OpenBoardColumns);
+    let _ = app.update(Message::BoardColumnAdd(Some("someday".to_owned())));
+    let _ = app.update(Message::BoardColumnInput("In Review".to_owned()));
+    let _ = app.update(Message::BoardColumnAdd(None));
+    let _ = app.update(Message::BoardColumnRemove(2));
+    let _ = app.update(Message::BoardColumnMove(4, -1));
+    snapshot(&app, "board-columns");
+    let _ = app.update(Message::ConfirmDialog);
+    assert!(app.dialog.is_none());
+    assert_eq!(
+        app.settings.board_columns(Path::new(TODO_PATH)).keys(),
+        ["todo", "doing", "done", "in-review", "someday"]
+    );
+    assert_eq!(board_lane_bodies(&app)[4], vec!["Learn Rust"]);
+    assert_eq!(board_lane_bodies(&app)[5], vec!["Legal review"]);
+}
