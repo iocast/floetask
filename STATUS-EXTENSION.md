@@ -89,7 +89,7 @@ This is not part of the official todo.txt spec. Tools must explicitly support it
   hidden = ["someday"]                             # hidden from the default list
   ```
 
-  Built-in statuses missing from `order` are appended, invalid names are dropped, and `todo` can never be hidden. Statuses found in a file but not in `order` sort after the known ones and are always shown.
+  A board column for a new status (see FEATURES.md 3.7) appends that status to `order`. Built-in statuses missing from `order` are appended, invalid names are dropped, and `todo` can never be hidden. Statuses found in a file but not in `order` sort after the known ones and are always shown.
 - **Listing:** the default sort groups by status in the configured order (`doing`, `todo`, `waiting`, then custom statuses), with completed todos last under "Done". Status is a normal sort criterion, so it can be moved down or inverted in the Sorting tab. A sort list saved by an older version gets status inserted at the top.
 - **Hidden statuses** (`someday` by default) are shown when the Filters tab toggle is on, when the drawer's Status section includes that value, or when the search contains `status:<value>`.
 - **GUI:** the add/edit dialog has a status picker next to the priority. Cards show a chip for every status except `todo`: `doing` in the accent colour with a play icon, `waiting` in amber with an hourglass, others muted. Clicking a chip filters by that status like any other chip.

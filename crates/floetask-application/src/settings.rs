@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use floetask_domain::board::BoardColumns;
+use floetask_domain::board::{BoardColumns, Column};
 use floetask_domain::{StatusSet, WeekStart};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -96,8 +96,10 @@ impl Settings {
     }
 
     /// Sets a file's board columns; the default columns remove the entry so
-    /// the config file only lists real customisations.
+    /// the config file only lists real customisations. A column for a new
+    /// status adds that status to the status list, so pickers offer it.
     pub fn set_board_columns(&mut self, file: &Path, columns: BoardColumns) {
+        self.register_column_statuses(&columns);
         if columns == BoardColumns::default() {
             self.boards.remove(file);
         } else {
@@ -105,8 +107,20 @@ impl Settings {
         }
     }
 
-    /// Clamps values a hand-edited config file may have out of range.
+    fn register_column_statuses(&mut self, columns: &BoardColumns) {
+        for column in columns.columns() {
+            if let Column::Status(status) = column {
+                self.statuses.add(status);
+            }
+        }
+    }
+
+    /// Clamps values a hand-edited config file may have out of range, and
+    /// adds statuses that only appear as board columns to the status list.
     pub fn normalized(mut self) -> Self {
+        for columns in self.boards.values().cloned().collect::<Vec<_>>() {
+            self.register_column_statuses(&columns);
+        }
         self.zoom_percent = self
             .zoom_percent
             .clamp(*Self::ZOOM_RANGE.start(), *Self::ZOOM_RANGE.end());
