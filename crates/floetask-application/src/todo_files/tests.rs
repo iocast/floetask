@@ -36,6 +36,14 @@ impl FileSystem for MemoryFiles {
     fn exists(&self, path: &Path) -> bool {
         self.0.lock().unwrap().contains_key(path)
     }
+    fn remove(&self, path: &Path) -> Result<(), AppError> {
+        self.0
+            .lock()
+            .unwrap()
+            .remove(path)
+            .map(drop)
+            .ok_or_else(|| AppError::io(path, "missing"))
+    }
 }
 
 struct FixedClock;
@@ -199,4 +207,37 @@ fn excluded_lines_survive_edits() {
     )
     .unwrap();
     assert_eq!(files.get(TODO), "## notes\ntask +p\n");
+}
+
+#[test]
+fn archiving_moves_notes_into_the_done_notes_folder() {
+    let note = |folder: &str, name: &str| Path::new(folder).join(name).to_string_lossy().into_owned();
+    let todo =
+        "x 2024-01-01 a note:a.md\nx 2024-01-01 shared note:s.md\nopen note:s.md\nx 2024-01-01 clash note:c.md\n";
+    let files = MemoryFiles::with(&[
+        (TODO, todo),
+        (&note("todo-notes", "a.md"), "A\n"),
+        (&note("todo-notes", "s.md"), "S\n"),
+        (&note("todo-notes", "c.md"), "new C\n"),
+        (&note("done-notes", "c.md"), "old C\n"),
+    ]);
+    service(&files)
+        .archive_completed(Path::new(TODO), Path::new(DONE), &FileOptions::default())
+        .unwrap();
+
+    // Moved: no todo in todo.txt links to it any more.
+    assert_eq!(files.get(&note("done-notes", "a.md")), "A\n");
+    assert!(!files.exists(Path::new(&note("todo-notes", "a.md"))));
+    // Copied: the open todo still links to it.
+    assert_eq!(files.get(&note("done-notes", "s.md")), "S\n");
+    assert_eq!(files.get(&note("todo-notes", "s.md")), "S\n");
+    // A different note already has the name in done-notes: take a free one.
+    assert_eq!(files.get(&note("done-notes", "c.md")), "old C\n");
+    assert_eq!(files.get(&note("done-notes", "c-2.md")), "new C\n");
+    assert!(!files.exists(Path::new(&note("todo-notes", "c.md"))));
+    assert_eq!(
+        files.get(DONE),
+        "x 2024-01-01 a note:a.md\nx 2024-01-01 shared note:s.md\nx 2024-01-01 clash note:c-2.md\n"
+    );
+    assert_eq!(files.get(TODO), "open note:s.md\n");
 }

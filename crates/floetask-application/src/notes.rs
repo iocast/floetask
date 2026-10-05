@@ -134,6 +134,105 @@ impl NoteService {
     }
 }
 
+/// Carries the notes of todos that move to another todo file (archiving to
+/// the done file) into that file's notes folder, so their links keep working.
+#[derive(Debug, Default)]
+pub(crate) struct NoteTransfer {
+    copies: Vec<(PathBuf, PathBuf)>,
+    /// Originals no todo left behind links to any more.
+    originals: Vec<PathBuf>,
+}
+
+impl NoteTransfer {
+    /// Decides where each moving todo's note goes and retags a todo whose
+    /// note has to take a free name because the target folder already holds
+    /// a different file under its name. A note still linked from a todo in
+    /// `staying` is copied, not moved. Missing or invalid notes are left as
+    /// they are.
+    pub(crate) fn plan(
+        files: &dyn FileSystem,
+        from: &Path,
+        to: &Path,
+        moving: Vec<Todo>,
+        staying: &TodoDocument,
+    ) -> (Vec<Todo>, NoteTransfer) {
+        let mut transfer = NoteTransfer::default();
+        let mut renamed: HashMap<NoteName, NoteName> = HashMap::new();
+        let todos = moving
+            .into_iter()
+            .map(|todo| {
+                let Some(Ok(name)) = todo.note_name() else {
+                    return todo;
+                };
+                let target = match renamed.get(&name) {
+                    Some(target) => target.clone(),
+                    None => {
+                        let source = NoteService::note_path(from, &name);
+                        let Ok(content) = files.read(&source) else {
+                            return todo;
+                        };
+                        let target = transfer.free_target(files, to, &name, &content);
+                        if !files.exists(&NoteService::note_path(to, &target)) {
+                            transfer
+                                .copies
+                                .push((source.clone(), NoteService::note_path(to, &target)));
+                        }
+                        if !links_to(staying, &name) {
+                            transfer.originals.push(source);
+                        }
+                        renamed.insert(name.clone(), target.clone());
+                        target
+                    }
+                };
+                if target == name {
+                    todo
+                } else {
+                    todo.with_note(Some(&target))
+                }
+            })
+            .collect();
+        (todos, transfer)
+    }
+
+    /// `name`, or the first `name-n` that is free in the target folder. A
+    /// file there with the same content counts as free: it is the same note.
+    fn free_target(&self, files: &dyn FileSystem, to: &Path, name: &NoteName, content: &str) -> NoteName {
+        let usable = |candidate: &NoteName| {
+            let path = NoteService::note_path(to, candidate);
+            let planned = self.copies.iter().any(|(_, target)| *target == path);
+            !planned && (!files.exists(&path) || files.read(&path).is_ok_and(|existing| existing == content))
+        };
+        if usable(name) {
+            return name.clone();
+        }
+        (2..)
+            .map(|n| name.with_suffix(n))
+            .find(|candidate| usable(candidate))
+            .expect("some suffix is free")
+    }
+
+    pub(crate) fn copy(&self, files: &dyn FileSystem) -> Result<(), AppError> {
+        for (source, target) in &self.copies {
+            files.write(target, &files.read(source)?, true)?;
+        }
+        Ok(())
+    }
+
+    /// Best effort: both todo files are already saved, so a leftover note
+    /// only costs disk space.
+    pub(crate) fn remove_originals(&self, files: &dyn FileSystem) {
+        for original in &self.originals {
+            let _ = files.remove(original);
+        }
+    }
+}
+
+fn links_to(document: &TodoDocument, name: &NoteName) -> bool {
+    document
+        .todos()
+        .any(|entry| entry.todo.note_name().and_then(Result::ok).as_ref() == Some(name))
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
@@ -161,6 +260,14 @@ mod tests {
         }
         fn exists(&self, path: &Path) -> bool {
             self.files.lock().unwrap().contains_key(path)
+        }
+        fn remove(&self, path: &Path) -> Result<(), AppError> {
+            self.files
+                .lock()
+                .unwrap()
+                .remove(path)
+                .map(drop)
+                .ok_or_else(|| AppError::io(path, "missing"))
         }
     }
 

@@ -19,6 +19,9 @@ pub trait FileSystem: Send + Sync {
     fn write(&self, path: &Path, content: &str, safe: bool) -> Result<(), AppError>;
 
     fn exists(&self, path: &Path) -> bool;
+
+    /// Deletes a file. Only used to finish moving a note to another folder.
+    fn remove(&self, path: &Path) -> Result<(), AppError>;
 }
 
 pub trait Clock: Send + Sync {

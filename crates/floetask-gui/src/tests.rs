@@ -50,6 +50,14 @@ impl FileSystem for MemoryFiles {
     fn exists(&self, path: &Path) -> bool {
         self.0.lock().unwrap().contains_key(path)
     }
+    fn remove(&self, path: &Path) -> Result<(), AppError> {
+        self.0
+            .lock()
+            .unwrap()
+            .remove(path)
+            .map(drop)
+            .ok_or_else(|| AppError::io(path, "missing"))
+    }
 }
 
 struct Fixed;

@@ -13,6 +13,7 @@ use floetask_domain::todo::Todo;
 use floetask_domain::{Date, TodoDocument, WeekStart};
 
 use crate::error::AppError;
+use crate::notes::NoteTransfer;
 use crate::ports::{Clock, FileSystem};
 use crate::settings::Settings;
 
@@ -243,8 +244,7 @@ impl TodoFileService {
         let completed = document.take_completed();
         let count = completed.len();
         if count > 0 {
-            self.append_to_done(done_path, completed, options)?;
-            self.files.write(path, &document.to_content(), options.safe_writes)?;
+            self.move_to_done(path, done_path, completed, &document, options)?;
         }
         Ok((document, count))
     }
@@ -259,9 +259,28 @@ impl TodoFileService {
     ) -> Result<TodoDocument, AppError> {
         let mut document = self.load(path, options)?;
         let todo = document.remove(target.line, &target.raw)?;
-        self.append_to_done(done_path, vec![todo], options)?;
-        self.files.write(path, &document.to_content(), options.safe_writes)?;
+        self.move_to_done(path, done_path, vec![todo], &document, options)?;
         Ok(document)
+    }
+
+    /// Moves todos to the done file, their notes into the done file's notes
+    /// folder, and saves what stays. Notes are copied before either file is
+    /// written and the originals removed last, so a crash can at worst leave
+    /// a note in both folders.
+    fn move_to_done(
+        &self,
+        path: &Path,
+        done_path: &Path,
+        todos: Vec<Todo>,
+        staying: &TodoDocument,
+        options: &FileOptions,
+    ) -> Result<(), AppError> {
+        let (todos, notes) = NoteTransfer::plan(self.files.as_ref(), path, done_path, todos, staying);
+        notes.copy(self.files.as_ref())?;
+        self.append_to_done(done_path, todos, options)?;
+        self.files.write(path, &staying.to_content(), options.safe_writes)?;
+        notes.remove_originals(self.files.as_ref());
+        Ok(())
     }
 
     fn append_to_done(&self, done_path: &Path, todos: Vec<Todo>, options: &FileOptions) -> Result<(), AppError> {

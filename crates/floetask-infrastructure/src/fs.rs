@@ -26,6 +26,10 @@ impl FileSystem for LocalFileSystem {
     fn exists(&self, path: &Path) -> bool {
         path.exists()
     }
+
+    fn remove(&self, path: &Path) -> Result<(), AppError> {
+        fs::remove_file(path).map_err(|e| AppError::io(path, e))
+    }
 }
 
 /// Writes `content` without risking the existing file:
