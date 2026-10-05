@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI agents and contributors working on floetask, a todo.txt manager in Rust with an iced GUI. The product spec is [FEATURES.md](FEATURES.md); store new requirement docs next to it in the repo root.
+Guidance for AI agents and contributors working on floetask, a todo.txt manager in Rust with an iced GUI. The product spec starts at [FEATURES.md](FEATURES.md), an overview linking one file per topic in [features/](features/); store new requirement docs in `features/` and link them from the overview.
 
 ## Architecture: clean architecture, enforced by crates
 
@@ -63,7 +63,7 @@ cargo clippy --workspace --all-targets
 FLOETASK_SNAPSHOTS=/some/dir cargo test -p floetask-gui   # also writes PNG snapshots of screens
 ```
 
-- Domain: unit and `proptest` tests next to the code; worked examples from FEATURES.md are acceptance tests.
+- Domain: unit and `proptest` tests next to the code; worked examples from the spec in `features/` are acceptance tests.
 - Application: use-case tests with in-memory fakes of the ports (`todo_files/tests.rs`).
 - Infrastructure: tests against `tempfile` directories.
 - GUI: headless `iced_test` simulator tests in `floetask-gui/src/tests.rs` (click, type, feed messages back into `update`).

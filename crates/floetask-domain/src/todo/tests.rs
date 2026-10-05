@@ -107,7 +107,7 @@ fn completion_keeps_existing_creation_date() {
 
 #[test]
 fn recurrence_non_strict_keeps_threshold_gap() {
-    // Worked example from FEATURES.md §4.3.
+    // Worked example from features/04-dates.md §4.3.
     let todo = Todo::parse("Water plants @home +quick due:2021-07-19 t:2021-07-09 rec:14d");
     let next = todo.complete(d("2021-07-13")).next.unwrap();
     assert_eq!(next.due(), Some(d("2021-07-27")));
