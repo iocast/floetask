@@ -840,3 +840,11 @@ fn list_groups_collapse_from_their_header() {
     let _ = app.update(Message::ToggleListGroup(key));
     assert!(simulator(app.view()).find("2026-10-04").is_ok());
 }
+
+#[test]
+fn board_makes_room_for_the_drawer() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let _ = app.update(Message::ToggleDrawer);
+    snapshot(&app, "board-drawer");
+}

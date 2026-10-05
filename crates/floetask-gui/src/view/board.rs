@@ -7,8 +7,10 @@
 //! it, and releasing the button anywhere on the board drops the card on the
 //! column under the cursor.
 
-use iced::widget::{Column, button, checkbox, column, container, mouse_area, row, scrollable, space, text, toggler};
-use iced::{Alignment, Color, Element, Fill, mouse};
+use iced::widget::{
+    Column, button, checkbox, column, container, mouse_area, responsive, row, scrollable, space, text, toggler,
+};
+use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
 use floetask_application::TodoRef;
 use floetask_domain::board::Column as BoardColumn;
@@ -20,9 +22,6 @@ use super::widgets::{caption, with_tooltip};
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
-
-/// Width of one column.
-const LANE_WIDTH: f32 = 290.0;
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
@@ -56,37 +55,10 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     ]
     .spacing(12)
     .align_y(Alignment::Center);
-    let scrollbar = || scrollable::Scrollbar::new().width(4).scroller_width(4);
-    let boards: Element<'_, Message> = if app.board.is_grouped() {
-        // Swimlanes: the whole page scrolls both ways; columns grow with
-        // their cards.
-        let groups = Column::with_children(
-            app.board
-                .groups
-                .iter()
-                .enumerate()
-                .map(|(index, group)| swimlane(app, index, group)),
-        )
-        .spacing(20);
-        scrollable(container(groups).padding(iced::padding::bottom(10).right(10)))
-            .direction(scrollable::Direction::Both {
-                vertical: scrollbar(),
-                horizontal: scrollbar(),
-            })
-            .style(theme::slim_scroller(colors))
-            .width(Fill)
-            .height(Fill)
-            .into()
-    } else {
-        // One board: columns fill the height and scroll on their own.
-        let lanes = app.board.groups.first().map(|group| lanes(app, 0, group, true));
-        scrollable(container(lanes.unwrap_or_else(|| space().into())).padding(iced::padding::bottom(10)))
-            .direction(scrollable::Direction::Horizontal(scrollbar()))
-            .style(theme::slim_scroller(colors))
-            .width(Fill)
-            .height(Fill)
-            .into()
-    };
+    // Columns share the width of the board area, so opening the drawer
+    // narrows them. Below a readable width they keep that width and the
+    // board scrolls sideways instead.
+    let boards = responsive(move |size| boards(app, size.width));
     let mut board = mouse_area(column![toolbar, boards].spacing(8).height(Fill)).on_release(Message::BoardRelease);
     if app.drag.is_some() {
         board = board.interaction(mouse::Interaction::Grabbing);
@@ -94,9 +66,69 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     board.into()
 }
 
+/// Narrowest a column gets before the board scrolls sideways.
+const MIN_LANE_WIDTH: f32 = 240.0;
+const LANE_SPACING: f32 = 12.0;
+
+/// The boards for the available `width`: one row of columns, or one per
+/// group stacked like swimlanes.
+fn boards(app: &Floetask, width: f32) -> Element<'_, Message> {
+    let colors = app.colors();
+    let scrollbar = || scrollable::Scrollbar::new().width(4).scroller_width(4);
+    let count = app.board.groups.first().map_or(0, |group| group.lanes.len()) as f32;
+    let needed = count * MIN_LANE_WIDTH + (count - 1.0).max(0.0) * LANE_SPACING + 10.0;
+    let fits = width >= needed;
+    let lane_width = if fits { Fill } else { Length::Fixed(MIN_LANE_WIDTH) };
+
+    if app.board.is_grouped() {
+        // Swimlanes: the page scrolls down; columns grow with their cards.
+        let groups = Column::with_children(
+            app.board
+                .groups
+                .iter()
+                .enumerate()
+                .map(|(index, group)| swimlane(app, index, group, lane_width)),
+        )
+        .spacing(20);
+        let direction = if fits {
+            scrollable::Direction::Vertical(scrollbar())
+        } else {
+            scrollable::Direction::Both {
+                vertical: scrollbar(),
+                horizontal: scrollbar(),
+            }
+        };
+        scrollable(container(groups).padding(iced::padding::bottom(10).right(10)))
+            .direction(direction)
+            .style(theme::slim_scroller(colors))
+            .width(Fill)
+            .height(Fill)
+            .into()
+    } else {
+        // One board: columns fill the height and scroll on their own.
+        let lanes = app
+            .board
+            .groups
+            .first()
+            .map(|group| lanes(app, 0, group, true, lane_width))
+            .unwrap_or_else(|| space().into());
+        let lanes = container(lanes).padding(iced::padding::bottom(10)).height(Fill);
+        if fits {
+            lanes.width(Fill).into()
+        } else {
+            scrollable(lanes)
+                .direction(scrollable::Direction::Horizontal(scrollbar()))
+                .style(theme::slim_scroller(colors))
+                .width(Fill)
+                .height(Fill)
+                .into()
+        }
+    }
+}
+
 /// One group's header above its own board.
 /// A click on the header collapses the group's board to just its header.
-fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup) -> Element<'a, Message> {
+fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup, width: Length) -> Element<'a, Message> {
     let colors = app.colors();
     let count = group.lanes.iter().map(|lane| lane.todos.len()).sum();
     let key = group.key();
@@ -106,14 +138,21 @@ fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup) -> Eleme
         content = content.push(collapsible(header, collapsed, Message::ToggleBoardGroup(key), colors));
     }
     if !collapsed {
-        content = content.push(lanes(app, index, group, false));
+        content = content.push(lanes(app, index, group, false, width));
     }
     content.into()
 }
 
-/// The columns of one board. `fill` stretches them to the window height
-/// with their own scrolling; otherwise they grow with their cards.
-fn lanes<'a>(app: &'a Floetask, group: usize, board: &'a BoardGroup, fill: bool) -> Element<'a, Message> {
+/// The columns of one board, each `width` wide. `fill` stretches them to
+/// the window height with their own scrolling; otherwise they grow with
+/// their cards.
+fn lanes<'a>(
+    app: &'a Floetask,
+    group: usize,
+    board: &'a BoardGroup,
+    fill: bool,
+    width: Length,
+) -> Element<'a, Message> {
     let mut lanes = row(board.lanes.iter().enumerate().map(|(lane_index, l)| {
         lane(
             app,
@@ -123,16 +162,17 @@ fn lanes<'a>(app: &'a Floetask, group: usize, board: &'a BoardGroup, fill: bool)
             },
             l,
             fill,
+            width,
         )
     }))
-    .spacing(12);
+    .spacing(LANE_SPACING);
     if fill {
         lanes = lanes.height(Fill);
     }
     lanes.into()
 }
 
-fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool) -> Element<'a, Message> {
+fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool, width: Length) -> Element<'a, Message> {
     let colors = app.colors();
     let title = match &lane.column {
         Some(BoardColumn::Done) => tr("status_done").to_owned(),
@@ -147,24 +187,26 @@ fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool) -> Elemen
     .align_y(Alignment::Center);
     let cards = Column::with_children(lane.todos.iter().map(|entry| card(app, id, entry, colors)))
         .spacing(8)
-        .padding(iced::padding::right(6));
+        .padding(iced::padding::right(6))
+        .width(Fill);
     let cards: Element<'a, Message> = if fill {
         scrollable(cards)
             .direction(theme::thin_scrollbar())
             .style(theme::slim_scroller(colors))
+            .width(Fill)
             .height(Fill)
             .into()
     } else {
         // Room below the cards, so an empty column is still a drop target.
-        column![cards, space().height(28)].into()
+        column![cards, space().height(28)].width(Fill).into()
     };
-    let content = column![container(header).padding([4, 6]), cards].spacing(8);
+    let content = column![container(header).padding([4, 6]), cards].spacing(8).width(Fill);
 
     let target = app.drag.as_ref().is_some_and(|drag| drag.from != id) && app.board_hover == Some(id);
     let droppable = lane.column.is_some();
     let mut frame = container(content)
         .padding(10)
-        .width(LANE_WIDTH)
+        .width(width)
         .style(theme::lane(colors, target && droppable));
     if fill {
         frame = frame.height(Fill);
