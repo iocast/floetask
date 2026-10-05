@@ -50,6 +50,7 @@ struct StateFile {
     /// Missing in older files: grouped.
     board_grouped: Option<bool>,
     collapsed_board_groups: Vec<String>,
+    collapsed_list_groups: Vec<String>,
     files: Vec<FileEntry>,
     sorting: Option<SortingFile>,
     view: Option<ViewFile>,
@@ -125,6 +126,7 @@ impl From<&AppState> for StateFile {
             collapsed_sections: state.collapsed_sections.iter().map(|a| a.key().to_owned()).collect(),
             board_grouped: Some(state.board_grouped),
             collapsed_board_groups: state.collapsed_board_groups.clone(),
+            collapsed_list_groups: state.collapsed_list_groups.clone(),
             main_view: match state.main_view {
                 MainView::List => "list",
                 MainView::Board => "board",
@@ -234,6 +236,7 @@ impl From<StateFile> for AppState {
             collapsed_sections: attributes(&file.collapsed_sections),
             board_grouped: file.board_grouped.unwrap_or(defaults.board_grouped),
             collapsed_board_groups: file.collapsed_board_groups,
+            collapsed_list_groups: file.collapsed_list_groups,
             main_view: match file.main_view.as_str() {
                 "board" => MainView::Board,
                 _ => MainView::List,
@@ -298,6 +301,7 @@ mod tests {
         state.main_view = MainView::Board;
         state.board_grouped = false;
         state.toggle_board_group("priority:A");
+        state.toggle_list_group("projects:");
         store.save(&state).unwrap();
         assert_eq!(store.load(), state);
     }

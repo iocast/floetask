@@ -22,6 +22,21 @@ pub struct Group {
     pub todos: Vec<ListedTodo>,
 }
 
+impl Group {
+    /// A stable name for the group (see `group_key`).
+    pub fn key(&self) -> String {
+        group_key(self.attribute, &self.values)
+    }
+}
+
+/// A stable name for a group, e.g. `priority:A`, or `projects:` for todos
+/// without a project, so a collapsed group stays collapsed across refreshes
+/// and restarts.
+pub fn group_key(attribute: Option<Attribute>, values: &[String]) -> String {
+    let attribute = attribute.map(Attribute::key).unwrap_or_default();
+    format!("{attribute}:{}", values.join(","))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Counts {
     pub total: usize,

@@ -815,3 +815,28 @@ fn board_groups_collapse_from_their_header() {
     let _ = app.update(Message::ToggleBoardGroup("priority:A".to_owned()));
     assert!(simulator(app.view()).find("2026-10-04").is_ok());
 }
+
+#[test]
+fn list_groups_collapse_from_their_header() {
+    // Call mom is the only todo due 2026-10-04; it is in the "to do" group.
+    let mut app = app();
+    assert!(simulator(app.view()).find("2026-10-04").is_ok());
+    let key = app.listing.groups[1].key();
+    assert_eq!(key, "status:todo");
+    let messages = click(&app, "To do");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::ToggleListGroup(k) if *k == key))
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.state.collapsed_list_groups, vec![key.clone()]);
+    assert!(simulator(app.view()).find("2026-10-04").is_err());
+    // Keyboard selection skips the hidden rows.
+    assert_eq!(app.selectable_todos().count(), app.listing.counts.visible - 2);
+    snapshot(&app, "list-collapsed");
+    let _ = app.update(Message::ToggleListGroup(key));
+    assert!(simulator(app.view()).find("2026-10-04").is_ok());
+}

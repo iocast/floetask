@@ -30,8 +30,19 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     let mut groups = Column::new().spacing(if compact { 12 } else { 20 }).padding([4, 4]);
     for group in &app.listing.groups {
         let mut rows = Column::new().spacing(if compact { 4 } else { 6 });
+        let key = group.key();
+        let collapsed = app.state.collapsed_list_groups.contains(&key);
         if let Some(header) = group_header(app, group.attribute, &group.values, group.todos.len()) {
-            rows = rows.push(header);
+            rows = rows.push(collapsible(
+                header,
+                collapsed,
+                Message::ToggleListGroup(key),
+                app.colors(),
+            ));
+        }
+        if collapsed {
+            groups = groups.push(rows);
+            continue;
         }
         for entry in &group.todos {
             rows = rows.push(todo_row(app, entry, index, group.attribute));
@@ -81,6 +92,28 @@ pub(crate) fn group_header<'a>(
     }
     label = label.push(text(count.to_string()).size(13).color(colors.muted));
     Some(container(label).padding([6, 6]).into())
+}
+
+/// A group header with a chevron; a click collapses or expands the group.
+pub(crate) fn collapsible<'a>(
+    header: Element<'a, Message>,
+    collapsed: bool,
+    on_toggle: Message,
+    colors: Colors,
+) -> Element<'a, Message> {
+    let chevron = icon(
+        if collapsed {
+            Icon::ChevronRight
+        } else {
+            Icon::ChevronDown
+        },
+        16.0,
+        colors.muted,
+    );
+    mouse_area(row![chevron, header].spacing(2).align_y(Alignment::Center))
+        .on_press(on_toggle)
+        .interaction(iced::mouse::Interaction::Pointer)
+        .into()
 }
 
 /// A group's name in its header: larger than a caption so groups stand out

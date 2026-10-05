@@ -121,6 +121,8 @@ Row interactions:
 - Groups whose todos are all hidden are not shown.
 - "File order" mode (`fileSorting`) disables grouping and shows todos in file order; in that mode an optional "sort completed last" applies.
 
+**Collapsing groups:** clicking a group header (chevron, name and count) collapses the group to its header; clicking again expands it. Keyboard selection skips the rows of collapsed groups. Collapsed groups are remembered in `state.toml` by attribute and value (e.g. `status:todo`), separately from the board's.
+
 ### 3.3 Header counts
 
 Show visible / total counts and completed count.

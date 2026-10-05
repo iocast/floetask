@@ -58,6 +58,8 @@ pub enum Message {
     ArchiveOne(TodoRef),
     AskDelete(TodoRef),
     ChipFilter(Attribute, String),
+    /// Collapses or expands the list group with this key.
+    ToggleListGroup(String),
     OpenLink(String),
     OpenRowDatePicker(TodoRef, DateKey),
     OpenNote(TodoRef),

@@ -55,6 +55,12 @@ impl Floetask {
                 });
                 Task::none()
             }
+            Message::ToggleListGroup(key) => {
+                self.state.toggle_list_group(&key);
+                // Selection indexes count only rows that are shown.
+                self.selected = None;
+                self.persist_state()
+            }
             Message::ChipFilter(attribute, value) => {
                 self.state.view.toggle_filter(attribute, &value, false);
                 self.refresh();
@@ -96,12 +102,22 @@ impl Floetask {
         }
     }
 
+    /// Todos in the list that can be selected: those of expanded groups, in
+    /// screen order. The selection index counts these.
+    pub(crate) fn selectable_todos(&self) -> impl Iterator<Item = &ListedTodo> {
+        self.listing
+            .groups
+            .iter()
+            .filter(|group| !self.state.collapsed_list_groups.contains(&group.key()))
+            .flat_map(|group| group.todos.iter())
+    }
+
     pub(crate) fn selected_todo(&self) -> Option<&ListedTodo> {
-        self.listing.todos().nth(self.selected?)
+        self.selectable_todos().nth(self.selected?)
     }
 
     pub(crate) fn select_row(&mut self, index: usize) -> Task<Message> {
-        let count = self.listing.counts.visible;
+        let count = self.selectable_todos().count();
         if count == 0 {
             self.selected = None;
             return Task::none();

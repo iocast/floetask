@@ -13,7 +13,7 @@ use crate::date::{Date, WeekStart};
 
 pub use attribute::Attribute;
 pub use board::{Board, BoardGroup, BoardLayout, Lane, LaneId, board_grouping, build_board};
-pub use build::{Counts, Group, ListedTodo, TodoListing, build_listing};
+pub use build::{Counts, Group, ListedTodo, TodoListing, build_listing, group_key};
 pub use drawer::{AttributeSummary, AttributeValue, known_names, summarize_attributes};
 pub use sorting::{SortCriterion, Sorting};
 pub use visibility::{AttributeFilter, ViewOptions};

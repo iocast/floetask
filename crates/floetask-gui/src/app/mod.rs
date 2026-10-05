@@ -270,6 +270,7 @@ impl Floetask {
             | M::ArchiveOne(_)
             | M::AskDelete(_)
             | M::ChipFilter(..)
+            | M::ToggleListGroup(_)
             | M::OpenLink(_)
             | M::OpenRowDatePicker(..)
             | M::OpenNote(_)
@@ -436,7 +437,7 @@ impl Floetask {
             }
         }
 
-        let visible = self.listing.counts.visible;
+        let visible = self.selectable_todos().count();
         self.selected = self
             .selected
             .filter(|_| visible > 0)

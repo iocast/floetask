@@ -1,4 +1,4 @@
-use super::build::group_by;
+use super::build::{group_by, group_key};
 use super::{Attribute, DateContext, ListedTodo, Sorting, ViewOptions};
 use crate::board::{BoardColumns, Column};
 use crate::document::TodoDocument;
@@ -27,12 +27,9 @@ pub struct BoardGroup {
 }
 
 impl BoardGroup {
-    /// A stable name for the group, e.g. `priority:A` or `projects:` for
-    /// todos without a project, so a collapsed group stays collapsed across
-    /// refreshes and restarts.
+    /// A stable name for the group (see `group_key`).
     pub fn key(&self) -> String {
-        let attribute = self.attribute.map(Attribute::key).unwrap_or_default();
-        format!("{attribute}:{}", self.values.join(","))
+        group_key(self.attribute, &self.values)
     }
 }
 

@@ -15,7 +15,7 @@ use floetask_domain::board::Column as BoardColumn;
 use floetask_domain::listing::{BoardGroup, Lane, LaneId, ListedTodo, board_grouping};
 
 use super::icons::{Icon, icon};
-use super::list::{body, group_header, meta, status_label};
+use super::list::{body, collapsible, group_header, meta, status_label};
 use super::widgets::{caption, with_tooltip};
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
@@ -103,19 +103,7 @@ fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup) -> Eleme
     let collapsed = app.state.collapsed_board_groups.contains(&key);
     let mut content = column![].spacing(8);
     if let Some(header) = group_header(app, group.attribute, &group.values, count) {
-        let chevron = icon(
-            if collapsed {
-                Icon::ChevronRight
-            } else {
-                Icon::ChevronDown
-            },
-            16.0,
-            colors.muted,
-        );
-        let header = mouse_area(row![chevron, header].spacing(2).align_y(Alignment::Center))
-            .on_press(Message::ToggleBoardGroup(key))
-            .interaction(mouse::Interaction::Pointer);
-        content = content.push(header);
+        content = content.push(collapsible(header, collapsed, Message::ToggleBoardGroup(key), colors));
     }
     if !collapsed {
         content = content.push(lanes(app, index, group, false));

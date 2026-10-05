@@ -79,6 +79,8 @@ pub struct AppState {
     pub board_grouped: bool,
     /// Keys of the board groups the user collapsed (`BoardGroup::key`).
     pub collapsed_board_groups: Vec<String>,
+    /// Keys of the list groups the user collapsed (`Group::key`).
+    pub collapsed_list_groups: Vec<String>,
     pub window: WindowState,
 }
 
@@ -96,6 +98,7 @@ impl Default for AppState {
             main_view: MainView::default(),
             board_grouped: true,
             collapsed_board_groups: Vec::new(),
+            collapsed_list_groups: Vec::new(),
             window: WindowState::default(),
         }
     }
@@ -128,12 +131,12 @@ impl AppState {
 
     /// Collapses a board group, or expands it again.
     pub fn toggle_board_group(&mut self, key: &str) {
-        match self.collapsed_board_groups.iter().position(|k| k == key) {
-            Some(index) => {
-                self.collapsed_board_groups.remove(index);
-            }
-            None => self.collapsed_board_groups.push(key.to_owned()),
-        }
+        toggle_key(&mut self.collapsed_board_groups, key);
+    }
+
+    /// Collapses a list group, or expands it again.
+    pub fn toggle_list_group(&mut self, key: &str) {
+        toggle_key(&mut self.collapsed_list_groups, key);
     }
 
     pub fn toggle_section(&mut self, attribute: Attribute) {
@@ -143,6 +146,15 @@ impl AppState {
             }
             None => self.collapsed_sections.push(attribute),
         }
+    }
+}
+
+fn toggle_key(keys: &mut Vec<String>, key: &str) {
+    match keys.iter().position(|k| k == key) {
+        Some(index) => {
+            keys.remove(index);
+        }
+        None => keys.push(key.to_owned()),
     }
 }
 
