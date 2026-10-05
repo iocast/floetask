@@ -30,13 +30,18 @@ Rules:
 
 ## File locations (XDG)
 
-Same layout on every OS, relative to the home directory; `XDG_CONFIG_HOME`, `XDG_DATA_HOME` and `XDG_STATE_HOME` override the defaults. Rule of thumb: would the user lose real work if it vanished → `share`; is it history, logs or "where I left off" → `state`; settings the user edits → `config`; regenerable → `cache`.
+File locations follow the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/), with the same layout on every OS relative to the home directory. `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` override the defaults. Pick the directory by the spec's definitions:
+
+- `$XDG_CONFIG_HOME` (`~/.config`): configuration the user sets, such as settings, colours and saved filters.
+- `$XDG_DATA_HOME` (`~/.local/share`): data files the app owns and creates, not configuration.
+- `$XDG_STATE_HOME` (`~/.local/state`): data that should survive a restart but is not important or portable enough for the data directory, such as history, recently used files and the app's current state (layout, window).
+- `$XDG_CACHE_HOME` (`~/.cache`): non-essential data that can be regenerated.
 
 | Directory | Files |
 |---|---|
-| `~/.config/floetask/` | `config.toml` (settings; `--config FILE` overrides the path), `colors.toml` (next to the config file) |
-| `~/.local/share/floetask/` | `filters.toml` (saved searches) |
+| `~/.config/floetask/` | `config.toml` (settings; `--config FILE` overrides the path), `colors.toml` and `filters.toml` (saved searches), both next to the config file |
 | `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, window), `notified.toml` (notification de-dup) |
+| `~/.local/share/floetask/` | unused; older versions kept `filters.toml` here and it is moved on start |
 | `~/.cache/floetask/` | unused so far |
 
 Safe writes put `<file>.tmp` and `<file>.bak` next to the target file, because an atomic rename only works within one file system. `floetask --paths` prints the resolved locations.

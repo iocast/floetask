@@ -21,13 +21,13 @@ A file passed on the command line is registered and opened. Without one, floetas
 
 ## Files floetask uses
 
-floetask follows the XDG Base Directory split on every platform (Linux, macOS and Windows), relative to your home directory. The `XDG_CONFIG_HOME`, `XDG_DATA_HOME` and `XDG_STATE_HOME` variables override the defaults.
+floetask follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/) on every platform (Linux, macOS and Windows), relative to your home directory: what you configure goes in `~/.config`, where you left off goes in `~/.local/state`. The `XDG_CONFIG_HOME` and `XDG_STATE_HOME` variables override the defaults. `colors.toml` and `filters.toml` sit next to the config file, also when `--config` points elsewhere.
 
 | Path | What | Lose it and... |
 |---|---|---|
 | `~/.config/floetask/config.toml` | Settings (written with defaults on first start; `--config` overrides) | settings reset |
 | `~/.config/floetask/colors.toml` | Optional colour overrides | default colours |
-| `~/.local/share/floetask/filters.toml` | Saved search filters | your saved searches are gone |
+| `~/.config/floetask/filters.toml` | Saved search filters (moved here from `~/.local/share/floetask/` on first start) | your saved searches are gone |
 | `~/.local/state/floetask/state.toml` | Open files, layout, sorting, view toggles, window size | floetask forgets where you left off |
 | `~/.local/state/floetask/notified.toml` | Notifications already shown today | you may see a notification twice |
 

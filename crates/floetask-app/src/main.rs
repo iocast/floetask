@@ -40,6 +40,13 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    if let Err(error) = floetask_infrastructure::paths::migrate_legacy_files(&paths) {
+        eprintln!(
+            "floetask: could not move saved filters to {}: {error}",
+            paths.filters_file().display()
+        );
+    }
+
     let services = Services::new(floetask_infrastructure::ports(&paths));
     let startup = floetask_gui::Startup {
         services,
