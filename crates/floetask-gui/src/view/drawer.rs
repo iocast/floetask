@@ -4,7 +4,7 @@ use iced::widget::{Column, Row, button, column, container, mouse_area, row, rule
 use iced::{Alignment, Element, Fill};
 
 use floetask_application::DrawerTab;
-use floetask_domain::listing::AttributeSummary;
+use floetask_domain::listing::{Attribute, AttributeSummary};
 
 use super::icons::{Icon, icon};
 use super::list::{attribute_label, status_label};
@@ -148,6 +148,8 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
         let color = match state {
             Some(true) => colors.danger,
             _ if value.overdue => colors.danger,
+            // Same colours as the chips on the todo cards.
+            _ if attribute == Attribute::Contexts => colors.success,
             _ => colors.primary,
         };
         let count_color = if state.is_some() { colors.surface } else { colors.muted };

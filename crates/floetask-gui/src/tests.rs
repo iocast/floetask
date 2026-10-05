@@ -220,11 +220,11 @@ fn list_shows_grouped_todos() {
         "Buy milk",
         "Legal review",
         "Doing",
-        "TO DO",
+        "To do",
         "Waiting",
-        "DONE",
-        "+family",
-        "@errands",
+        "Done",
+        "family",
+        "errands",
     ] {
         assert!(ui.find(text).is_ok(), "missing {text}");
     }
@@ -268,7 +268,7 @@ fn editor_status_picker_rewrites_the_status_token() {
 #[test]
 fn clicking_a_chip_filters_the_list() {
     let mut app = app();
-    let messages = click(&app, "+family");
+    let messages = click(&app, "family");
     assert!(matches!(&messages[..], [Message::ChipFilter(Attribute::Projects, value)] if value == "family"));
     for message in messages {
         let _ = app.update(message);

@@ -17,7 +17,7 @@ use floetask_domain::{Date, Todo};
 
 use super::LIST_ID;
 use super::icons::{Icon, icon};
-use super::widgets::{caption, icon_button, with_tooltip};
+use super::widgets::{icon_button, with_tooltip};
 use crate::app::{DateKey, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
@@ -66,10 +66,10 @@ pub(crate) fn group_header<'a>(
         } else {
             trf("no_value", &[&tr(attribute.key()).to_lowercase()])
         };
-        label = label.push(caption(&empty_label, colors));
+        label = label.push(group_title(&empty_label, colors));
     }
     for value in values {
-        let shown = caption(&attribute_label(attribute, value), colors);
+        let shown = group_title(&attribute_label(attribute, value), colors);
         label = label.push(if attribute.is_renamable() {
             mouse_area(shown)
                 .on_right_press(Message::AskRename(attribute, value.clone()))
@@ -78,8 +78,21 @@ pub(crate) fn group_header<'a>(
             shown
         });
     }
-    label = label.push(text(count.to_string()).size(11).color(colors.muted));
-    Some(container(label).padding([4, 6]).into())
+    label = label.push(text(count.to_string()).size(13).color(colors.muted));
+    Some(container(label).padding([6, 6]).into())
+}
+
+/// A group's name in its header: larger than a caption so groups stand out
+/// in a long list.
+fn group_title<'a>(label: &str, colors: Colors) -> Element<'a, Message> {
+    text(label.to_owned())
+        .size(15)
+        .color(colors.text)
+        .font(iced::Font {
+            weight: iced::font::Weight::Semibold,
+            ..iced::Font::default()
+        })
+        .into()
 }
 
 fn todo_row<'a>(
@@ -210,7 +223,7 @@ pub(crate) fn meta<'a>(
             Attribute::Projects,
             project.clone(),
             None,
-            format!("+{project}"),
+            project.clone(),
             colors.primary,
         ));
         empty = false;
@@ -220,7 +233,7 @@ pub(crate) fn meta<'a>(
             Attribute::Contexts,
             context.clone(),
             None,
-            format!("@{context}"),
+            context.clone(),
             colors.success,
         ));
         empty = false;
@@ -379,8 +392,8 @@ pub(crate) fn date_label(app: &Floetask, date: Date, is_due: bool) -> String {
 /// How an attribute value is shown in headers and the drawer.
 pub(crate) fn attribute_label(attribute: Attribute, value: &str) -> String {
     match attribute {
-        Attribute::Projects => format!("+{value}"),
-        Attribute::Contexts => format!("@{value}"),
+        // Shown without `+` and `@`: the colour already says which it is.
+        Attribute::Projects | Attribute::Contexts => value.to_owned(),
         Attribute::Priority => format!("({value})"),
         Attribute::Status => status_label(value),
         _ => tr(value).to_owned(),
