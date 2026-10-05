@@ -19,7 +19,7 @@ floetask [OPTIONS] [TODO_FILE]
 
 ### Installers
 
-`cargo packager --release` builds the installers for the current OS (Windows: setup `.exe` and `.msi`; macOS: `.app` and `.dmg`; Linux: `.deb` and AppImage) into `target/packages/`. Install the tool once with `cargo install cargo-packager --locked`. Pushing a version tag builds all three on GitHub Actions. Details and the signing to-do are in [features/14-platform.md](features/14-platform.md).
+`cargo packager --release -p floetask-app` builds the installers for the current OS (Windows: setup `.exe` and `.msi`; macOS: `.app` and `.dmg`; Linux: `.deb` and AppImage) into `target/packages/`. Install the tool once with `cargo install cargo-packager --locked`. Pushing a version tag builds all three on GitHub Actions. Details and the signing to-do are in [features/14-platform.md](features/14-platform.md).
 
 A file passed on the command line is registered and opened. Without one, floetask reopens the files from last time.
 

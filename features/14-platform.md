@@ -20,8 +20,8 @@ Build locally:
 
 ```sh
 cargo install cargo-packager --locked
-cargo packager --release            # every format of the current OS
-cargo packager --release --formats nsis
+cargo packager --release -p floetask-app                  # every format of the current OS
+cargo packager --release -p floetask-app --formats nsis   # just the setup .exe
 ```
 
 The GitHub Actions release workflow (`.github/workflows/release.yml`) runs the same command on Windows, macOS and Linux runners when a version tag is pushed and attaches every installer to the GitHub release.

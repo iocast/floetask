@@ -61,13 +61,16 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libgtk-3-dev libfuse2
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libgtk-3-dev
 
       - name: Install cargo-packager
         run: cargo install cargo-packager --locked
 
       - name: Build installers
-        run: cargo packager --release --formats ${{ matrix.formats }}
+        run: cargo packager --release -p floetask-app --formats ${{ matrix.formats }}
+        env:
+          # The AppImage tooling is itself an AppImage; runners have no FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: 1
 
       - name: Upload installers
         uses: actions/upload-artifact@v6
