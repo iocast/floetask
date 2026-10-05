@@ -1,5 +1,6 @@
 //! The status board: one column per status, todos as cards that can be
-//! dragged to another column.
+//! dragged to another column. When the list is grouped, every group gets its
+//! own board, stacked like swimlanes under the group's header.
 //!
 //! iced has no drag and drop, so it is built from mouse areas: pressing a
 //! card starts a drag, each column reports when the cursor enters or leaves
@@ -11,10 +12,10 @@ use iced::{Alignment, Color, Element, Fill, mouse};
 
 use floetask_application::TodoRef;
 use floetask_domain::board::Column as BoardColumn;
-use floetask_domain::listing::{Lane, ListedTodo};
+use floetask_domain::listing::{BoardGroup, Lane, LaneId, ListedTodo};
 
 use super::icons::{Icon, icon};
-use super::list::{body, meta, status_label};
+use super::list::{body, group_header, meta, status_label};
 use super::widgets::caption;
 use crate::app::{Floetask, Message};
 use crate::i18n::tr;
@@ -36,24 +37,76 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         .style(theme::ghost(colors, false))
         .on_press(Message::OpenBoardColumns),
     ];
-    let lanes = row(app.board.lanes.iter().enumerate().map(|(index, l)| lane(app, index, l)))
-        .spacing(12)
-        .height(Fill);
-    let lanes = scrollable(container(lanes).padding(iced::padding::bottom(10)))
-        .direction(scrollable::Direction::Horizontal(
-            scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ))
-        .style(theme::slim_scroller(colors))
-        .width(Fill)
-        .height(Fill);
-    let mut board = mouse_area(column![toolbar, lanes].spacing(8).height(Fill)).on_release(Message::BoardRelease);
+    let scrollbar = || scrollable::Scrollbar::new().width(4).scroller_width(4);
+    let boards: Element<'_, Message> = if app.board.is_grouped() {
+        // Swimlanes: the whole page scrolls both ways; columns grow with
+        // their cards.
+        let groups = Column::with_children(
+            app.board
+                .groups
+                .iter()
+                .enumerate()
+                .map(|(index, group)| swimlane(app, index, group)),
+        )
+        .spacing(20);
+        scrollable(container(groups).padding(iced::padding::bottom(10).right(10)))
+            .direction(scrollable::Direction::Both {
+                vertical: scrollbar(),
+                horizontal: scrollbar(),
+            })
+            .style(theme::slim_scroller(colors))
+            .width(Fill)
+            .height(Fill)
+            .into()
+    } else {
+        // One board: columns fill the height and scroll on their own.
+        let lanes = app.board.groups.first().map(|group| lanes(app, 0, group, true));
+        scrollable(container(lanes.unwrap_or_else(|| space().into())).padding(iced::padding::bottom(10)))
+            .direction(scrollable::Direction::Horizontal(scrollbar()))
+            .style(theme::slim_scroller(colors))
+            .width(Fill)
+            .height(Fill)
+            .into()
+    };
+    let mut board = mouse_area(column![toolbar, boards].spacing(8).height(Fill)).on_release(Message::BoardRelease);
     if app.drag.is_some() {
         board = board.interaction(mouse::Interaction::Grabbing);
     }
     board.into()
 }
 
-fn lane<'a>(app: &'a Floetask, index: usize, lane: &'a Lane) -> Element<'a, Message> {
+/// One group's header above its own board.
+fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup) -> Element<'a, Message> {
+    let count = group.lanes.iter().map(|lane| lane.todos.len()).sum();
+    let mut content = column![].spacing(8);
+    if let Some(header) = group_header(app, group.attribute, &group.values, count) {
+        content = content.push(header);
+    }
+    content.push(lanes(app, index, group, false)).into()
+}
+
+/// The columns of one board. `fill` stretches them to the window height
+/// with their own scrolling; otherwise they grow with their cards.
+fn lanes<'a>(app: &'a Floetask, group: usize, board: &'a BoardGroup, fill: bool) -> Element<'a, Message> {
+    let mut lanes = row(board.lanes.iter().enumerate().map(|(lane_index, l)| {
+        lane(
+            app,
+            LaneId {
+                group,
+                lane: lane_index,
+            },
+            l,
+            fill,
+        )
+    }))
+    .spacing(12);
+    if fill {
+        lanes = lanes.height(Fill);
+    }
+    lanes.into()
+}
+
+fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool) -> Element<'a, Message> {
     let colors = app.colors();
     let title = match &lane.column {
         Some(BoardColumn::Done) => tr("status_done").to_owned(),
@@ -66,33 +119,37 @@ fn lane<'a>(app: &'a Floetask, index: usize, lane: &'a Lane) -> Element<'a, Mess
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    let cards = Column::with_children(lane.todos.iter().map(|entry| card(app, index, entry, colors)))
+    let cards = Column::with_children(lane.todos.iter().map(|entry| card(app, id, entry, colors)))
         .spacing(8)
         .padding(iced::padding::right(6));
-    let content = column![
-        container(header).padding([4, 6]),
+    let cards: Element<'a, Message> = if fill {
         scrollable(cards)
             .direction(theme::thin_scrollbar())
             .style(theme::slim_scroller(colors))
-            .height(Fill),
-    ]
-    .spacing(8);
-
-    let target = app.drag.as_ref().is_some_and(|drag| drag.from != index) && app.board_hover == Some(index);
-    let droppable = lane.column.is_some();
-    mouse_area(
-        container(content)
-            .padding(10)
-            .width(LANE_WIDTH)
             .height(Fill)
-            .style(theme::lane(colors, target && droppable)),
-    )
-    .on_enter(Message::BoardHover(index, true))
-    .on_exit(Message::BoardHover(index, false))
-    .into()
+            .into()
+    } else {
+        // Room below the cards, so an empty column is still a drop target.
+        column![cards, space().height(28)].into()
+    };
+    let content = column![container(header).padding([4, 6]), cards].spacing(8);
+
+    let target = app.drag.as_ref().is_some_and(|drag| drag.from != id) && app.board_hover == Some(id);
+    let droppable = lane.column.is_some();
+    let mut frame = container(content)
+        .padding(10)
+        .width(LANE_WIDTH)
+        .style(theme::lane(colors, target && droppable));
+    if fill {
+        frame = frame.height(Fill);
+    }
+    mouse_area(frame)
+        .on_enter(Message::BoardHover(id, true))
+        .on_exit(Message::BoardHover(id, false))
+        .into()
 }
 
-fn card<'a>(app: &'a Floetask, lane: usize, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
+fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);
     let dragged = app.drag.as_ref().is_some_and(|drag| drag.target.line == entry.line);

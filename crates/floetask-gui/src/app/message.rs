@@ -4,7 +4,7 @@ use iced::widget::text_editor;
 use iced::{keyboard, window};
 
 use floetask_application::{AppError, DrawerTab, SavedFilter, TodoRef};
-use floetask_domain::listing::Attribute;
+use floetask_domain::listing::{Attribute, LaneId};
 use floetask_domain::{Date, Priority, RecurrenceUnit, TodoDocument};
 
 use super::dialog::DateKey;
@@ -127,9 +127,9 @@ pub enum Message {
     // Status board
     ToggleMainView,
     /// A card was pressed in a lane: start dragging it.
-    BoardPress(TodoRef, usize),
+    BoardPress(TodoRef, LaneId),
     /// The mouse entered (`true`) or left a lane.
-    BoardHover(usize, bool),
+    BoardHover(LaneId, bool),
     BoardRelease,
     OpenBoardColumns,
     BoardColumnInput(String),

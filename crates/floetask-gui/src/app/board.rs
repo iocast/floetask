@@ -5,6 +5,7 @@ use iced::Task;
 
 use floetask_application::{MainView, TodoRef};
 use floetask_domain::board::{BoardColumns, Column};
+use floetask_domain::listing::LaneId;
 
 use super::{Dialog, Floetask, Message};
 
@@ -13,7 +14,7 @@ use super::{Dialog, Floetask, Message};
 pub struct BoardDrag {
     pub target: TodoRef,
     /// Lane the card was picked up from.
-    pub from: usize,
+    pub from: LaneId,
 }
 
 impl Floetask {
@@ -116,7 +117,8 @@ impl Floetask {
 
     /// Ends a drag. Released over another column, the card moves there;
     /// released in its own column without moving away, it was a click and
-    /// opens the todo.
+    /// opens the todo. Moving only changes the status: dropped on the same
+    /// column of another group's board, nothing changes.
     fn drop_card(&mut self) -> Task<Message> {
         let Some(drag) = self.drag.take() else {
             return Task::none();
@@ -127,9 +129,12 @@ impl Floetask {
         if lane == drag.from {
             return self.update(Message::OpenTodo(drag.target));
         }
-        let Some(column) = self.board.lanes.get(lane).and_then(|lane| lane.column.clone()) else {
+        let Some(column) = self.board.lane(lane).and_then(|lane| lane.column.clone()) else {
             return Task::none();
         };
+        if self.board.lane(drag.from).and_then(|from| from.column.as_ref()) == Some(&column) {
+            return Task::none();
+        }
         let target = drag.target;
         self.change_active_file(move |service, path, options| service.move_to_column(path, &target, &column, options))
     }

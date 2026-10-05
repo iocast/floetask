@@ -12,7 +12,7 @@ use iced::{Alignment, Color, Element, Fill};
 use floetask_application::{NoteStatus, TodoRef};
 use floetask_domain::date::format_iso;
 use floetask_domain::human_date::display_bucket;
-use floetask_domain::listing::{Attribute, Group, ListedTodo};
+use floetask_domain::listing::{Attribute, ListedTodo};
 use floetask_domain::{Date, Todo};
 
 use super::LIST_ID;
@@ -29,7 +29,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     let mut groups = Column::new().spacing(if compact { 12 } else { 20 }).padding([4, 4]);
     for group in &app.listing.groups {
         let mut rows = Column::new().spacing(if compact { 4 } else { 6 });
-        if let Some(header) = group_header(app, group) {
+        if let Some(header) = group_header(app, group.attribute, &group.values, group.todos.len()) {
             rows = rows.push(header);
         }
         for entry in &group.todos {
@@ -47,13 +47,19 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         .into()
 }
 
-/// Group title with its todo count. Project and context names can be
-/// right-clicked to rename or remove them across the file.
-fn group_header<'a>(app: &'a Floetask, group: &'a Group) -> Option<Element<'a, Message>> {
-    let attribute = group.attribute?;
+/// Group title with its todo count, for the list and the grouped board.
+/// Project and context names can be right-clicked to rename or remove them
+/// across the file.
+pub(crate) fn group_header<'a>(
+    app: &'a Floetask,
+    attribute: Option<Attribute>,
+    values: &'a [String],
+    count: usize,
+) -> Option<Element<'a, Message>> {
+    let attribute = attribute?;
     let colors = app.colors();
     let mut label = Row::new().spacing(8).align_y(Alignment::Center);
-    if group.values.is_empty() {
+    if values.is_empty() {
         // Only completed todos have no status: done is not a status.
         let empty_label = if attribute == Attribute::Status {
             tr("status_done").to_owned()
@@ -62,7 +68,7 @@ fn group_header<'a>(app: &'a Floetask, group: &'a Group) -> Option<Element<'a, M
         };
         label = label.push(caption(&empty_label, colors));
     }
-    for value in &group.values {
+    for value in values {
         let shown = caption(&attribute_label(attribute, value), colors);
         label = label.push(if attribute.is_renamable() {
             mouse_area(shown)
@@ -72,7 +78,7 @@ fn group_header<'a>(app: &'a Floetask, group: &'a Group) -> Option<Element<'a, M
             shown
         });
     }
-    label = label.push(text(group.todos.len().to_string()).size(11).color(colors.muted));
+    label = label.push(text(count.to_string()).size(11).color(colors.muted));
     Some(container(label).padding([4, 6]).into())
 }
 

@@ -28,7 +28,8 @@ use floetask_application::{
     ThemePreference,
 };
 use floetask_domain::listing::{
-    AttributeSummary, Board, DateContext, TodoListing, build_board, build_listing, known_names, summarize_attributes,
+    AttributeSummary, Board, DateContext, LaneId, TodoListing, build_board, build_listing, known_names,
+    summarize_attributes,
 };
 use floetask_domain::search::Query;
 use floetask_domain::{Date, TodoDocument};
@@ -90,7 +91,7 @@ pub struct Floetask {
     /// The card being dragged on the board.
     pub(crate) drag: Option<BoardDrag>,
     /// Board column under the mouse.
-    pub(crate) board_hover: Option<usize>,
+    pub(crate) board_hover: Option<LaneId>,
     pub(crate) summaries: Vec<AttributeSummary>,
     pub(crate) projects: BTreeSet<String>,
     pub(crate) contexts: BTreeSet<String>,

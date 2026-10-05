@@ -12,7 +12,7 @@ mod visibility;
 use crate::date::{Date, WeekStart};
 
 pub use attribute::Attribute;
-pub use board::{Board, Lane, build_board};
+pub use board::{Board, BoardGroup, Lane, LaneId, build_board};
 pub use build::{Counts, Group, ListedTodo, TodoListing, build_listing};
 pub use drawer::{AttributeSummary, AttributeValue, known_names, summarize_attributes};
 pub use sorting::{SortCriterion, Sorting};

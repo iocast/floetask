@@ -88,7 +88,7 @@ The theme follows the system until you pick light or dark in Settings (or press 
 
 - **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
 - **Status** with `status:doing`, `status:waiting`, `status:someday` or your own value ([STATUS-EXTENSION.md](STATUS-EXTENSION.md)); the dialog has a status picker. Manage the global statuses (order, hidden, your own) in Settings → Statuses. The list groups by status (doing, to do, waiting), hides `someday` until you turn it on in the Filters tab, filter on it or search for `status:someday`, and completing a todo removes its status.
-- **Board** with the title-bar button or `Ctrl+Alt+B`: one column per status, plus Done. Drag a card to another column to change its status, or to Done to complete it. **Columns** on the board sets the columns for that file.
+- **Board** with the title-bar button or `Ctrl+Alt+B`: one column per status, plus Done. Drag a card to another column to change its status, or to Done to complete it. **Columns** on the board sets the columns for that file. When the list is grouped (for example by priority, after moving Priority to the top of the Sorting tab), each group gets its own board.
 - **Edit** by clicking a todo or pressing `Enter` on the selected one. Hover a todo for Edit, Copy, Archive and Delete.
 - **Complete** with the checkbox or `Space`. Completing a `rec:` todo adds its next occurrence.
 - **Filter** with the chips on a todo or in the drawer (`Ctrl+B`): click to include, Alt+click to exclude, right-click a project or context to rename or remove it across the file.

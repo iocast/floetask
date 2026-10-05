@@ -91,7 +91,7 @@ pub fn build_listing(
     TodoListing { groups, counts }
 }
 
-fn group_by(attribute: Attribute, sorted: Vec<ListedTodo>, dates: &DateContext) -> Vec<Group> {
+pub(super) fn group_by(attribute: Attribute, sorted: Vec<ListedTodo>, dates: &DateContext) -> Vec<Group> {
     let mut groups: Vec<Group> = Vec::new();
     for entry in sorted {
         let values = header_values(attribute, &entry.todo, dates);

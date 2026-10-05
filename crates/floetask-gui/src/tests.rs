@@ -548,8 +548,13 @@ fn notes_are_not_saved_under_an_invalid_name() {
     assert!(matches!(save_notes(&app), Err(AppError::Note(_))));
 }
 
+fn lane(group: usize, lane: usize) -> floetask_domain::listing::LaneId {
+    floetask_domain::listing::LaneId { group, lane }
+}
+
 fn board_lane_bodies(app: &Floetask) -> Vec<Vec<String>> {
-    app.board
+    assert_eq!(app.board.groups.len(), 1, "board should not be grouped");
+    app.board.groups[0]
         .lanes
         .iter()
         .map(|lane| lane.todos.iter().map(|t| t.todo.body().to_owned()).collect())
@@ -586,16 +591,16 @@ fn dragging_a_card_moves_it_to_another_column() {
     assert!(
         messages
             .iter()
-            .any(|m| matches!(m, Message::BoardPress(target, 0) if target.line == 2))
+            .any(|m| matches!(m, Message::BoardPress(target, id) if target.line == 2 && *id == lane(0, 0)))
     );
     // Keep the button held: drop the release the click also produced.
     for message in messages.into_iter().filter(|m| !matches!(m, Message::BoardRelease)) {
         let _ = app.update(message);
     }
     // Entering the next column can arrive before leaving the first.
-    let _ = app.update(Message::BoardHover(1, true));
-    let _ = app.update(Message::BoardHover(0, false));
-    assert_eq!(app.board_hover, Some(1));
+    let _ = app.update(Message::BoardHover(lane(0, 1), true));
+    let _ = app.update(Message::BoardHover(lane(0, 0), false));
+    assert_eq!(app.board_hover, Some(lane(0, 1)));
     snapshot(&app, "board-drag");
 
     let target = app.drag.as_ref().unwrap().target.clone();
@@ -701,4 +706,28 @@ fn statuses_are_managed_in_settings() {
     let _ = app.update(Message::Setting(SettingChange::StatusRemove("in-review".to_owned())));
     let _ = app.update(Message::Setting(SettingChange::StatusRemove("doing".to_owned())));
     assert_eq!(app.settings.statuses.names(), ["doing", "todo", "waiting", "someday"]);
+}
+
+#[test]
+fn grouping_gives_each_group_its_own_board() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    assert!(!app.board.is_grouped());
+    // Sort by priority first: the board splits into one board per priority.
+    let _ = app.update(Message::MoveSort(0, 1));
+    assert!(app.board.is_grouped());
+    let groups: Vec<String> = app.board.groups.iter().map(|g| g.values.join(",")).collect();
+    assert_eq!(groups, ["A", "B", ""]);
+    assert!(simulator(app.view()).find("(A)").is_ok());
+    snapshot(&app, "board-grouped");
+
+    // Dropping on the same column of another group changes nothing.
+    let call_mom = app.board.groups[0].lanes[0].todos[0].clone();
+    assert_eq!(call_mom.todo.body(), "Call mom");
+    let target = TodoRef::new(call_mom.line, &call_mom.todo);
+    let _ = app.update(Message::BoardPress(target, lane(0, 0)));
+    let _ = app.update(Message::BoardHover(lane(2, 0), true));
+    let _ = app.update(Message::BoardRelease);
+    assert!(app.drag.is_none());
+    assert!(app.dialog.is_none());
 }
