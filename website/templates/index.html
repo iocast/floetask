@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% set extra = section.extra %}
+{% set releases = config.extra.repo ~ "/releases/latest" %}
+
+<section class="hero">
+  <div class="wrap hero-inner">
+    <img class="hero-logo" src="{{ get_url(path='logo.svg') }}" alt="floetask logo" width="128" height="128">
+    <h1>{{ extra.tagline }}</h1>
+    <p class="lead">{{ extra.lead }}</p>
+    <div class="actions">
+      <a class="button primary" href="{{ releases }}">Download the latest release</a>
+      <a class="button" href="{{ config.extra.repo }}">View on GitHub</a>
+    </div>
+    <p class="platforms">Windows · macOS · Linux · free and open source</p>
+    {% if extra.screenshots %}
+    <figure class="hero-shot">
+      <img src="{{ get_url(path='screenshots/' ~ extra.screenshots[0].file) }}" alt="{{ extra.screenshots[0].caption }}">
+    </figure>
+    {% endif %}
+  </div>
+</section>
+
+<section class="todo-line">
+  <div class="wrap">
+    <p class="eyebrow">It is just a line of text</p>
+    <pre><code><span class="pri">(A)</span> <span class="date">2026-10-06</span> Call the plumber <span class="proj">+house</span> <span class="ctx">@phone</span> <span class="kv">due:2026-10-08</span> <span class="kv">status:doing</span> <span class="kv">note:plumber.md</span></code></pre>
+    <p>floetask reads and writes the <a href="https://github.com/todotxt/todo.txt">todo.txt format</a>, so your list stays portable, scriptable and yours. Sync it with any cloud folder and edit it anywhere.</p>
+  </div>
+</section>
+
+<section id="features" class="features">
+  <div class="wrap">
+    <h2>Everything a todo.txt power user wants</h2>
+    <div class="grid">
+      {% for f in extra.features %}
+      <article class="card">
+        {% include "icon.html" %}
+        <h3>{{ f.title }}</h3>
+        <p>{{ f.text }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="screenshots" class="screenshots">
+  <div class="wrap">
+    <h2>A closer look</h2>
+    <div class="gallery">
+      {% for s in extra.screenshots %}{% if not loop.first %}
+      <figure>
+        <a href="{{ get_url(path='screenshots/' ~ s.file) }}"><img src="{{ get_url(path='screenshots/' ~ s.file) }}" alt="{{ s.caption }}" loading="lazy"></a>
+        <figcaption>{{ s.caption }}</figcaption>
+      </figure>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="download" class="download">
+  <div class="wrap">
+    <h2>Download</h2>
+    <p class="sub">Installers for every platform are attached to each <a href="{{ config.extra.repo }}/releases">GitHub release</a>. Release builds check for updates and install them for you.</p>
+    <div class="grid three">
+      {% for d in extra.downloads %}
+      <a class="card download-card" href="{{ releases }}">
+        <h3>{{ d.os }}</h3>
+        <p class="formats">{{ d.formats }}</p>
+        <p>{{ d.note }}</p>
+        <span class="more">Get it from the latest release →</span>
+      </a>
+      {% endfor %}
+    </div>
+    <p class="source">Prefer building it yourself? <code>cargo run --release -p floetask-app</code></p>
+  </div>
+</section>
+{% endblock %}

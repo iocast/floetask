@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- floetask v2: a hexagonal ice crystal broken open by a done mark. -->
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <!-- Cuts the crystal where the check mark crosses it. -->
+    <mask id="gap" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="#fff"/>
+      <path d="M98 130 L122 154 L204 72" fill="none" stroke="#000" stroke-width="46"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+
+  <rect width="256" height="256" rx="60" fill="url(#background)"/>
+
+  <path d="M128 54 L192 91 V165 L128 202 L64 165 V91 Z" fill="none" stroke="#fff" stroke-opacity="0.92"
+        stroke-width="16" stroke-linejoin="round" mask="url(#gap)"/>
+
+  <path d="M98 130 L122 154 L204 72" fill="none" stroke="#fff" stroke-width="20"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Glint -->
+  <path d="M206 186 Q208.5 197.5 220 200 Q208.5 202.5 206 214 Q203.5 202.5 192 200 Q203.5 197.5 206 186 Z"
+        fill="#fff" fill-opacity="0.85"/>
+</svg>

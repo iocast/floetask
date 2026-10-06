@@ -1,0 +1,14 @@
+# Zola configuration for the floetask website.
+# The deploy workflow overrides base_url with the GitHub Pages URL.
+base_url = "https://iocast.github.io/floetask"
+title = "floetask"
+description = "A fast, keyboard-friendly todo.txt manager for Windows, macOS and Linux."
+default_language = "en"
+compile_sass = true
+minify_html = true
+build_search_index = false
+
+
+[extra]
+# GitHub repository the download links point to. Change it if the repository lives elsewhere.
+repo = "https://github.com/iocast/floetask"
