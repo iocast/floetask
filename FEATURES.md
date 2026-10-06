@@ -28,7 +28,7 @@ The specification is split into one file per topic in [features/](features/). Se
 | 10 | [Settings (P0 / P1)](features/10-settings.md) | the settings dialog and the config file |
 | 11 | [Theming and colours (P1)](features/11-theming.md) | themes and the colour file |
 | 12 | [Navigation, menus, keyboard (P0 / P1)](features/12-navigation.md) | navigation, menus, keyboard shortcuts, clipboard and undo |
-| 13 | [Internationalisation (P2)](features/13-i18n.md) | translations |
+| 13 | [Language support (P1)](features/13-i18n.md) | translated interface, language choice, translation files, dates and fonts per language |
 | 14 | [Platform and distribution (P2)](features/14-platform.md) | platforms and packaging |
 | 15 | [Out of scope](features/15-out-of-scope.md) | what floetask deliberately leaves out |
 | 16 | [Suggested crate layout (for later, not yet created)](features/16-crate-layout.md) | the crate layout |
