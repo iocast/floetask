@@ -23,7 +23,7 @@ The deploy workflow pins Zola 0.23.6. Templates use that version's syntax, so us
 | `templates/index.html` | The landing page sections |
 | `templates/icon.html` | The feature card icons, picked by the card's `icon` name |
 | `sass/style.scss` | All styles, with light and dark colours following the system theme |
-| `static/` | Logo, icon and `screenshots/`, copied to the site as is |
+| `static/` | Logo, icon, `screenshots/` and `lightbox.js` (opens screenshots in a dialog with previous/next), copied to the site as is |
 
 ## Common edits
 
