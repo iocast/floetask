@@ -26,10 +26,17 @@ pub fn typed_tag(line_text: &str, line: usize, column: usize) -> Option<TypedTag
     if !line_text.is_char_boundary(column) {
         return None;
     }
+    // Whitespace can be wider than one byte (a non-breaking space).
     let start = line_text[..column]
-        .rfind(char::is_whitespace)
-        .map(|i| i + 1)
+        .char_indices()
+        .rfind(|(_, c)| c.is_whitespace())
+        .map(|(i, c)| i + c.len_utf8())
         .unwrap_or(0);
+    // The cursor must be after the sigil: right before `+work` nothing is
+    // being typed yet.
+    if column <= start {
+        return None;
+    }
     let end = line_text[column..]
         .find(char::is_whitespace)
         .map(|i| column + i)
@@ -91,8 +98,24 @@ mod tests {
         let tag = typed_tag("Call +wo now", 0, 8).unwrap();
         assert_eq!((tag.sigil, tag.start, tag.end, tag.prefix.as_str()), ('+', 5, 8, "wo"));
         assert!(typed_tag("Call mom", 0, 4).is_none());
+        // Right before a sigil, e.g. after moving the cursor left past `+`.
+        assert!(typed_tag("Call +work", 0, 5).is_none());
+        assert!(typed_tag("+work", 0, 0).is_none());
+        assert!(typed_tag("", 0, 0).is_none());
+        // Multi-byte whitespace and text before the tag.
+        let tag = typed_tag("Grüße\u{a0}@bü", 0, 13).unwrap();
+        assert_eq!((tag.sigil, tag.prefix.as_str()), ('@', "bü"));
         let tag = typed_tag("@", 2, 1).unwrap();
         assert_eq!(tag.prefix, "");
+    }
+
+    #[test]
+    fn never_panics_at_any_cursor_position() {
+        for line in ["Call +work @home", "+@ @+ ++", "Grüße\u{a0}@bü +", " @", "x\t+y"] {
+            for column in 0..=line.len() + 2 {
+                let _ = typed_tag(line, 0, column);
+            }
+        }
     }
 
     #[test]
