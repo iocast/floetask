@@ -4,6 +4,11 @@
 
 A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.rs) GUI. The full specification is in [FEATURES.md](FEATURES.md); contributor and agent guidance is in [AGENTS.md](AGENTS.md).
 
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE-APACHE)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE-MIT)
+[![GitHub Release](https://img.shields.io/github/v/release/iocast/floetask?style=flat-square&color=blue)](https://github.com/iocast/rcmate/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/iocast/floetask/release.yml?style=flat-square&label=build)](https://github.com/iocast/floetask/actions)
+
 ## Run
 
 ```sh
@@ -31,13 +36,13 @@ A file passed on the command line is registered and opened. Without one, floetas
 
 floetask follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/) on every platform (Linux, macOS and Windows), relative to your home directory: what you configure goes in `~/.config`, where you left off goes in `~/.local/state`. The `XDG_CONFIG_HOME` and `XDG_STATE_HOME` variables override the defaults. `colors.toml` and `filters.toml` sit next to the config file, also when `--config` points elsewhere.
 
-| Path | What | Lose it and... |
-|---|---|---|
-| `~/.config/floetask/config.toml` | Settings (written with defaults on first start; `--config` overrides) | settings reset |
-| `~/.config/floetask/colors.toml` | Optional colour overrides | default colours |
-| `~/.config/floetask/filters.toml` | Saved search filters (moved here from `~/.local/share/floetask/` on first start) | your saved searches are gone |
-| `~/.local/state/floetask/state.toml` | Open files, layout, sorting, view toggles, window size | floetask forgets where you left off |
-| `~/.local/state/floetask/notified.toml` | Notifications already shown today | you may see a notification twice |
+| Path                                    | What                                                                             | Lose it and...                      |
+| --------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------- |
+| `~/.config/floetask/config.toml`        | Settings (written with defaults on first start; `--config` overrides)            | settings reset                      |
+| `~/.config/floetask/colors.toml`        | Optional colour overrides                                                        | default colours                     |
+| `~/.config/floetask/filters.toml`       | Saved search filters (moved here from `~/.local/share/floetask/` on first start) | your saved searches are gone        |
+| `~/.local/state/floetask/state.toml`    | Open files, layout, sorting, view toggles, window size                           | floetask forgets where you left off |
+| `~/.local/state/floetask/notified.toml` | Notifications already shown today                                                | you may see a notification twice    |
 
 Safe writes create `todo.txt.tmp` and `todo.txt.bak` next to your file for a moment and remove them on success.
 
@@ -103,23 +108,23 @@ The theme follows the system until you pick light or dark in Settings (or press 
 - **Search** in the title bar (`Ctrl+F` focuses it). Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with the star and pick them from the arrow (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
 - **Archive** completed todos with `Ctrl+Alt+A` or the file's ⋮ menu once an archive file is set (⋮ → Set archive file, or you are asked on first archive).
 
-| Shortcut | Action |
-|---|---|
-| `Ctrl+N` | New todo |
-| `Ctrl+F` / `Ctrl+Shift+F` | Focus search / saved filters |
-| `Ctrl+H` | Show or hide completed todos |
-| `Ctrl+0` | Reset search and filters |
-| `Ctrl+Alt+A` | Archive completed todos |
-| `Ctrl+O` | Open a file |
-| `Ctrl+1` … `Ctrl+9` | Switch file |
-| `Ctrl+,` | Settings |
-| `Ctrl+B` | Filter drawer |
-| `Ctrl+Alt+H` | File drawer |
-| `Ctrl+Alt+B` | Switch between list and board |
-| `Ctrl+Alt+D` | Toggle light/dark |
-| `Ctrl+W` / `Ctrl+Q` | Quit |
-| `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete |
-| `Escape` | Close dialog, menu, filter drawer, then clear the search |
+| Shortcut                                  | Action                                                   |
+| ----------------------------------------- | -------------------------------------------------------- |
+| `Ctrl+N`                                  | New todo                                                 |
+| `Ctrl+F` / `Ctrl+Shift+F`                 | Focus search / saved filters                             |
+| `Ctrl+H`                                  | Show or hide completed todos                             |
+| `Ctrl+0`                                  | Reset search and filters                                 |
+| `Ctrl+Alt+A`                              | Archive completed todos                                  |
+| `Ctrl+O`                                  | Open a file                                              |
+| `Ctrl+1` … `Ctrl+9`                       | Switch file                                              |
+| `Ctrl+,`                                  | Settings                                                 |
+| `Ctrl+B`                                  | Filter drawer                                            |
+| `Ctrl+Alt+H`                              | File drawer                                              |
+| `Ctrl+Alt+B`                              | Switch between list and board                            |
+| `Ctrl+Alt+D`                              | Toggle light/dark                                        |
+| `Ctrl+W` / `Ctrl+Q`                       | Quit                                                     |
+| `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete                           |
+| `Escape`                                  | Close dialog, menu, filter drawer, then clear the search |
 
 ## Status against FEATURES.md
 
