@@ -34,12 +34,12 @@ Settings → About shows the logo, name, version and a one-line description, and
 - **Check now**: the same check on request, with the result on the page (up to date, new version with its release notes, or the error).
 - **Install and restart**: downloads the newest installer, verifies its signature and runs it. Windows uses the setup `.exe` (progress bar only, the app restarts), macOS replaces the `.app`, Linux replaces the AppImage. A `.deb` or `.msi` install updates through its package manager instead.
 
-How it works: [cargo-packager-updater](https://docs.rs/cargo-packager-updater) behind the `Updater` port (`floetask-infrastructure/src/updater.rs`). The release workflow signs every installer and publishes `latest.json` (written by `scripts/update-manifest.py`) next to them; the app reads `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`. Which manifest to read and which public key to trust are compiled in from `FLOETASK_UPDATE_ENDPOINT` and `FLOETASK_UPDATE_PUBKEY`, so local builds say "This build cannot update itself" and never call out.
+How it works: [cargo-packager-updater](https://docs.rs/cargo-packager-updater) behind the `Updater` port (`floetask-infrastructure/src/updater.rs`). The release workflow signs every installer and publishes `latest.json` (written by `scripts/update-manifest.py`) next to them; the app reads `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`. Which manifest to read and which public key to trust are compiled in from `FLOETASK_UPDATE_ENDPOINT` and `FLOETASK_UPDATE_PUBLIC_KEY`, so local builds say "This build cannot update itself" and never call out.
 
 One-time setup before the first release that should update:
 
 1. Generate the update signing key pair: `cargo packager signer generate` (choose a password). Keep the private key safe: losing it means existing installs can no longer verify updates.
-2. In the GitHub repository settings, add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` (the private key) and `FLOETASK_UPDATE_KEY_PASSWORD` (its password), and the variable `FLOETASK_UPDATE_PUBKEY` (the public key).
+2. In the GitHub repository settings, add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` (the private key) and `FLOETASK_UPDATE_KEY_PASSWORD` (its password), and the variable `FLOETASK_UPDATE_PUBLIC_KEY` (the public key).
 3. Push a version tag. Releases built before this setup cannot update themselves; the first configured release has to be installed by hand once.
 
 This signature only proves an update comes from this project. It is separate from the OS code signing below.

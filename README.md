@@ -6,7 +6,7 @@ A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE-MIT)
-[![GitHub Release](https://img.shields.io/github/v/release/iocast/floetask?style=flat-square&color=blue)](https://github.com/iocast/rcmate/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/iocast/floetask?style=flat-square&color=blue)](https://github.com/iocast/floetask/releases)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/iocast/floetask/release.yml?style=flat-square&label=build)](https://github.com/iocast/floetask/actions)
 
 ## Run
@@ -28,7 +28,7 @@ floetask [OPTIONS] [TODO_FILE]
 
 ### Updates
 
-Settings → About shows the version and checks for new releases (on start, or with **Check now**); **Install and restart** downloads the signed installer and runs it. Only release builds from the GitHub workflow can update themselves, after a one-time key setup: generate a key with `cargo packager signer generate`, then add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` and `FLOETASK_UPDATE_KEY_PASSWORD` and the variable `FLOETASK_UPDATE_PUBKEY` to the GitHub repository ([features/14-platform.md §14.2](features/14-platform.md)).
+Settings → About shows the version and checks for new releases (on start, or with **Check now**); **Install and restart** downloads the signed installer and runs it. Only release builds from the GitHub workflow can update themselves, after a one-time key setup: generate a key with `cargo packager signer generate`, then add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` and `FLOETASK_UPDATE_KEY_PASSWORD` and the variable `FLOETASK_UPDATE_PUBLIC_KEY` to the GitHub repository ([features/14-platform.md §14.2](features/14-platform.md)).
 
 A file passed on the command line is registered and opened. Without one, floetask reopens the files from last time.
 

@@ -3,7 +3,7 @@
 //! The release workflow publishes a `latest.json` next to the installers and
 //! signs every installer with the project's updater key. Which manifest to
 //! ask and which public key to trust are compiled in from the environment of
-//! the build (`FLOETASK_UPDATE_ENDPOINT`, `FLOETASK_UPDATE_PUBKEY`), so only
+//! the build (`FLOETASK_UPDATE_ENDPOINT`, `FLOETASK_UPDATE_PUBLIC_KEY`), so only
 //! release builds from the workflow can update themselves. A build without
 //! them reports that updates are not configured.
 
@@ -31,7 +31,7 @@ impl ReleaseUpdater {
         Self::new(
             env!("CARGO_PKG_VERSION"),
             option_env!("FLOETASK_UPDATE_ENDPOINT"),
-            option_env!("FLOETASK_UPDATE_PUBKEY"),
+            option_env!("FLOETASK_UPDATE_PUBLIC_KEY"),
         )
     }
 
