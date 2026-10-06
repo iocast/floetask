@@ -889,19 +889,31 @@ fn wide_grouped_board_stays_left_of_the_drawer() {
     snapshot.matches_image(&path).unwrap();
 }
 
-/// Renders the README screenshot: the dark board at a size where every column fits.
+/// Renders the README screenshots: the dark board grouped by project, with the drawer open on
+/// each of its tabs, at a size where every column fits.
 #[test]
-fn dark_board_snapshot_for_the_readme() {
+fn dark_board_snapshots_for_the_readme() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
+    // Sort by project first: the board splits into one board per project.
+    let _ = app.update(Message::MoveSort(2, -2));
+    assert!(app.board.is_grouped());
+    let _ = app.update(Message::ToggleDrawer);
     app.settings.theme = floetask_application::ThemePreference::Dark;
     let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") else {
         return;
     };
-    let path = PathBuf::from(dir).join("board-dark-wide");
-    let mut ui = iced_test::Simulator::with_size(iced::Settings::default(), (1600.0, 900.0), app.view());
-    let snapshot = ui.snapshot(&app.theme()).unwrap();
-    snapshot.matches_image(&path).unwrap();
+    for (tab, name) in [
+        (floetask_application::DrawerTab::Attributes, "readme-attributes"),
+        (floetask_application::DrawerTab::Filters, "readme-filters"),
+        (floetask_application::DrawerTab::Sorting, "readme-sorting"),
+    ] {
+        let _ = app.update(Message::DrawerTab(tab));
+        let path = PathBuf::from(&dir).join(name);
+        let mut ui = iced_test::Simulator::with_size(iced::Settings::default(), (1600.0, 1000.0), app.view());
+        let snapshot = ui.snapshot(&app.theme()).unwrap();
+        snapshot.matches_image(&path).unwrap();
+    }
 }
 
 #[test]
