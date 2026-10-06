@@ -9,12 +9,7 @@ A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.
 [![GitHub Release](https://img.shields.io/github/v/release/iocast/floetask?style=flat-square&color=blue)](https://github.com/iocast/floetask/releases)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/iocast/floetask/release.yml?style=flat-square&label=build)](https://github.com/iocast/floetask/actions)
 
-![floetask status board in the dark theme, grouped by project, with the sorting drawer open](assets/screenshots/board-sorting.png)
-
-<p>
-  <img src="assets/screenshots/board-filters.png" width="49%" alt="The drawer's filter toggles next to the board grouped by project">
-  <img src="assets/screenshots/board-attributes.png" width="49%" alt="The drawer's attribute filters with counts next to the board grouped by project">
-</p>
+![floetask status board in the dark theme, grouped by project, with the filtering drawer open](assets/screenshots/board-attributes.png)
 
 ## Run
 
