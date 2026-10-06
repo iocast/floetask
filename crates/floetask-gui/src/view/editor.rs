@@ -1,7 +1,9 @@
 //! The add/edit dialog.
 
 use iced::keyboard::{Key, key::Named};
-use iced::widget::{Column, button, checkbox, column, container, pick_list, row, space, text, text_editor, text_input};
+use iced::widget::{
+    Column, Row, button, checkbox, column, container, pick_list, row, space, text, text_editor, text_input,
+};
 use iced::{Alignment, Border, Element, Fill};
 
 use floetask_application::NoteService;
@@ -80,21 +82,24 @@ fn field_style(colors: Colors) -> impl Fn(&iced::Theme, text_editor::Status) -> 
     }
 }
 
+/// Autocomplete suggestions as a wrapping row of badges in the project or
+/// context colour. The selected one is filled; `Up`/`Down` move, `Enter` or
+/// `Tab` insert.
 fn suggestions(editor: &Editor, colors: Colors) -> Element<'_, Message> {
-    let sigil = editor.typed_tag().map(|tag| tag.sigil).unwrap_or('+');
-    container(
-        column(editor.suggestions.iter().enumerate().map(|(index, name)| {
-            button(text(format!("{sigil}{name}")).size(14))
-                .width(Fill)
-                .padding([6, 10])
-                .style(theme::ghost(colors, index == editor.selected_suggestion))
-                .on_press(Message::EditorSuggestion(index))
-                .into()
-        }))
-        .spacing(2),
-    )
-    .padding(4)
-    .style(theme::panel(colors))
+    let color = match editor.typed_tag().map(|tag| tag.sigil) {
+        Some('@') => colors.success,
+        _ => colors.project,
+    };
+    Row::with_children(editor.suggestions.iter().enumerate().map(|(index, name)| {
+        button(text(name.as_str()).size(13))
+            .padding([3, 10])
+            .style(theme::chip(color, colors, index == editor.selected_suggestion))
+            .on_press(Message::EditorSuggestion(index))
+            .into()
+    }))
+    .spacing(6)
+    .wrap()
+    .vertical_spacing(6)
     .into()
 }
 
