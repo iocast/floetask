@@ -103,6 +103,17 @@ fn english(key: &str) -> Option<&'static str> {
         "strict" => "Strict",
         "note" => "Note",
         "notes" => "Notes",
+        // Calendar view
+        "show_calendar" => "Calendar (Ctrl+Alt+C)",
+        "calendar_day" => "Day",
+        "calendar_week" => "Week",
+        "calendar_month" => "Month",
+        "calendar_today" => "Today",
+        "calendar_previous" => "Previous",
+        "calendar_next" => "Next",
+        "calendar_more" => "+{} more",
+        "calendar_undated" => "{} without a due date not shown",
+        "calendar_empty_day" => "Nothing due this day.",
         // About and updates
         "section_about" => "About",
         "about_tagline" => "A todo.txt manager for the desktop.",

@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- Calendar view with day, week and month modes (`Ctrl+Alt+C`): todos by due date, filtered like the list; drag a todo to another day to change its due date
+
 ## [0.2.2] - 2026-10-06
 
 ### Added

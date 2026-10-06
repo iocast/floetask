@@ -4,6 +4,7 @@
 //! calls application services and changes presentation state.
 
 mod board;
+mod calendar;
 mod dialog;
 mod drawer;
 mod editing;
@@ -24,6 +25,7 @@ use std::time::Duration;
 use iced::widget::markdown;
 use iced::{Element, Task, Theme, window};
 
+use floetask_application::TodoRef;
 use floetask_application::{
     AppError, AppState, ColorOverrides, FileOptions, InputOptions, NoteStatus, SavedFilter, Services, Settings,
     ThemePreference,
@@ -94,6 +96,11 @@ pub struct Floetask {
     pub(crate) drag: Option<BoardDrag>,
     /// Board column under the mouse.
     pub(crate) board_hover: Option<LaneId>,
+    /// The day the calendar is centred on.
+    pub(crate) calendar_anchor: Date,
+    /// A todo being dragged on the calendar, with the day it came from.
+    pub(crate) calendar_drag: Option<(TodoRef, Date)>,
+    pub(crate) calendar_hover: Option<Date>,
     pub(crate) summaries: Vec<AttributeSummary>,
     pub(crate) projects: BTreeSet<String>,
     pub(crate) contexts: BTreeSet<String>,
@@ -160,6 +167,9 @@ impl Floetask {
             board: Board::default(),
             drag: None,
             board_hover: None,
+            calendar_anchor: today,
+            calendar_drag: None,
+            calendar_hover: None,
             summaries: Vec::new(),
             projects: BTreeSet::new(),
             contexts: BTreeSet::new(),
@@ -340,6 +350,14 @@ impl Floetask {
                 self.update_settings(message)
             }
 
+            M::ShowMainView(_)
+            | M::CalendarMode(_)
+            | M::CalendarStep(_)
+            | M::CalendarToday
+            | M::CalendarOpenDay(_)
+            | M::CalendarPress(..)
+            | M::CalendarHover(..)
+            | M::CalendarRelease => self.update_calendar(message),
             M::ToggleMainView
             | M::BoardGrouped(_)
             | M::ToggleBoardGroup(_)

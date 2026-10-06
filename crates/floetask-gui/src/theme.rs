@@ -209,6 +209,43 @@ pub fn lane(colors: Colors, drop_target: bool) -> impl Fn(&Theme) -> container::
     }
 }
 
+/// A day on the calendar. Days of the neighbouring months are dimmed; the
+/// day under a dragged todo is outlined like a board column.
+pub fn calendar_day(colors: Colors, in_month: bool, drop_target: bool) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(if drop_target {
+            colors.tint(colors.primary, 0.08)
+        } else if in_month {
+            colors.surface
+        } else {
+            colors.hover
+        }),
+        border: Border {
+            radius: 10.0.into(),
+            width: if drop_target { 2.0 } else { 1.0 },
+            color: if drop_target { colors.primary } else { colors.border },
+        },
+        ..container::Style::default()
+    }
+}
+
+/// A todo on the calendar: a small tinted pill, outlined while dragged.
+pub fn calendar_entry(colors: Colors, done: bool, dragged: bool) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(if done {
+            colors.hover
+        } else {
+            colors.tint(colors.primary, 0.08)
+        }),
+        border: Border {
+            radius: 6.0.into(),
+            width: if dragged { 2.0 } else { 0.0 },
+            color: colors.primary,
+        },
+        ..container::Style::default()
+    }
+}
+
 /// A card on the status board. The dragged card is outlined.
 pub fn board_card(colors: Colors, dragged: bool) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {

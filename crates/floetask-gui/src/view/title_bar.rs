@@ -22,6 +22,17 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
     let has_file = app.active_document().is_some();
 
+    let view_button = |view: MainView, glyph: Icon, hint: &'static str| {
+        icon_button(
+            glyph,
+            tr(hint),
+            has_file.then_some(Message::ShowMainView(view)),
+            colors,
+            has_file && app.state.main_view == view,
+        )
+    };
+    // The view switch sits on the left: the right side would run under the
+    // centred search field on narrow windows.
     let left = row![
         icon_button(
             Icon::Sidebar,
@@ -31,20 +42,15 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
             app.state.files_drawer_open,
         ),
         container(crate::logo::view(22.0)).padding([0, 6]),
+        view_button(MainView::List, Icon::List, "show_list"),
+        view_button(MainView::Board, Icon::Board, "show_board"),
+        view_button(MainView::Calendar, Icon::Calendar, "show_calendar"),
     ]
     .spacing(4)
     .padding([0, 8])
     .align_y(Alignment::Center);
 
-    let on_board = app.state.main_view == MainView::Board;
     let right = row![
-        icon_button(
-            if on_board { Icon::List } else { Icon::Board },
-            tr(if on_board { "show_list" } else { "show_board" }),
-            has_file.then_some(Message::ToggleMainView),
-            colors,
-            false,
-        ),
         icon_button(
             Icon::Filter,
             tr("toggle_drawer"),

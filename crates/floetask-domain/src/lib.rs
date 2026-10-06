@@ -9,6 +9,7 @@
 //! unit-testable.
 
 pub mod board;
+pub mod calendar;
 pub mod date;
 pub mod document;
 pub mod human_date;

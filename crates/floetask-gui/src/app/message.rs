@@ -138,6 +138,18 @@ pub enum Message {
     // Dialogs
     // Status board
     ToggleMainView,
+    ShowMainView(floetask_application::MainView),
+    // Calendar view
+    CalendarMode(floetask_domain::calendar::CalendarMode),
+    /// Moves the calendar by this many days, weeks or months.
+    CalendarStep(i64),
+    CalendarToday,
+    /// Opens one day in Day mode.
+    CalendarOpenDay(Date),
+    /// A todo is pressed on a day: the start of a drag or a click.
+    CalendarPress(TodoRef, Date),
+    CalendarHover(Date, bool),
+    CalendarRelease,
     /// Turns the board's one-board-per-group layout on or off.
     BoardGrouped(bool),
     /// Collapses or expands the board group with this key.

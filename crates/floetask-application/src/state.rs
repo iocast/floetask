@@ -1,5 +1,6 @@
 //! Persisted "where I left off" state. Losing it costs nothing but layout.
 
+use floetask_domain::calendar::CalendarMode;
 use std::path::PathBuf;
 
 use floetask_domain::listing::{Attribute, Sorting, ViewOptions};
@@ -40,6 +41,8 @@ pub enum MainView {
     List,
     /// The status board with one column per status.
     Board,
+    /// Todos on a day, week or month calendar by due date.
+    Calendar,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -75,6 +78,8 @@ pub struct AppState {
     pub files_drawer_open: bool,
     pub collapsed_sections: Vec<Attribute>,
     pub main_view: MainView,
+    /// Day, week or month in the calendar view.
+    pub calendar_mode: CalendarMode,
     /// The board splits into one board per group when the list is grouped.
     pub board_grouped: bool,
     /// Keys of the board groups the user collapsed (`BoardGroup::key`).
@@ -96,6 +101,7 @@ impl Default for AppState {
             files_drawer_open: true,
             collapsed_sections: Vec::new(),
             main_view: MainView::default(),
+            calendar_mode: CalendarMode::default(),
             board_grouped: true,
             collapsed_board_groups: Vec::new(),
             collapsed_list_groups: Vec::new(),

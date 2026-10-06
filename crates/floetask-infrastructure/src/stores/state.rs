@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::StateStore;
 use floetask_application::{AppError, AppState, DrawerTab, MainView, TodoFileEntry, WindowState};
+use floetask_domain::calendar::CalendarMode;
 use floetask_domain::listing::{Attribute, AttributeFilter, SortCriterion, Sorting, ViewOptions};
 
 use super::{read_toml, write_toml};
@@ -45,8 +46,10 @@ struct StateFile {
     drawer_tab: String,
     files_drawer_open: Option<bool>,
     collapsed_sections: Vec<String>,
-    /// `list` or `board`.
+    /// `list`, `board` or `calendar`.
     main_view: String,
+    /// `day`, `week` or `month`.
+    calendar_mode: String,
     /// Missing in older files: grouped.
     board_grouped: Option<bool>,
     collapsed_board_groups: Vec<String>,
@@ -130,6 +133,13 @@ impl From<&AppState> for StateFile {
             main_view: match state.main_view {
                 MainView::List => "list",
                 MainView::Board => "board",
+                MainView::Calendar => "calendar",
+            }
+            .to_owned(),
+            calendar_mode: match state.calendar_mode {
+                CalendarMode::Day => "day",
+                CalendarMode::Week => "week",
+                CalendarMode::Month => "month",
             }
             .to_owned(),
             files: state
@@ -239,7 +249,13 @@ impl From<StateFile> for AppState {
             collapsed_list_groups: file.collapsed_list_groups,
             main_view: match file.main_view.as_str() {
                 "board" => MainView::Board,
+                "calendar" => MainView::Calendar,
                 _ => MainView::List,
+            },
+            calendar_mode: match file.calendar_mode.as_str() {
+                "day" => CalendarMode::Day,
+                "week" => CalendarMode::Week,
+                _ => CalendarMode::Month,
             },
             window: file
                 .window
@@ -299,6 +315,7 @@ mod tests {
         state.drawer_tab = DrawerTab::Sorting;
         state.collapsed_sections.push(Attribute::Due);
         state.main_view = MainView::Board;
+        state.calendar_mode = CalendarMode::Week;
         state.board_grouped = false;
         state.toggle_board_group("priority:A");
         state.toggle_list_group("projects:");

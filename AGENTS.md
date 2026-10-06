@@ -14,7 +14,7 @@ floetask-app ──► floetask-gui ──► floetask-application ──► flo
 
 | Crate | Layer | Holds | May depend on |
 |---|---|---|---|
-| `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `note:` name rules, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts), the status board (columns, lanes, moving a todo) | `chrono`, `regex`, `thiserror` only |
+| `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `note:` name rules, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts), the status board (columns, lanes, moving a todo), the calendar (spans, todos by day) | `chrono`, `regex`, `thiserror` only |
 | `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` (including the `Updater`) | domain |
 | `floetask-infrastructure` | Adapters | Local file system with safe writes, debounced watcher, TOML stores (config, state, filters, notified, colors), XDG paths, OS notifications, opening links, release updates | domain, application, I/O crates |
 | `floetask-gui` | Presentation | iced app: state, messages, update handlers, views, theme, i18n | domain, application, `iced`, `rfd` (never infrastructure) |
@@ -72,8 +72,8 @@ To try the app without touching real settings, point the XDG variables at a scra
 
 ## Where things are
 
-- Message flow: `floetask-gui/src/app/mod.rs` dispatches each `Message` to a handler module (`files.rs`, `list.rs`, `board.rs`, `editing.rs`, `drawer.rs`, `search.rs`, `settings.rs`, `shortcuts.rs`).
+- Message flow: `floetask-gui/src/app/mod.rs` dispatches each `Message` to a handler module (`files.rs`, `list.rs`, `board.rs`, `calendar.rs`, `editing.rs`, `drawer.rs`, `search.rs`, `settings.rs`, `shortcuts.rs`).
 - Event sources (keyboard, window, theme, watcher, tick): `floetask-gui/src/app/subscriptions.rs`.
-- Views: `floetask-gui/src/view/`. The window is borderless: `title_bar.rs` draws the centred search, actions and window buttons, `files.rs` the file drawer, `board.rs` the status board with its mouse-area drag and drop, `popover.rs` the floating menus (a small custom widget on iced's overlay layer), `mod.rs` adds the resize edges, and `app/window_frame.rs` handles drag, resize, minimise and maximise.
+- Views: `floetask-gui/src/view/`. The window is borderless: `title_bar.rs` draws the centred search, actions and window buttons, `files.rs` the file drawer, `board.rs` the status board with its mouse-area drag and drop, `calendar_page.rs` the day/week/month calendar (same drag and drop), `popover.rs` the floating menus (a small custom widget on iced's overlay layer), `mod.rs` adds the resize edges, and `app/window_frame.rs` handles drag, resize, minimise and maximise.
 - Look and feel: colours and every widget style live in `theme.rs` (light and dark `Colors`); icons are drawn in `view/icons.rs`. Views use these instead of iced's default styles.
 - Known gaps against FEATURES.md are listed in the README.

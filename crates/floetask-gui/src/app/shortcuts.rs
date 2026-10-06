@@ -4,7 +4,7 @@
 use iced::Task;
 use iced::keyboard::{Key, Modifiers, key::Named};
 
-use floetask_application::TodoRef;
+use floetask_application::{MainView, TodoRef};
 
 use super::{Floetask, Message, ViewToggle};
 
@@ -55,6 +55,11 @@ impl Floetask {
             (",", false, false) => Message::OpenSettings,
             ("b", false, false) => Message::ToggleDrawer,
             ("b", true, false) => Message::ToggleMainView,
+            ("c", true, false) => Message::ShowMainView(if self.state.main_view == MainView::Calendar {
+                MainView::List
+            } else {
+                MainView::Calendar
+            }),
             ("d", true, false) => Message::ToggleTheme,
             ("w", false, false) | ("q", false, false) => Message::Quit,
             (digit, false, false) => {

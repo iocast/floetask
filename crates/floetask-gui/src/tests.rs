@@ -939,3 +939,58 @@ fn about_page_shows_the_version_and_an_available_update() {
     snapshot(&app, "settings-about");
     assert!(simulator(app.view()).find("Install and restart").is_ok());
 }
+
+#[test]
+fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
+    use floetask_application::MainView;
+    use floetask_domain::calendar::CalendarMode;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    assert_eq!(app.state.main_view, MainView::Calendar);
+    assert_eq!(app.calendar_anchor, app.today);
+    assert!(simulator(app.view()).find("October 2026").is_ok());
+    assert!(simulator(app.view()).find("Call mom").is_ok());
+    snapshot(&app, "calendar-month");
+
+    // Today (Sunday 4 October) ends the week that starts on Monday 28 September.
+    let _ = app.update(Message::CalendarMode(CalendarMode::Week));
+    assert!(simulator(app.view()).find("Call mom").is_ok());
+    assert!(simulator(app.view()).find("Prepare slides").is_err());
+    let _ = app.update(Message::CalendarStep(1));
+    assert!(simulator(app.view()).find("Prepare slides").is_ok());
+    snapshot(&app, "calendar-week");
+
+    // Pressing and releasing on the same day is a click: it opens the todo.
+    let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
+    let target = TodoRef::new(slides.line, &slides.todo);
+    let due = slides.todo.due().unwrap();
+    let _ = app.update(Message::CalendarPress(target.clone(), due));
+    let _ = app.update(Message::CalendarRelease);
+    assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
+    let _ = app.update(Message::CloseDialog);
+
+    // Dropped on another day, only the due date changes.
+    let next_day = floetask_domain::date::add_days(due, 2);
+    let _ = app.update(Message::CalendarPress(target.clone(), due));
+    let _ = app.update(Message::CalendarHover(next_day, true));
+    let _ = app.update(Message::CalendarHover(due, false));
+    assert_eq!(app.calendar_hover, Some(next_day));
+    let _ = app.update(Message::CalendarRelease);
+    assert!(app.calendar_drag.is_none());
+    let moved = app.services.todo_files.set_date(
+        Path::new(TODO_PATH),
+        &target,
+        "due",
+        Some(next_day),
+        &app.file_options(),
+    );
+    let _ = app.update(Message::Saved(PathBuf::from(TODO_PATH), moved));
+    let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
+    assert_eq!(slides.todo.due(), Some(next_day));
+
+    let _ = app.update(Message::CalendarOpenDay(next_day));
+    assert_eq!(app.state.calendar_mode, CalendarMode::Day);
+    assert!(simulator(app.view()).find("Prepare slides").is_ok());
+    snapshot(&app, "calendar-day");
+}

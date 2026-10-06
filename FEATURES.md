@@ -33,6 +33,7 @@ The specification is split into one file per topic in [features/](features/). Se
 | 15 | [Out of scope](features/15-out-of-scope.md) | what floetask deliberately leaves out |
 | 16 | [Suggested crate layout (for later, not yet created)](features/16-crate-layout.md) | the crate layout |
 | 17 | [Suggested milestones](features/17-milestones.md) | milestones |
+| 18 | [Calendar view (P1)](features/18-calendar.md) | day, week and month calendars of todos by due date |
 
 ## todo.txt extensions
 

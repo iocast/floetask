@@ -22,7 +22,7 @@ impl Floetask {
         match message {
             Message::ToggleMainView => {
                 self.state.main_view = match self.state.main_view {
-                    MainView::List => MainView::Board,
+                    MainView::List | MainView::Calendar => MainView::Board,
                     MainView::Board => MainView::List,
                 };
                 self.drag = None;

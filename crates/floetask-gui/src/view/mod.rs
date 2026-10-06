@@ -6,6 +6,7 @@
 
 mod board;
 mod calendar;
+mod calendar_page;
 mod dialogs;
 mod drawer;
 mod editor;
@@ -124,6 +125,7 @@ fn body(app: &Floetask) -> Element<'_, Message> {
         None => empty::no_file(app),
         Some(document) if document.todo_count() == 0 => empty::no_todos(app),
         Some(_) if app.state.main_view == MainView::Board => board::view(app),
+        Some(_) if app.state.main_view == MainView::Calendar => calendar_page::view(app),
         Some(_) if app.listing.counts.visible == 0 => empty::nothing_visible(app),
         Some(_) => list::view(app),
     }
