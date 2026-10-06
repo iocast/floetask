@@ -23,7 +23,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Keyboard shortcuts for every main action (see the README)
 - Command line: `floetask [TODO_FILE]`, `--config FILE` to use another config file, `--paths` to print where floetask keeps its files
 - Files follow the XDG Base Directory layout on every OS: settings, colours and saved searches in `~/.config/floetask/`, app state in `~/.local/state/floetask/`
-- Settings → About with the version, a check for new releases on start or on request, and one-click install of signed updates
+- Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
+- Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
 ### Changed
 
