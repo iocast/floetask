@@ -6,6 +6,15 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- Saved search "overdue" (`due: < today+1d`) out of the box, as long as `filters.toml` does not exist yet; deleting it sticks
+
+### Changed
+- Autocomplete suggestions in the todo dialog show as pills in the project or context colour instead of a list; keyboard navigation is unchanged
+
+### Fixed
+- The todo dialog no longer crashes when the cursor sits right before a `+` or `@`
+
 ## [0.2.1] - 2026-10-06
 
 ### Added
