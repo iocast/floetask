@@ -229,23 +229,6 @@ pub fn calendar_day(colors: Colors, in_month: bool, drop_target: bool) -> impl F
     }
 }
 
-/// A todo on the calendar: a small tinted pill, outlined while dragged.
-pub fn calendar_entry(colors: Colors, done: bool, dragged: bool) -> impl Fn(&Theme) -> container::Style {
-    move |_| container::Style {
-        background: filled(if done {
-            colors.hover
-        } else {
-            colors.tint(colors.primary, 0.08)
-        }),
-        border: Border {
-            radius: 6.0.into(),
-            width: if dragged { 2.0 } else { 0.0 },
-            color: colors.primary,
-        },
-        ..container::Style::default()
-    }
-}
-
 /// A card on the status board. The dragged card is outlined.
 pub fn board_card(colors: Colors, dragged: bool) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {

@@ -5,8 +5,8 @@
 //! day reports when the cursor enters or leaves it, and releasing anywhere
 //! on the calendar drops the todo on the day under the cursor.
 
-use iced::widget::{Column, Row, button, column, container, mouse_area, row, scrollable, space, text};
-use iced::{Alignment, Color, Element, Fill, mouse};
+use iced::widget::{Column, Row, button, column, container, mouse_area, responsive, row, scrollable, space, text};
+use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
 use floetask_application::TodoRef;
 use floetask_domain::Date;
@@ -154,9 +154,9 @@ fn weekday_names<'a>(app: &Floetask, colors: Colors) -> Element<'a, Message> {
 
 fn month_cell<'a>(app: &'a Floetask, date: Date, in_month: bool, todos: &[&'a ListedTodo]) -> Element<'a, Message> {
     let colors = app.colors();
-    let mut entries = Column::new().spacing(3).push(day_number(app, date, in_month, colors));
+    let mut entries = Column::new().spacing(4).push(day_number(app, date, in_month, colors));
     for entry in todos.iter().take(MONTH_CELL_TODOS) {
-        entries = entries.push(pill(app, date, entry, colors));
+        entries = entries.push(compact_card(app, date, entry, colors));
     }
     if todos.len() > MONTH_CELL_TODOS {
         entries = entries.push(
@@ -204,8 +204,37 @@ fn day_number<'a>(app: &Floetask, date: Date, in_month: bool, colors: Colors) ->
     .into()
 }
 
-/// Seven day columns listing every todo of the day.
+/// Narrowest a week column gets before the week scrolls sideways, as on
+/// the board: cards stay readable instead of squeezing their chips.
+const MIN_DAY_WIDTH: f32 = 200.0;
+const DAY_SPACING: f32 = 6.0;
+
+/// Seven day columns listing every todo of the day, with board-size cards.
 fn week<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<'a, Message> {
+    let span = *span;
+    let days = days.clone();
+    responsive(move |size| {
+        let needed = 7.0 * MIN_DAY_WIDTH + 6.0 * DAY_SPACING;
+        if size.width >= needed {
+            week_row(app, &span, &days, Length::Fill)
+        } else {
+            let colors = app.colors();
+            scrollable(
+                container(week_row(app, &span, &days, Length::Fixed(MIN_DAY_WIDTH))).padding(iced::padding::bottom(8)),
+            )
+            .direction(scrollable::Direction::Horizontal(
+                scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .style(theme::slim_scroller(colors))
+            .width(Fill)
+            .height(Fill)
+            .into()
+        }
+    })
+    .into()
+}
+
+fn week_row<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>, width: Length) -> Element<'a, Message> {
     let colors = app.colors();
     Row::with_children(span.days().map(|date| {
         let today = date == app.today;
@@ -223,8 +252,9 @@ fn week<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<
         .style(theme::ghost(colors, false))
         .on_press(Message::CalendarOpenDay(date));
         let todos = days.get(&date).map(Vec::as_slice).unwrap_or_default();
-        let entries = Column::with_children(todos.iter().map(|entry| pill(app, date, entry, colors)))
-            .spacing(4)
+        let entries = Column::with_children(todos.iter().map(|entry| card(app, date, entry, colors)))
+            .spacing(8)
+            .padding(iced::padding::right(6))
             .width(Fill);
         let content = column![
             title,
@@ -234,9 +264,9 @@ fn week<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<
                 .height(Fill)
         ]
         .spacing(8);
-        drop_zone(app, date, container(content).padding(8).width(Fill).height(Fill), true)
+        drop_zone(app, date, container(content).padding(8).width(width).height(Fill), true)
     }))
-    .spacing(6)
+    .spacing(DAY_SPACING)
     .height(Fill)
     .into()
 }
@@ -278,39 +308,37 @@ fn drop_zone<'a>(
         .into()
 }
 
-/// A todo in a month cell or week column: its priority colour and one line
-/// of text.
-fn pill<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
+/// A todo in a month cell: a smaller version of the board card, with the
+/// priority accent and the todo text but no chips.
+fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);
-    let dragged = is_dragged(app, entry);
     let accent = match todo.priority() {
         Some(priority) if !todo.is_complete() => colors.priority(priority),
         _ => Color::TRANSPARENT,
     };
     let label = text(todo.body().lines().next().unwrap_or_default().to_owned())
-        .size(12)
-        .wrapping(text::Wrapping::None)
+        .size(13)
         .color(if todo.is_complete() { colors.muted } else { colors.text });
     let content = row![
-        container(space()).width(3).height(14).style(theme::accent(accent)),
+        container(space()).width(3).height(16).style(theme::accent(accent)),
         label
     ]
-    .spacing(6)
-    .align_y(Alignment::Center);
+    .spacing(8)
+    .align_y(Alignment::Start);
     mouse_area(
         container(content)
-            .padding([3, 6])
+            .padding([6, 8])
             .width(Fill)
             .clip(true)
-            .style(theme::calendar_entry(colors, todo.is_complete(), dragged)),
+            .style(theme::board_card(colors, is_dragged(app, entry))),
     )
     .on_press(Message::CalendarPress(target, date))
     .interaction(mouse::Interaction::Grab)
     .into()
 }
 
-/// A full todo card for the Day view, like on the board.
+/// A full todo card for the Week and Day views, the size of a board card.
 fn card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);

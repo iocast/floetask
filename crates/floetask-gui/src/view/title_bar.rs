@@ -3,7 +3,7 @@
 //! the right next to the window buttons. Empty space drags the window; a
 //! double click maximises it.
 
-use iced::widget::{button, center, center_x, container, mouse_area, row, rule, space, stack};
+use iced::widget::{button, center, container, mouse_area, responsive, row, rule, space, stack};
 use iced::{Alignment, Element, Fill};
 
 use floetask_application::MainView;
@@ -31,8 +31,6 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
             has_file && app.state.main_view == view,
         )
     };
-    // The view switch sits on the left: the right side would run under the
-    // centred search field on narrow windows.
     let left = row![
         icon_button(
             Icon::Sidebar,
@@ -42,15 +40,15 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
             app.state.files_drawer_open,
         ),
         container(crate::logo::view(22.0)).padding([0, 6]),
-        view_button(MainView::List, Icon::List, "show_list"),
-        view_button(MainView::Board, Icon::Board, "show_board"),
-        view_button(MainView::Calendar, Icon::Calendar, "show_calendar"),
     ]
     .spacing(4)
     .padding([0, 8])
     .align_y(Alignment::Center);
 
     let right = row![
+        view_button(MainView::List, Icon::List, "show_list"),
+        view_button(MainView::Board, Icon::Board, "show_board"),
+        view_button(MainView::Calendar, Icon::Calendar, "show_calendar"),
         icon_button(
             Icon::Filter,
             tr("toggle_drawer"),
@@ -82,16 +80,45 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         .on_double_click(Message::WindowToggleMaximize);
     let bar = row![left, drag, right].height(HEIGHT).align_y(Alignment::Center);
 
-    // The search field is centred on the whole window, not on the gap.
-    let middle: Element<'_, Message> = match search::field(app) {
-        Some(field) => center_x(container(field).max_width(SEARCH_WIDTH).center_y(HEIGHT)).into(),
-        None => space().into(),
+    let middle: Element<'_, Message> = if search::field(app).is_some() {
+        responsive(move |size| search_slot(app, size.width)).into()
+    } else {
+        space().into()
     };
 
     container(stack![bar, middle])
         .width(Fill)
         .height(HEIGHT)
         .style(theme::app(colors))
+        .into()
+}
+
+/// Room the controls take on each side: the file-drawer toggle and logo on
+/// the left; the view switch, filter, settings and window buttons on the
+/// right.
+const LEFT_CONTROLS: f32 = 92.0;
+const RIGHT_CONTROLS: f32 = 340.0;
+/// Space kept between the search field and the controls.
+const SEARCH_MARGIN: f32 = 12.0;
+
+/// The search field, centred on the whole window while it fits between the
+/// controls. On narrower windows it moves into the gap between them and
+/// shrinks, so it never covers a button.
+fn search_slot(app: &Floetask, width: f32) -> Element<'_, Message> {
+    let Some(field) = search::field(app) else {
+        return space().into();
+    };
+    let gap_start = LEFT_CONTROLS + SEARCH_MARGIN;
+    let gap = (width - gap_start - RIGHT_CONTROLS - SEARCH_MARGIN).max(0.0);
+    let centred_x = (width - SEARCH_WIDTH) / 2.0;
+    let (x, field_width) =
+        if centred_x >= gap_start && centred_x + SEARCH_WIDTH <= width - RIGHT_CONTROLS - SEARCH_MARGIN {
+            (centred_x, SEARCH_WIDTH)
+        } else {
+            (gap_start, gap.min(SEARCH_WIDTH))
+        };
+    row![space().width(x), container(field).width(field_width).center_y(HEIGHT)]
+        .height(HEIGHT)
         .into()
 }
 
