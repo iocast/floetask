@@ -9,6 +9,8 @@ A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.
 [![GitHub Release](https://img.shields.io/github/v/release/iocast/floetask?style=flat-square&color=blue)](https://github.com/iocast/floetask/releases)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/iocast/floetask/release.yml?style=flat-square&label=build)](https://github.com/iocast/floetask/actions)
 
+![floetask status board in the dark theme](assets/screenshots/board-dark.png)
+
 ## Run
 
 ```sh

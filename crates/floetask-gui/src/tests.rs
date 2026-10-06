@@ -889,6 +889,21 @@ fn wide_grouped_board_stays_left_of_the_drawer() {
     snapshot.matches_image(&path).unwrap();
 }
 
+/// Renders the README screenshot: the dark board at a size where every column fits.
+#[test]
+fn dark_board_snapshot_for_the_readme() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    app.settings.theme = floetask_application::ThemePreference::Dark;
+    let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") else {
+        return;
+    };
+    let path = PathBuf::from(dir).join("board-dark-wide");
+    let mut ui = iced_test::Simulator::with_size(iced::Settings::default(), (1600.0, 900.0), app.view());
+    let snapshot = ui.snapshot(&app.theme()).unwrap();
+    snapshot.matches_image(&path).unwrap();
+}
+
 #[test]
 fn about_page_shows_the_version_and_an_available_update() {
     let runtime = runtime();
