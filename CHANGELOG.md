@@ -5,6 +5,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-06
+
 ### Added
 - Desktop todo.txt manager for Linux, Windows and macOS with an iced GUI; edits change only the tokens they touch, so files round-trip exactly
 - Several todo files at once in a file drawer (`Ctrl+Alt+H`), each with its own archive (done) file; files are written safely and reloaded when changed on disk
@@ -26,6 +28,5 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-### Changed
-
-### Fixed
+[unreleased]: https://github.com/iocast/floetask/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/iocast/floetask/releases/tag/v0.2.0
