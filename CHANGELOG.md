@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-06
+
 ### Added
 - Saved search "overdue" (`due: < today+1d`) out of the box, as long as `filters.toml` does not exist yet; deleting it sticks
 
@@ -38,6 +40,7 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.2.1...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/iocast/floetask/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/iocast/floetask/releases/tag/v0.2.1
 [0.2.0]: https://github.com/iocast/floetask/releases/tag/v0.2.0
