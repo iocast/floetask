@@ -66,6 +66,25 @@ jobs:
       - name: Install cargo-packager
         run: cargo install cargo-packager --locked
 
+      # cargo-packager signs whenever CARGO_PACKAGER_SIGN_PRIVATE_KEY is set,
+      # even to an empty string (a missing secret), and then fails with
+      # "Missing comment in secret key". Only export it when the secret has a
+      # value, without stray whitespace from pasting.
+      - name: Load the updater signing key
+        shell: bash
+        env:
+          KEY: ${{ secrets.FLOETASK_UPDATE_PRIVATE_KEY }}
+          PASSWORD: ${{ secrets.FLOETASK_UPDATE_KEY_PASSWORD }}
+        run: |
+          KEY="$(printf '%s' "$KEY" | tr -d '[:space:]')"
+          if [ -n "$KEY" ]; then
+            echo "CARGO_PACKAGER_SIGN_PRIVATE_KEY=$KEY" >> "$GITHUB_ENV"
+            echo "CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
+            echo "Signing installers for the updater."
+          else
+            echo "::warning::FLOETASK_UPDATE_PRIVATE_KEY is not set: installers are not signed and this release cannot be offered as an update."
+          fi
+
       - name: Build installers
         run: cargo packager --release -p floetask-app --formats ${{ matrix.formats }}
         env:
@@ -76,9 +95,6 @@ jobs:
           # works but cannot update itself.
           FLOETASK_UPDATE_ENDPOINT: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
           FLOETASK_UPDATE_PUBKEY: ${{ vars.FLOETASK_UPDATE_PUBKEY }}
-          # Signs every installer for the updater; skipped when unset.
-          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.FLOETASK_UPDATE_PRIVATE_KEY }}
-          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.FLOETASK_UPDATE_KEY_PASSWORD }}
 
       - name: Upload installers
         uses: actions/upload-artifact@v6
