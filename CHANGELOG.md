@@ -3,9 +3,10 @@
 All notable changes to this project are documented in this file.
 Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Versioning (https://semver.org).
 
+
 ## [Unreleased]
 
-## [0.2.0] - 2026-10-06
+## [0.2.1] - 2026-10-06
 
 ### Added
 - Desktop todo.txt manager for Linux, Windows and macOS with an iced GUI; edits change only the tokens they touch, so files round-trip exactly
@@ -28,5 +29,6 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/iocast/floetask/releases/tag/v0.2.1
 [0.2.0]: https://github.com/iocast/floetask/releases/tag/v0.2.0
