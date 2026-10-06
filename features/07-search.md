@@ -28,7 +28,8 @@ Grammar:
 - Save the current query as a named filter (`Ctrl+Shift+F` / arrow-down opens the list).
 - Pick, delete (with confirmation) saved filters; `Up`/`Down` + `Enter` in the list.
 - Per filter: **suppress notifications** for todos matching it (bell icon).
-- Stored in `filters.json`, watched for external changes.
+- Stored in `filters.toml`, watched for external changes.
+- A new installation starts with one filter, **overdue** (`due: < today+1d`: due today or earlier). Saving or deleting a filter replaces the defaults with the user's own list.
 
 ---
 

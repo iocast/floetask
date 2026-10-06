@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::SavedFilterStore;
+use floetask_application::saved_filters::default_filters;
 use floetask_application::{AppError, SavedFilter};
 
 use super::{read_toml, write_toml};
@@ -21,9 +22,11 @@ impl TomlSavedFilterStore {
 
 impl SavedFilterStore for TomlSavedFilterStore {
     fn load(&self) -> Result<Vec<SavedFilter>, AppError> {
-        let file: Option<FiltersFile> = read_toml(&self.path)?;
+        // No file yet: a new installation starts with the default filters.
+        let Some(file) = read_toml::<FiltersFile>(&self.path)? else {
+            return Ok(default_filters());
+        };
         Ok(file
-            .unwrap_or_default()
             .filter
             .into_iter()
             .map(|f| SavedFilter {
@@ -76,7 +79,7 @@ mod tests {
     fn round_trips_filters() {
         let dir = tempfile::tempdir().unwrap();
         let store = TomlSavedFilterStore::new(dir.path().join("filters.toml"));
-        assert!(store.load().unwrap().is_empty());
+        assert_eq!(store.load().unwrap(), default_filters());
         let filters = vec![SavedFilter {
             name: "Work".into(),
             query: "+work and due:".into(),
