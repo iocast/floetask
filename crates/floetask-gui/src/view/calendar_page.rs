@@ -16,7 +16,7 @@ use floetask_domain::listing::ListedTodo;
 
 use super::icons::Icon;
 use super::list::{body, meta};
-use super::widgets::icon_button;
+use super::widgets::{icon_button, with_tooltip};
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
@@ -308,8 +308,9 @@ fn drop_zone<'a>(
         .into()
 }
 
-/// A todo in a month cell: a smaller version of the board card, with the
-/// priority accent and the todo text but no chips.
+/// A todo in a month cell: a smaller version of the board card on one line,
+/// with the priority accent and the todo text cut at the cell's edge. The
+/// whole text shows in a tooltip.
 fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);
@@ -319,14 +320,15 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
     };
     let label = text(todo.body().lines().next().unwrap_or_default().to_owned())
         .size(13)
+        .wrapping(text::Wrapping::None)
         .color(if todo.is_complete() { colors.muted } else { colors.text });
     let content = row![
         container(space()).width(3).height(16).style(theme::accent(accent)),
         label
     ]
     .spacing(8)
-    .align_y(Alignment::Start);
-    mouse_area(
+    .align_y(Alignment::Center);
+    let card = mouse_area(
         container(content)
             .padding([6, 8])
             .width(Fill)
@@ -334,8 +336,8 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
             .style(theme::board_card(colors, is_dragged(app, entry))),
     )
     .on_press(Message::CalendarPress(target, date))
-    .interaction(mouse::Interaction::Grab)
-    .into()
+    .interaction(mouse::Interaction::Grab);
+    with_tooltip(card, todo.display_text(), colors)
 }
 
 /// A full todo card for the Week and Day views, the size of a board card.
