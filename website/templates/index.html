@@ -5,8 +5,11 @@
 {% set releases = config.extra.repo ~ "/releases/latest" %}
 
 <section class="hero">
+  <div class="orb orb-a" data-parallax="0.35" aria-hidden="true"></div>
+  <div class="orb orb-b" data-parallax="-0.25" aria-hidden="true"></div>
+  <div class="orb orb-c" data-parallax="0.55" aria-hidden="true"></div>
   <div class="wrap hero-inner">
-    <img class="hero-logo" src="{{ get_url(path='logo.svg') }}" alt="floetask logo" width="128" height="128">
+    <img class="hero-logo" data-parallax="-0.15" src="{{ get_url(path='logo.svg') }}" alt="floetask logo" width="128" height="128">
     <h1>{{ extra.tagline }}</h1>
     <p class="lead">{{ extra.lead }}</p>
     <div class="actions">
@@ -21,6 +24,8 @@
 </section>
 
 <section id="plain-text" class="plain-text">
+  <div class="orb orb-a" data-parallax="0.3" aria-hidden="true"></div>
+  <div class="orb orb-d" data-parallax="0.45" aria-hidden="true"></div>
   <div class="wrap">
     <p class="eyebrow">Your data, your file</p>
     <h2 class="big">{{ extra.plain.title }}</h2>
@@ -48,9 +53,9 @@
       </ul>
     </div>
     <div class="sync-diagram" aria-hidden="true">
-      <div class="device">Laptop<small>floetask</small></div>
-      <div class="device">Desktop<small>floetask</small></div>
-      <div class="device">Phone<small>any todo.txt app</small></div>
+      <div class="device" data-parallax="-0.025">Laptop<small>floetask</small></div>
+      <div class="device" data-parallax="-0.04">Desktop<small>floetask</small></div>
+      <div class="device" data-parallax="-0.03">Phone<small>any todo.txt app</small></div>
       <div class="file">todo.txt<small>in your cloud folder</small></div>
     </div>
   </div>
@@ -67,7 +72,7 @@
         {% for b in s.points %}<li>{{ b }}</li>{% endfor %}
       </ul>
     </div>
-    <div class="showcase-shots">
+    <div class="showcase-shots" data-parallax="-0.07">
       {% for i in s.images %}
       <a class="shot{% if loop.first %} main{% endif %}" href="{{ get_url(path='screenshots/' ~ i.file) }}" data-caption="{{ i.caption }}"><img src="{{ get_url(path='screenshots/' ~ i.file) }}" alt="{{ i.caption }}" loading="lazy"></a>
       {% endfor %}
@@ -133,4 +138,5 @@
   <button class="lb-next" type="button" aria-label="Next screenshot">&#8250;</button>
 </dialog>
 <script src="{{ get_url(path='lightbox.js', cachebust=true) }}" defer></script>
+<script src="{{ get_url(path='parallax.js', cachebust=true) }}" defer></script>
 {% endblock %}

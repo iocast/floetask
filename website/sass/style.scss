@@ -361,3 +361,34 @@ a.shot { display: block; cursor: zoom-in; }
   .sync-inner, .showcase-inner { grid-template-columns: 1fr; }
   .showcase.flip .showcase-text { order: 0; }
 }
+
+// Parallax (parallax.js sets --py and --tilt; nothing moves without it)
+
+.hero, .plain-text { position: relative; overflow: hidden; }
+.hero-inner, .plain-text > .wrap { position: relative; z-index: 1; }
+
+.orb {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.orb-a { width: 420px; height: 420px; left: -120px; top: 40px; background: var(--indigo); }
+.orb-b { width: 360px; height: 360px; right: -100px; top: 220px; background: var(--cyan); }
+.orb-c { width: 240px; height: 240px; left: 55%; top: 620px; background: #a78bfa; opacity: 0.25; }
+.orb-d { width: 300px; height: 300px; right: 8%; bottom: -80px; background: var(--cyan); opacity: 0.2; }
+.plain-text .orb-a { opacity: 0.18; }
+
+.parallax [data-parallax] { transform: translate3d(0, var(--py, 0px), 0); will-change: transform; }
+
+.parallax .hero-shot {
+  transform-origin: 50% 0;
+  transform: perspective(1600px) rotateX(calc(var(--tilt, 0) * 16deg)) scale(calc(1 - var(--tilt, 0) * 0.06));
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb { display: none; }
+}
