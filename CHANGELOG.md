@@ -6,8 +6,16 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-07
+
 ### Added
 - Calendar view with day, week and month modes (`Ctrl+Alt+C`): todos by due date, filtered like the list; drag a todo to another day to change its due date
+- Calendar header shows "N without a due date", which opens a panel of open undated todos; drag one onto a day or use "Set due date" to plan it
+- Month cells show each todo on one line, with the full text in a tooltip on hover
+
+### Changed
+- Below 760px window width, side panels hide automatically in list, board and calendar (filter drawer first, then file drawer) and return when the window grows; opening a hidden panel shows it over the main view until you click beside it or press `Escape`
+- The search field in the title bar shrinks when it cannot stay centred, so it never covers the view and window buttons
 
 ## [0.2.2] - 2026-10-06
 
@@ -43,7 +51,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.2.2...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/iocast/floetask/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/iocast/floetask/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/iocast/floetask/releases/tag/v0.2.1
 [0.2.0]: https://github.com/iocast/floetask/releases/tag/v0.2.0
