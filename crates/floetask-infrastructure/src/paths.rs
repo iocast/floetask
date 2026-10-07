@@ -25,6 +25,8 @@ pub struct AppPaths {
     pub config_file: PathBuf,
     pub config_dir: PathBuf,
     pub state_dir: PathBuf,
+    /// Files that can be regenerated, such as the notification icon.
+    pub cache_dir: PathBuf,
     /// The data directory older versions kept `filters.toml` in; read only to
     /// move that file, see [`migrate_legacy_files`].
     legacy_data_dir: PathBuf,
@@ -48,6 +50,7 @@ impl AppPaths {
             config_dir: config_file.parent().map(Path::to_path_buf).unwrap_or(config_dir),
             config_file,
             state_dir: base("XDG_STATE_HOME", &[".local", "state"]),
+            cache_dir: base("XDG_CACHE_HOME", &[".cache"]),
             legacy_data_dir: base("XDG_DATA_HOME", &[".local", "share"]),
         }
     }
@@ -106,6 +109,7 @@ mod tests {
             config_file: root.join("config/floetask/config.toml"),
             config_dir: root.join("config/floetask"),
             state_dir: root.join("state/floetask"),
+            cache_dir: root.join("cache/floetask"),
             legacy_data_dir: root.join("share/floetask"),
         }
     }

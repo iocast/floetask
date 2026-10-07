@@ -9,10 +9,12 @@ pub struct DesktopNotifier;
 
 impl Notifier for DesktopNotifier {
     fn notify(&self, title: &str, body: &str) -> Result<(), AppError> {
-        notify_rust::Notification::new()
-            .appname("floetask")
-            .summary(title)
-            .body(body)
+        let mut notification = notify_rust::Notification::new();
+        notification.appname("floetask").summary(title).body(body);
+        // Sent as floetask, not as PowerShell (see `app_identity`).
+        #[cfg(windows)]
+        notification.app_id(crate::app_identity::APP_ID);
+        notification
             .show()
             .map(drop)
             .map_err(|e| AppError::Other(format!("notification failed: {e}")))

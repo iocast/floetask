@@ -52,6 +52,11 @@ fn main() -> ExitCode {
         );
     }
 
+    // Windows notifications show floetask's name and icon, not PowerShell's.
+    if let Err(error) = floetask_infrastructure::app_identity::register(&paths.cache_dir) {
+        eprintln!("floetask: could not register the app for notifications: {error}");
+    }
+
     let services = Services::new(floetask_infrastructure::ports(&paths));
     let startup = floetask_gui::Startup {
         services,

@@ -4,6 +4,7 @@
 //! File locations follow the XDG Base Directory split on every platform,
 //! see [`paths::AppPaths`].
 
+pub mod app_identity;
 pub mod clock;
 pub mod colors;
 pub mod desktop;

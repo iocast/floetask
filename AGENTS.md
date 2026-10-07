@@ -42,7 +42,7 @@ File locations follow the [XDG Base Directory Specification](https://specificati
 | `~/.config/floetask/` | `config.toml` (settings; `--config FILE` overrides the path), `colors.toml` and `filters.toml` (saved searches), both next to the config file |
 | `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, window), `notified.toml` (notification de-dup) |
 | `~/.local/share/floetask/` | unused; older versions kept `filters.toml` here and it is moved on start |
-| `~/.cache/floetask/` | unused so far |
+| `~/.cache/floetask/` | `floetask.png` (Windows: the icon notifications show, written on start) |
 
 Safe writes put `<file>.tmp` and `<file>.bak` next to the target file, because an atomic rename only works within one file system. `floetask --paths` prints the resolved locations.
 
