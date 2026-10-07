@@ -55,6 +55,10 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
         content = content.push(drawer::view(app));
     }
 
+    let content: Element<'_, Message> = match overlay_panel(app, &shown) {
+        Some(panel) => stack![content, panel].into(),
+        None => content.into(),
+    };
     let mut page = column![title_bar::view(app)].spacing(8);
     page = page.push(
         container(content)
@@ -119,6 +123,24 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
         layers = layers.push(resize_edges());
     }
     layers.into()
+}
+
+/// A side panel the user opened while there is no room for it, drawn over
+/// the main view on its own side. A click beside it closes it.
+fn overlay_panel<'a>(app: &'a Floetask, shown: &crate::layout::Panels) -> Option<Element<'a, Message>> {
+    use crate::layout::Panel;
+    let close = || -> Element<'a, Message> {
+        mouse_area(space().width(Fill).height(Fill))
+            .on_press(Message::ClosePanelOverlay)
+            .into()
+    };
+    match app.panel_overlay? {
+        Panel::Files if !shown.files => Some(row![files::drawer(app), close()].height(Fill).into()),
+        Panel::Filters if !shown.filters && app.active_document().is_some() => {
+            Some(row![close(), drawer::view(app)].height(Fill).into())
+        }
+        _ => None,
+    }
 }
 
 fn body(app: &Floetask) -> Element<'_, Message> {

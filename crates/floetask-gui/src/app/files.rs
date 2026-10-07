@@ -33,9 +33,8 @@ impl Floetask {
             Message::FilePicked(None) | Message::FileCreated(None) => Task::none(),
             Message::SelectFile(index) => self.select_file(index),
             Message::ToggleFilesDrawer => {
-                self.state.files_drawer_open = !self.state.files_drawer_open;
                 self.file_menu = None;
-                self.persist_state()
+                self.toggle_panel(crate::layout::Panel::Files)
             }
             Message::OpenDoneFile(index) => {
                 self.file_menu = None;

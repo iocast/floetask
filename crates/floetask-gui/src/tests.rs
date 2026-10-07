@@ -204,6 +204,8 @@ fn app() -> Floetask {
         PathBuf::from(TODO_PATH),
         Ok(TodoDocument::parse(SAMPLE, &[])),
     ));
+    // Wide enough for the main view and every side panel.
+    app.state.window.width = 1800.0;
     app
 }
 
@@ -1038,7 +1040,7 @@ fn undated_panel_lists_todos_without_due_date_and_plans_them() {
 }
 
 #[test]
-fn week_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
+fn main_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
     use floetask_application::MainView;
     use floetask_domain::calendar::CalendarMode;
 
@@ -1050,10 +1052,6 @@ fn week_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
         let shown = app.shown_panels();
         (shown.filters, shown.files, shown.undated)
     };
-
-    // The month view keeps every open panel.
-    app.state.window.width = 1000.0;
-    assert_eq!(open(&app), (true, true, true));
 
     let _ = app.update(Message::CalendarMode(CalendarMode::Week));
     app.state.window.width = 1700.0;
@@ -1067,4 +1065,36 @@ fn week_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
 
     app.state.window.width = 1024.0;
     snapshot(&app, "calendar-week-narrow");
+
+    // The same in the list: filter drawer first, then the file drawer.
+    let _ = app.update(Message::ShowMainView(MainView::List));
+    app.state.window.width = 1400.0;
+    assert_eq!(
+        open(&app),
+        (true, true, false),
+        "the undated panel belongs to the calendar"
+    );
+    app.state.window.width = 1300.0;
+    assert_eq!(open(&app), (false, true, false));
+    app.state.window.width = 1000.0;
+    assert_eq!(open(&app), (false, false, false));
+
+    // Asked for while there is no room, a panel opens over the main view;
+    // the next click (or Escape) hides it, and it stays open for later.
+    let _ = app.update(Message::ToggleDrawer);
+    assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Filters));
+    assert!(app.state.drawer_open);
+    snapshot(&app, "filter-overlay");
+    let _ = app.update(Message::ToggleDrawer);
+    assert_eq!(app.panel_overlay, None);
+    assert!(app.state.drawer_open);
+    let _ = app.update(Message::ToggleFilesDrawer);
+    assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Files));
+    let _ = app.update(Message::ClosePanelOverlay);
+    assert_eq!(app.panel_overlay, None);
+    // Closed panels opened in a narrow window show as an overlay too.
+    app.state.drawer_open = false;
+    let _ = app.update(Message::ToggleDrawer);
+    assert!(app.state.drawer_open);
+    assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Filters));
 }

@@ -82,6 +82,9 @@ impl Floetask {
         if self.dialog.is_some() {
             return self.close_dialog();
         }
+        if self.panel_overlay.take().is_some() {
+            return Task::none();
+        }
         if self.row_menu.is_some() || self.file_menu.is_some() {
             self.row_menu = None;
             self.file_menu = None;

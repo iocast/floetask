@@ -1,15 +1,17 @@
 //! Which side panels fit next to a view that needs a minimum width.
 //!
-//! The calendar's week view must never get narrower than [`WEEK_MIN_WIDTH`].
-//! When the window is too small for it and every open panel, panels are
+//! The main view (list, board or calendar) must never get narrower than
+//! [`MAIN_MIN_WIDTH`]. When the window is too small for it and every open
+//! panel, panels are
 //! hidden for as long as it stays too small, in a fixed order: the filter
 //! drawer first, then the file drawer, then the undated panel. Their open
 //! state is kept, so they come back when the window grows again.
 //!
 //! Kept free of widgets so it can be unit-tested.
 
-/// Narrowest the week view gets, all seven columns together.
-pub const WEEK_MIN_WIDTH: f32 = 760.0;
+/// Narrowest the main view gets: the list, the board, or the calendar's
+/// week with all seven columns.
+pub const MAIN_MIN_WIDTH: f32 = 760.0;
 /// Left and right padding of the page.
 pub const PAGE_PADDING: f32 = 32.0;
 /// Space between the main area and a panel next to it.
@@ -17,6 +19,14 @@ pub const PANEL_SPACING: f32 = 12.0;
 pub const FILES_DRAWER_WIDTH: f32 = 248.0;
 pub const FILTER_DRAWER_WIDTH: f32 = 300.0;
 pub const UNDATED_PANEL_WIDTH: f32 = 300.0;
+
+/// A side panel the user can open over the main view when there is no room
+/// for it beside it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Panel {
+    Files,
+    Filters,
+}
 
 /// Which panels the user has open.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,16 +74,16 @@ mod tests {
     #[test]
     fn wide_windows_keep_every_panel() {
         // 32 + 760 + 260 + 312 + 312
-        assert_eq!(fit(ALL, 1676.0, WEEK_MIN_WIDTH), ALL);
+        assert_eq!(fit(ALL, 1676.0, MAIN_MIN_WIDTH), ALL);
     }
 
     #[test]
     fn panels_close_filter_first_then_files_then_undated() {
-        let shown = fit(ALL, 1500.0, WEEK_MIN_WIDTH);
+        let shown = fit(ALL, 1500.0, MAIN_MIN_WIDTH);
         assert_eq!((shown.filters, shown.files, shown.undated), (false, true, true));
-        let shown = fit(ALL, 1200.0, WEEK_MIN_WIDTH);
+        let shown = fit(ALL, 1200.0, MAIN_MIN_WIDTH);
         assert_eq!((shown.filters, shown.files, shown.undated), (false, false, true));
-        let shown = fit(ALL, 900.0, WEEK_MIN_WIDTH);
+        let shown = fit(ALL, 900.0, MAIN_MIN_WIDTH);
         assert_eq!((shown.filters, shown.files, shown.undated), (false, false, false));
     }
 
@@ -84,7 +94,7 @@ mod tests {
             filters: false,
             undated: false,
         };
-        assert_eq!(fit(files_only, 1100.0, WEEK_MIN_WIDTH), files_only);
-        assert!(!fit(files_only, 1000.0, WEEK_MIN_WIDTH).files);
+        assert_eq!(fit(files_only, 1100.0, MAIN_MIN_WIDTH), files_only);
+        assert!(!fit(files_only, 1000.0, MAIN_MIN_WIDTH).files);
     }
 }

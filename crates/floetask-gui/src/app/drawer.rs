@@ -10,10 +10,7 @@ use crate::i18n::trf;
 impl Floetask {
     pub(super) fn update_drawer(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ToggleDrawer => {
-                self.state.drawer_open = !self.state.drawer_open;
-                return self.persist_state();
-            }
+            Message::ToggleDrawer => return self.toggle_panel(crate::layout::Panel::Filters),
             Message::DrawerTab(tab) => {
                 self.state.drawer_tab = tab;
                 return self.persist_state();

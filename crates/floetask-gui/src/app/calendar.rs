@@ -44,6 +44,10 @@ impl Floetask {
                 self.calendar_undated_hover = day.is_none();
                 Task::none()
             }
+            Message::ClosePanelOverlay => {
+                self.panel_overlay = None;
+                Task::none()
+            }
             Message::CalendarToggleUndated => {
                 self.calendar_undated_open = !self.calendar_undated_open;
                 Task::none()

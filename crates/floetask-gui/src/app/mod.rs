@@ -104,6 +104,9 @@ pub struct Floetask {
     /// The panel listing todos without a due date is open.
     pub(crate) calendar_undated_open: bool,
     pub(crate) calendar_undated_hover: bool,
+    /// A side panel the user opened while it does not fit beside the main
+    /// view: drawn on top of it instead.
+    pub(crate) panel_overlay: Option<crate::layout::Panel>,
     pub(crate) summaries: Vec<AttributeSummary>,
     pub(crate) projects: BTreeSet<String>,
     pub(crate) contexts: BTreeSet<String>,
@@ -175,6 +178,7 @@ impl Floetask {
             calendar_hover: None,
             calendar_undated_open: false,
             calendar_undated_hover: false,
+            panel_overlay: None,
             summaries: Vec::new(),
             projects: BTreeSet::new(),
             contexts: BTreeSet::new(),
@@ -233,22 +237,52 @@ impl Floetask {
         f32::from(self.settings.zoom_percent) / 100.0
     }
 
-    /// The side panels to draw: the open ones, minus those the week view
+    /// The side panels to draw: the open ones, minus those the main view
     /// needs the room of (see `layout`).
     pub(crate) fn shown_panels(&self) -> crate::layout::Panels {
         let open = crate::layout::Panels {
             files: self.state.files_drawer_open,
             filters: self.state.drawer_open && self.active_document().is_some(),
-            undated: self.calendar_undated_open,
+            undated: self.calendar_undated_open && self.state.main_view == floetask_application::MainView::Calendar,
         };
-        let week = self.state.main_view == floetask_application::MainView::Calendar
-            && self.state.calendar_mode == floetask_domain::calendar::CalendarMode::Week;
-        if week {
-            let width = self.state.window.width / self.scale_factor();
-            crate::layout::fit(open, width, crate::layout::WEEK_MIN_WIDTH)
-        } else {
-            open
+        let width = self.state.window.width / self.scale_factor();
+        crate::layout::fit(open, width, crate::layout::MAIN_MIN_WIDTH)
+    }
+
+    /// Opens or closes a side panel from its button. A panel that is open
+    /// but hidden for lack of room is shown over the main view instead; the
+    /// next click hides that overlay again.
+    pub(crate) fn toggle_panel(&mut self, panel: crate::layout::Panel) -> Task<Message> {
+        use crate::layout::Panel;
+        if self.panel_overlay == Some(panel) {
+            self.panel_overlay = None;
+            return Task::none();
         }
+        let open = match panel {
+            Panel::Files => &mut self.state.files_drawer_open,
+            Panel::Filters => &mut self.state.drawer_open,
+        };
+        let opened = !*open;
+        let hidden = |app: &Self| {
+            let shown = app.shown_panels();
+            !match panel {
+                Panel::Files => shown.files,
+                Panel::Filters => shown.filters,
+            }
+        };
+        if !opened && hidden(self) {
+            // Open but squeezed out: the user asks to see it, not to close it.
+            self.panel_overlay = Some(panel);
+            return Task::none();
+        }
+        *match panel {
+            Panel::Files => &mut self.state.files_drawer_open,
+            Panel::Filters => &mut self.state.drawer_open,
+        } = opened;
+        if opened && hidden(self) {
+            self.panel_overlay = Some(panel);
+        }
+        self.persist_state()
     }
 
     pub fn view(&self) -> Element<'_, Message> {
@@ -380,6 +414,7 @@ impl Floetask {
             | M::CalendarOpenDay(_)
             | M::CalendarPress(..)
             | M::CalendarToggleUndated
+            | M::ClosePanelOverlay
             | M::CalendarHoverUndated(_)
             | M::CalendarHover(..)
             | M::CalendarRelease => self.update_calendar(message),

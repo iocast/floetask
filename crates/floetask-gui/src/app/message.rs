@@ -151,6 +151,8 @@ pub enum Message {
     CalendarPress(TodoRef, Option<Date>),
     /// Shows or hides the panel of todos without a due date.
     CalendarToggleUndated,
+    /// Hides a side panel shown over the main view (a click beside it).
+    ClosePanelOverlay,
     /// The cursor entered or left the undated panel.
     CalendarHoverUndated(bool),
     CalendarHover(Date, bool),

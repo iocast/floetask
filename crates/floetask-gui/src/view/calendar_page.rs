@@ -223,7 +223,7 @@ fn day_number<'a>(app: &Floetask, date: Date, in_month: bool, colors: Colors) ->
 
 const DAY_SPACING: f32 = 6.0;
 /// Narrowest a week column gets: the columns share the week's minimum width.
-const MIN_DAY_WIDTH: f32 = (crate::layout::WEEK_MIN_WIDTH - 6.0 * DAY_SPACING) / 7.0;
+const MIN_DAY_WIDTH: f32 = (crate::layout::MAIN_MIN_WIDTH - 6.0 * DAY_SPACING) / 7.0;
 
 /// Seven day columns listing every todo of the day, with board-size cards.
 fn week<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<'a, Message> {
@@ -233,7 +233,7 @@ fn week<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<
         // Columns shrink with the window down to the week's minimum width;
         // side panels close before that (see `layout`), so the week only
         // scrolls sideways in a window too small for it alone.
-        if size.width >= crate::layout::WEEK_MIN_WIDTH {
+        if size.width >= crate::layout::MAIN_MIN_WIDTH {
             week_row(app, &span, &days, Length::Fill)
         } else {
             let colors = app.colors();

@@ -49,6 +49,8 @@ Splash screens for: no file open (open/create buttons), file has no todos (add b
 - Compact mode (denser rows), toggle in settings and View menu.
 - Zoom 50–150 % in 10 % steps. iced: apply via the application `scale_factor`.
 - Disable animations toggle (relevant only if floetask adds animations).
+- The main view (list, board, calendar) is never narrower than 760 px. When the window is too narrow for it and the open side panels, panels hide in this order until it fits: the filter drawer, then the file drawer (then the calendar's undated panel). They come back when the window grows; their open or closed setting is kept.
+- Clicking the button of a hidden panel (or opening a closed one while there is no room) shows it over the main view on its own side instead of squeezing the view. A click beside it, the button again or `Escape` hides it.
 
 ## 3.7 Status board (P1)
 

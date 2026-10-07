@@ -37,7 +37,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
             tr("toggle_files"),
             Some(Message::ToggleFilesDrawer),
             colors,
-            app.state.files_drawer_open,
+            app.shown_panels().files || app.panel_overlay == Some(crate::layout::Panel::Files),
         ),
         container(crate::logo::view(22.0)).padding([0, 6]),
     ]
@@ -54,7 +54,9 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
             tr("toggle_drawer"),
             has_file.then_some(Message::ToggleDrawer),
             colors,
-            app.state.drawer_open || app.state.view.has_active_filters(),
+            app.shown_panels().filters
+                || app.panel_overlay == Some(crate::layout::Panel::Filters)
+                || app.state.view.has_active_filters(),
         ),
         icon_button(
             Icon::Settings,
