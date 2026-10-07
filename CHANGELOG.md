@@ -6,6 +6,11 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-07
+
+### Fixed
+- Windows: notifications now show floetask with its name and icon instead of Windows PowerShell
+
 ## [0.3.0] - 2026-10-07
 
 ### Added
@@ -51,7 +56,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/iocast/floetask/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/iocast/floetask/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/iocast/floetask/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/iocast/floetask/releases/tag/v0.2.1

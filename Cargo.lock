@@ -1177,7 +1177,7 @@ checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
 
 [[package]]
 name = "floetask-app"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "clap",
  "floetask-application",
@@ -1189,7 +1189,7 @@ dependencies = [
 
 [[package]]
 name = "floetask-application"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "floetask-domain",
  "thiserror 2.0.21",
@@ -1197,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "floetask-domain"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "chrono",
  "proptest",
@@ -1207,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "floetask-gui"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "floetask-application",
  "floetask-domain",
@@ -1220,7 +1220,7 @@ dependencies = [
 
 [[package]]
 name = "floetask-infrastructure"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "cargo-packager-updater",
  "chrono",
@@ -3700,7 +3700,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "render-logo"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "ico",
  "resvg",
