@@ -14,22 +14,67 @@
       <a class="button" href="{{ config.extra.repo }}">View on GitHub</a>
     </div>
     <p class="platforms">Windows · macOS · Linux · free and open source</p>
-    {% if extra.screenshots %}
     <figure class="hero-shot">
-      {% set first = extra.screenshots[0] %}
-      <a class="shot" href="{{ get_url(path='screenshots/' ~ first.file) }}" data-caption="{{ first.caption }}"><img src="{{ get_url(path='screenshots/' ~ first.file) }}" alt="{{ first.caption }}"></a>
+      <a class="shot" href="{{ get_url(path='screenshots/' ~ extra.hero.file) }}" data-caption="{{ extra.hero.caption }}"><img src="{{ get_url(path='screenshots/' ~ extra.hero.file) }}" alt="{{ extra.hero.caption }}"></a>
     </figure>
-    {% endif %}
   </div>
 </section>
 
-<section class="todo-line">
+<section id="plain-text" class="plain-text">
   <div class="wrap">
-    <p class="eyebrow">It is just a line of text</p>
+    <p class="eyebrow">Your data, your file</p>
+    <h2 class="big">{{ extra.plain.title }}</h2>
+    <p class="statement">{{ extra.plain.text }}</p>
     <pre><code><span class="pri">(A)</span> <span class="date">2026-10-06</span> Call the plumber <span class="proj">+house</span> <span class="ctx">@phone</span> <span class="kv">due:2026-10-08</span> <span class="kv">status:doing</span> <span class="kv">note:plumber.md</span></code></pre>
-    <p>floetask reads and writes the <a href="https://github.com/todotxt/todo.txt">todo.txt format</a>, so your list stays portable, scriptable and yours. Sync it with any cloud folder and edit it anywhere.</p>
+    <div class="pillars">
+      {% for p in extra.plain.pillars %}
+      <article>
+        <h3>{{ p.title }}</h3>
+        <p>{{ p.text }}</p>
+      </article>
+      {% endfor %}
+    </div>
   </div>
 </section>
+
+<section id="sync" class="sync">
+  <div class="wrap sync-inner">
+    <div class="sync-text">
+      <p class="eyebrow">Sync without a sync service</p>
+      <h2>{{ extra.sync.title }}</h2>
+      <p>{{ extra.sync.text }}</p>
+      <ul class="clouds">
+        {% for c in extra.sync.places %}<li>{{ c }}</li>{% endfor %}
+      </ul>
+    </div>
+    <div class="sync-diagram" aria-hidden="true">
+      <div class="device">Laptop<small>floetask</small></div>
+      <div class="device">Desktop<small>floetask</small></div>
+      <div class="device">Phone<small>any todo.txt app</small></div>
+      <div class="file">todo.txt<small>in your cloud folder</small></div>
+    </div>
+  </div>
+</section>
+
+{% for s in extra.showcases %}
+<section class="showcase{% if loop.index is even %} flip{% endif %}"{% if s.id %} id="{{ s.id }}"{% endif %}>
+  <div class="wrap showcase-inner">
+    <div class="showcase-text">
+      {% set f = s %}{% include "icon.html" %}
+      <h2>{{ s.title }}</h2>
+      <p>{{ s.text }}</p>
+      <ul>
+        {% for b in s.points %}<li>{{ b }}</li>{% endfor %}
+      </ul>
+    </div>
+    <div class="showcase-shots">
+      {% for i in s.images %}
+      <a class="shot{% if loop.first %} main{% endif %}" href="{{ get_url(path='screenshots/' ~ i.file) }}" data-caption="{{ i.caption }}"><img src="{{ get_url(path='screenshots/' ~ i.file) }}" alt="{{ i.caption }}" loading="lazy"></a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endfor %}
 
 <section id="features" class="features">
   <div class="wrap">
@@ -50,12 +95,12 @@
   <div class="wrap">
     <h2>A closer look</h2>
     <div class="gallery">
-      {% for s in extra.screenshots %}{% if not loop.first %}
+      {% for s in extra.screenshots %}
       <figure>
         <a class="shot" href="{{ get_url(path='screenshots/' ~ s.file) }}" data-caption="{{ s.caption }}"><img src="{{ get_url(path='screenshots/' ~ s.file) }}" alt="{{ s.caption }}" loading="lazy"></a>
         <figcaption>{{ s.caption }}</figcaption>
       </figure>
-      {% endif %}{% endfor %}
+      {% endfor %}
     </div>
   </div>
 </section>

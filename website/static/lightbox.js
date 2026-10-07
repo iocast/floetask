@@ -2,7 +2,9 @@
 // Without JavaScript the links still open the image itself.
 (function () {
   const dialog = document.querySelector(".lightbox");
-  const links = Array.from(document.querySelectorAll("a.shot"));
+  const anchors = Array.from(document.querySelectorAll("a.shot"));
+  // One carousel entry per image, even when the page shows an image twice.
+  const links = anchors.filter((a, i) => anchors.findIndex((b) => b.href === a.href) === i);
   if (!dialog || !links.length || typeof dialog.showModal !== "function") return;
 
   const img = dialog.querySelector("img");
@@ -19,10 +21,10 @@
     counter.textContent = links.length > 1 ? `${index + 1} / ${links.length}` : "";
   }
 
-  links.forEach((link, i) => {
+  anchors.forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      show(i);
+      show(links.findIndex((l) => l.href === link.href));
       dialog.showModal();
     });
   });

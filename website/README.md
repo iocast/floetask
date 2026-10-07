@@ -18,7 +18,7 @@ The deploy workflow pins Zola 0.23.6. Templates use that version's syntax, so us
 | Path | What |
 |---|---|
 | `config.toml` | Site settings. `base_url` and `extra.repo` (the GitHub repository the download links point to) |
-| `content/_index.md` | The page text: tagline, lead, feature cards, screenshots and download cards, all in the `[extra]` front matter |
+| `content/_index.md` | The page text, all in the `[extra]` front matter: tagline, hero image, the plain text and sync sections, the showcases (calendar, board, search), feature cards, gallery and download cards |
 | `templates/base.html` | Page frame: head, navigation, footer |
 | `templates/index.html` | The landing page sections |
 | `templates/icon.html` | The feature card icons, picked by the card's `icon` name |
@@ -29,7 +29,7 @@ The deploy workflow pins Zola 0.23.6. Templates use that version's syntax, so us
 
 - **Text or features:** edit `content/_index.md`. A new feature card needs an `icon` that `templates/icon.html` knows.
 - **Logo:** copy `../assets/logo.svg` and `../assets/icon-256.png` into `static/`.
-- **Screenshots:** they come from the GUI snapshot tests. Run `FLOETASK_SNAPSHOTS=/some/dir cargo test -p floetask-gui` from the repository root and copy `list`, `board`, `editor` and `dark` from that folder into `static/screenshots/` (drop the `-wgpu` suffix).
+- **Screenshots:** they come from the GUI snapshot tests. Run `FLOETASK_SNAPSHOTS=/some/dir cargo test -p floetask-gui` from the repository root and copy the files into `static/screenshots/` without the `-wgpu` suffix. The ones under other names: `readme-sorting` is `board-grouped-dark`, `filter-overlay` is `drawer-attributes`, `readme-filters` is `drawer-filters`, `settings-appearance` is `settings`.
 
 ## Deploy
 
