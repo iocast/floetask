@@ -322,7 +322,7 @@ a.shot { display: block; cursor: zoom-in; }
 .sync-diagram small { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .sync-diagram .file {
   grid-column: 1 / -1;
-  margin-top: 36px;
+  margin-top: 64px;
   color: #fff;
   border: 0;
   background: linear-gradient(120deg, var(--indigo), var(--cyan));
@@ -334,8 +334,8 @@ a.shot { display: block; cursor: zoom-in; }
   position: absolute;
   left: 16%;
   right: 16%;
-  top: 102px;
-  height: 36px;
+  top: 108px;
+  height: 56px;
   border: 2px dashed var(--indigo);
   border-top: 0;
   border-radius: 0 0 14px 14px;
@@ -379,7 +379,8 @@ a.shot { display: block; cursor: zoom-in; }
 .orb-b { width: 360px; height: 360px; right: -100px; top: 220px; background: var(--cyan); }
 .orb-c { width: 240px; height: 240px; left: 55%; top: 620px; background: #a78bfa; opacity: 0.25; }
 .orb-d { width: 300px; height: 300px; right: 8%; bottom: -80px; background: var(--cyan); opacity: 0.2; }
-.plain-text .orb-a { opacity: 0.18; }
+.plain-text .orb-a { opacity: 0.3; top: 120px; }
+.plain-text .orb-d { opacity: 0.3; }
 
 .parallax [data-parallax] { transform: translate3d(0, var(--py, 0px), 0); will-change: transform; }
 
@@ -387,6 +388,20 @@ a.shot { display: block; cursor: zoom-in; }
   transform-origin: 50% 0;
   transform: perspective(1600px) rotateX(calc(var(--tilt, 0) * 16deg)) scale(calc(1 - var(--tilt, 0) * 0.06));
   will-change: transform;
+}
+
+// Cards and pictures rise into place as they scroll into view (parallax.js adds .in).
+.parallax .reveal {
+  opacity: 0;
+  transform: translate3d(0, 48px, 0) scale(0.97);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+.parallax .reveal.in { opacity: 1; transform: none; }
+
+// One column on small screens: text and pictures stack, so they must not drift apart.
+@media (max-width: 860px) {
+  .parallax .showcase [data-parallax] { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

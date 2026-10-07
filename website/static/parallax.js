@@ -19,7 +19,9 @@
     for (const { el, speed, inHero } of layers) {
       const rect = el.parentElement.getBoundingClientRect();
       if (rect.bottom < -200 || rect.top > window.innerHeight + 200) continue;
-      const offset = inHero ? window.scrollY * speed : (rect.top + rect.height / 2 - middle) * speed;
+      // Distance from the middle of the window, capped so tall sections do not drift far.
+      const distance = Math.max(-middle, Math.min(middle, rect.top + rect.height / 2 - middle));
+      const offset = inHero ? window.scrollY * speed : distance * speed;
       el.style.setProperty("--py", `${offset.toFixed(1)}px`);
     }
     if (tilt) {
@@ -34,6 +36,30 @@
     if (!queued) {
       queued = true;
       requestAnimationFrame(update);
+    }
+  }
+
+  // Reveal: cards and pictures rise into place the first time they scroll into view.
+  // Each group staggers per row: [selector, items per row].
+  const groups = [[".pillars article", 3], [".clouds li", 8], [".features .card", 5], [".gallery figure", 4]];
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in");
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px" },
+    );
+    for (const [selector, perRow] of groups) {
+      document.querySelectorAll(selector).forEach((el, i) => {
+        el.classList.add("reveal");
+        el.style.setProperty("--i", i % perRow);
+        observer.observe(el);
+      });
     }
   }
 
