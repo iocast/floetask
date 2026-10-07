@@ -7,6 +7,7 @@
 mod app;
 mod compose;
 mod i18n;
+mod layout;
 mod logo;
 mod theme;
 mod view;

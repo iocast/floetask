@@ -11,7 +11,7 @@ use crate::app::{Floetask, Message};
 use crate::i18n::tr;
 use crate::theme::{self, Colors};
 
-const WIDTH: f32 = 248.0;
+const WIDTH: f32 = crate::layout::FILES_DRAWER_WIDTH;
 
 /// The left drawer: new todo, the registered files with their menus, and
 /// open / create at the bottom.

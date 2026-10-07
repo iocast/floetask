@@ -12,6 +12,7 @@ A third way to show the active file, next to the list and the status board: todo
 
 - The header shows the period ("October 2026", "5 – 11 Oct 2026", "Tuesday, 6 October 2026"), **previous** / **today** / **next** buttons and the mode switch.
 - Today is highlighted in every mode.
+- The week view is never narrower than 760 px; its columns shrink with the window down to that. When the window is too narrow for the week and the open side panels, panels hide in this order until it fits: the filter drawer, the file drawer, the undated panel. They come back when the window grows again; their open or closed setting is kept.
 - The mode is remembered in `state.toml`; the calendar always opens on today.
 
 ## 18.2 What is shown

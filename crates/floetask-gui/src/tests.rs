@@ -1036,3 +1036,35 @@ fn undated_panel_lists_todos_without_due_date_and_plans_them() {
     assert_eq!(legal.todo.due(), Some(day));
     assert!(simulator(app.view()).find("1 without a due date").is_ok());
 }
+
+#[test]
+fn week_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
+    use floetask_application::MainView;
+    use floetask_domain::calendar::CalendarMode;
+
+    let mut app = app();
+    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let _ = app.update(Message::CalendarToggleUndated);
+    let open = |app: &Floetask| {
+        let shown = app.shown_panels();
+        (shown.filters, shown.files, shown.undated)
+    };
+
+    // The month view keeps every open panel.
+    app.state.window.width = 1000.0;
+    assert_eq!(open(&app), (true, true, true));
+
+    let _ = app.update(Message::CalendarMode(CalendarMode::Week));
+    app.state.window.width = 1700.0;
+    assert_eq!(open(&app), (true, true, true));
+    app.state.window.width = 1500.0;
+    assert_eq!(open(&app), (false, true, true), "filter drawer closes first");
+    app.state.window.width = 1200.0;
+    assert_eq!(open(&app), (false, false, true), "then the file drawer");
+    // The user's choice is kept for when the window grows again.
+    assert!(app.state.drawer_open && app.state.files_drawer_open);
+
+    app.state.window.width = 1024.0;
+    snapshot(&app, "calendar-week-narrow");
+}

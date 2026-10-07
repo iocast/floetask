@@ -233,6 +233,24 @@ impl Floetask {
         f32::from(self.settings.zoom_percent) / 100.0
     }
 
+    /// The side panels to draw: the open ones, minus those the week view
+    /// needs the room of (see `layout`).
+    pub(crate) fn shown_panels(&self) -> crate::layout::Panels {
+        let open = crate::layout::Panels {
+            files: self.state.files_drawer_open,
+            filters: self.state.drawer_open && self.active_document().is_some(),
+            undated: self.calendar_undated_open,
+        };
+        let week = self.state.main_view == floetask_application::MainView::Calendar
+            && self.state.calendar_mode == floetask_domain::calendar::CalendarMode::Week;
+        if week {
+            let width = self.state.window.width / self.scale_factor();
+            crate::layout::fit(open, width, crate::layout::WEEK_MIN_WIDTH)
+        } else {
+            open
+        }
+    }
+
     pub fn view(&self) -> Element<'_, Message> {
         crate::view::root(self)
     }

@@ -13,7 +13,7 @@ use crate::app::{Floetask, Message, ViewToggle};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
 
-const WIDTH: f32 = 300.0;
+const WIDTH: f32 = crate::layout::FILTER_DRAWER_WIDTH;
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();

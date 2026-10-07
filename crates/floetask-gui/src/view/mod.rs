@@ -44,13 +44,14 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
     }
     main = main.push(body(app));
 
+    let shown = app.shown_panels();
     let mut content = row![].spacing(12).height(Fill);
-    if app.state.files_drawer_open {
+    if shown.files {
         content = content.push(files::drawer(app));
     }
     // Clipped, so a wide list or board can never draw under the drawers.
     content = content.push(container(main).width(Fill).height(Fill).clip(true));
-    if app.state.drawer_open && app.active_document().is_some() {
+    if shown.filters {
         content = content.push(drawer::view(app));
     }
 

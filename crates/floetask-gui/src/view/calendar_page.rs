@@ -34,7 +34,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         CalendarMode::Week => week(app, &span, &days),
         CalendarMode::Day => day(app, app.calendar_anchor, days.get(&app.calendar_anchor)),
     };
-    let body: Element<'_, Message> = if app.calendar_undated_open {
+    let body: Element<'_, Message> = if app.shown_panels().undated {
         row![container(body).width(Fill), undated_panel(app)]
             .spacing(12)
             .height(Fill)
@@ -221,18 +221,19 @@ fn day_number<'a>(app: &Floetask, date: Date, in_month: bool, colors: Colors) ->
     .into()
 }
 
-/// Narrowest a week column gets before the week scrolls sideways, as on
-/// the board: cards stay readable instead of squeezing their chips.
-const MIN_DAY_WIDTH: f32 = 200.0;
 const DAY_SPACING: f32 = 6.0;
+/// Narrowest a week column gets: the columns share the week's minimum width.
+const MIN_DAY_WIDTH: f32 = (crate::layout::WEEK_MIN_WIDTH - 6.0 * DAY_SPACING) / 7.0;
 
 /// Seven day columns listing every todo of the day, with board-size cards.
 fn week<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<'a, Message> {
     let span = *span;
     let days = days.clone();
     responsive(move |size| {
-        let needed = 7.0 * MIN_DAY_WIDTH + 6.0 * DAY_SPACING;
-        if size.width >= needed {
+        // Columns shrink with the window down to the week's minimum width;
+        // side panels close before that (see `layout`), so the week only
+        // scrolls sideways in a window too small for it alone.
+        if size.width >= crate::layout::WEEK_MIN_WIDTH {
             week_row(app, &span, &days, Length::Fill)
         } else {
             let colors = app.colors();
@@ -405,7 +406,7 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
 }
 
 /// Width of the panel listing todos without a due date.
-const UNDATED_WIDTH: f32 = 300.0;
+const UNDATED_WIDTH: f32 = crate::layout::UNDATED_PANEL_WIDTH;
 
 /// The todos without a due date, as cards to drag onto a day or to give a
 /// date with the picker.
