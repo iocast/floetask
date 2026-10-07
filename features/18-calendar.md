@@ -17,7 +17,8 @@ A third way to show the active file, next to the list and the status board: todo
 ## 18.2 What is shown
 
 - The same todos as the list: the search, the drawer filters and the view toggles (completed, hidden, threshold, someday) apply.
-- Each todo appears on the day of its `due:` date. Todos without a due date are not on the calendar; the header says how many are left out.
+- Each todo appears on the day of its `due:` date. Open todos without a due date are not on the calendar; the header says how many there are.
+- Clicking that count opens a panel beside the calendar listing those todos as cards. Each card can be dragged onto a day, or given a date with **Set due date**; either sets only its `due:`. Clicking a card opens it.
 - Month cells show up to three todos and "+N more"; clicking the day number or "+N more" opens that day in Day mode. Week columns and the Day view list every todo of the day.
 - Each entry shows the priority accent and the todo text; completed todos are struck through.
 

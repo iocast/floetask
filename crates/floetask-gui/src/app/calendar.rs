@@ -40,7 +40,19 @@ impl Floetask {
             }
             Message::CalendarPress(target, day) => {
                 self.calendar_drag = Some((target, day));
-                self.calendar_hover = Some(day);
+                self.calendar_hover = day;
+                self.calendar_undated_hover = day.is_none();
+                Task::none()
+            }
+            Message::CalendarToggleUndated => {
+                self.calendar_undated_open = !self.calendar_undated_open;
+                Task::none()
+            }
+            Message::CalendarHoverUndated(inside) => {
+                self.calendar_undated_hover = inside;
+                if inside {
+                    self.calendar_hover = None;
+                }
                 Task::none()
             }
             Message::CalendarHover(day, entered) => {
@@ -58,20 +70,20 @@ impl Floetask {
         }
     }
 
-    /// Ends a drag. Released on another day, the todo's `due:` moves there;
-    /// released on its own day, it was a click and opens the todo.
+    /// Ends a drag. Released on another day, the todo's `due:` moves there
+    /// (or is set, for a todo from the undated panel); released where it was
+    /// picked up, it was a click and opens the todo.
     fn drop_on_day(&mut self) -> Task<Message> {
         let Some((target, from)) = self.calendar_drag.take() else {
             return Task::none();
         };
-        let Some(day) = self.calendar_hover else {
-            return Task::none();
-        };
-        if day == from {
-            return self.update(Message::OpenTodo(target));
+        match (from, self.calendar_hover) {
+            (Some(from), Some(day)) if from == day => self.update(Message::OpenTodo(target)),
+            (None, None) if self.calendar_undated_hover => self.update(Message::OpenTodo(target)),
+            (_, Some(day)) => self.change_active_file(move |service, path, options| {
+                service.set_date(path, &target, "due", Some(day), options)
+            }),
+            _ => Task::none(),
         }
-        self.change_active_file(move |service, path, options| {
-            service.set_date(path, &target, "due", Some(day), options)
-        })
     }
 }

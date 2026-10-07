@@ -99,8 +99,11 @@ pub struct Floetask {
     /// The day the calendar is centred on.
     pub(crate) calendar_anchor: Date,
     /// A todo being dragged on the calendar, with the day it came from.
-    pub(crate) calendar_drag: Option<(TodoRef, Date)>,
+    pub(crate) calendar_drag: Option<(TodoRef, Option<Date>)>,
     pub(crate) calendar_hover: Option<Date>,
+    /// The panel listing todos without a due date is open.
+    pub(crate) calendar_undated_open: bool,
+    pub(crate) calendar_undated_hover: bool,
     pub(crate) summaries: Vec<AttributeSummary>,
     pub(crate) projects: BTreeSet<String>,
     pub(crate) contexts: BTreeSet<String>,
@@ -170,6 +173,8 @@ impl Floetask {
             calendar_anchor: today,
             calendar_drag: None,
             calendar_hover: None,
+            calendar_undated_open: false,
+            calendar_undated_hover: false,
             summaries: Vec::new(),
             projects: BTreeSet::new(),
             contexts: BTreeSet::new(),
@@ -356,6 +361,8 @@ impl Floetask {
             | M::CalendarToday
             | M::CalendarOpenDay(_)
             | M::CalendarPress(..)
+            | M::CalendarToggleUndated
+            | M::CalendarHoverUndated(_)
             | M::CalendarHover(..)
             | M::CalendarRelease => self.update_calendar(message),
             M::ToggleMainView

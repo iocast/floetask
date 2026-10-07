@@ -146,8 +146,13 @@ pub enum Message {
     CalendarToday,
     /// Opens one day in Day mode.
     CalendarOpenDay(Date),
-    /// A todo is pressed on a day: the start of a drag or a click.
-    CalendarPress(TodoRef, Date),
+    /// A todo is pressed on a day, or in the undated panel (`None`): the
+    /// start of a drag or a click.
+    CalendarPress(TodoRef, Option<Date>),
+    /// Shows or hides the panel of todos without a due date.
+    CalendarToggleUndated,
+    /// The cursor entered or left the undated panel.
+    CalendarHoverUndated(bool),
     CalendarHover(Date, bool),
     CalendarRelease,
     /// Turns the board's one-board-per-group layout on or off.

@@ -93,13 +93,14 @@ pub fn todos_by_day<'a>(
     days
 }
 
-/// How many of `todos` have no due date and so are not on any calendar.
-pub fn undated<'a>(todos: impl IntoIterator<Item = &'a ListedTodo>) -> usize {
+/// The open todos without a due date, which no calendar day shows, each
+/// once and in the order they come in. Completed ones need no planning.
+pub fn undated<'a>(todos: impl IntoIterator<Item = &'a ListedTodo>) -> Vec<&'a ListedTodo> {
     let mut seen = BTreeSet::new();
     todos
         .into_iter()
-        .filter(|entry| entry.todo.due().is_none() && seen.insert(entry.line))
-        .count()
+        .filter(|entry| entry.todo.due().is_none() && !entry.todo.is_complete() && seen.insert(entry.line))
+        .collect()
 }
 
 #[cfg(test)]
@@ -147,6 +148,7 @@ mod tests {
             listed(1, "Call mom due:2026-10-06"),
             listed(2, "Plan trip due:2026-12-24"),
             listed(3, "Someday maybe"),
+            listed(5, "x 2026-10-01 Done already"),
             listed(4, "Dentist due:2026-10-06"),
             // The same todo again, as a grouped list repeats it.
             listed(1, "Call mom due:2026-10-06"),
@@ -158,6 +160,6 @@ mod tests {
         assert_eq!(lines("2026-10-06"), [1, 4]);
         assert_eq!(lines("2026-10-01"), [0]);
         assert_eq!(days.len(), 2);
-        assert_eq!(undated(&todos), 1);
+        assert_eq!(undated(&todos).iter().map(|entry| entry.line).collect::<Vec<_>>(), [3]);
     }
 }

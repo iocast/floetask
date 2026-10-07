@@ -14,10 +14,10 @@ use floetask_domain::calendar::{CalendarMode, CalendarSpan, todos_by_day, undate
 use floetask_domain::date::{Datelike, first_of_month};
 use floetask_domain::listing::ListedTodo;
 
-use super::icons::Icon;
+use super::icons::{Icon, icon};
 use super::list::{body, meta};
 use super::widgets::{icon_button, with_tooltip};
-use crate::app::{Floetask, Message};
+use crate::app::{DateKey, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
 
@@ -33,6 +33,14 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         CalendarMode::Month => month(app, &span, &days),
         CalendarMode::Week => week(app, &span, &days),
         CalendarMode::Day => day(app, app.calendar_anchor, days.get(&app.calendar_anchor)),
+    };
+    let body: Element<'_, Message> = if app.calendar_undated_open {
+        row![container(body).width(Fill), undated_panel(app)]
+            .spacing(12)
+            .height(Fill)
+            .into()
+    } else {
+        body
     };
     let mut calendar =
         mouse_area(column![header(app, &span), body].spacing(12).height(Fill)).on_release(Message::CalendarRelease);
@@ -71,12 +79,21 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
     .spacing(8)
     .align_y(Alignment::Center);
 
-    let undated = undated(app.listing.todos());
-    let note: Element<'a, Message> = if undated > 0 {
-        text(trf("calendar_undated", &[&undated]))
-            .size(12)
-            .color(colors.muted)
-            .into()
+    // Opens the panel of todos without a due date, to plan them.
+    let undated = undated(app.listing.todos()).len();
+    let note: Element<'a, Message> = if undated > 0 || app.calendar_undated_open {
+        button(
+            row![
+                icon(Icon::Calendar, 14.0, colors.muted),
+                text(trf("calendar_undated", &[&undated])).size(12)
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        )
+        .padding([6, 10])
+        .style(theme::ghost(colors, app.calendar_undated_open))
+        .on_press(Message::CalendarToggleUndated)
+        .into()
     } else {
         space().into()
     };
@@ -252,7 +269,7 @@ fn week_row<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>, width: 
         .style(theme::ghost(colors, false))
         .on_press(Message::CalendarOpenDay(date));
         let todos = days.get(&date).map(Vec::as_slice).unwrap_or_default();
-        let entries = Column::with_children(todos.iter().map(|entry| card(app, date, entry, colors)))
+        let entries = Column::with_children(todos.iter().map(|entry| card(app, Some(date), entry, colors)))
             .spacing(8)
             .padding(iced::padding::right(6))
             .width(Fill);
@@ -281,7 +298,7 @@ fn day<'a>(app: &'a Floetask, date: Date, todos: Option<&Vec<&'a ListedTodo>>) -
             .into()
     } else {
         scrollable(
-            Column::with_children(todos.iter().map(|entry| card(app, date, entry, colors)))
+            Column::with_children(todos.iter().map(|entry| card(app, Some(date), entry, colors)))
                 .spacing(8)
                 .padding(iced::padding::right(8)),
         )
@@ -301,7 +318,8 @@ fn drop_zone<'a>(
     in_month: bool,
 ) -> Element<'a, Message> {
     let colors = app.colors();
-    let target = app.calendar_drag.as_ref().is_some_and(|(_, from)| *from != date) && app.calendar_hover == Some(date);
+    let target =
+        app.calendar_drag.as_ref().is_some_and(|(_, from)| *from != Some(date)) && app.calendar_hover == Some(date);
     mouse_area(content.style(theme::calendar_day(colors, in_month, target)))
         .on_enter(Message::CalendarHover(date, true))
         .on_exit(Message::CalendarHover(date, false))
@@ -312,6 +330,7 @@ fn drop_zone<'a>(
 /// with the priority accent and the todo text cut at the cell's edge. The
 /// whole text shows in a tooltip.
 fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
+    let from = Some(date);
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);
     let accent = match todo.priority() {
@@ -335,13 +354,14 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
             .clip(true)
             .style(theme::board_card(colors, is_dragged(app, entry))),
     )
-    .on_press(Message::CalendarPress(target, date))
+    .on_press(Message::CalendarPress(target, from))
     .interaction(mouse::Interaction::Grab);
     with_tooltip(card, todo.display_text(), colors)
 }
 
-/// A full todo card for the Week and Day views, the size of a board card.
-fn card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
+/// A full todo card for the Week and Day views and the undated panel, the
+/// size of a board card. `from` is the day it sits on, `None` in the panel.
+fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);
     let accent = match todo.priority() {
@@ -351,6 +371,21 @@ fn card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors
     let mut details = column![body(app, todo, colors)].spacing(6).width(Fill);
     if let Some(meta) = meta(app, todo, &target, None, true, colors) {
         details = details.push(meta);
+    }
+    if from.is_none() {
+        details = details.push(
+            button(
+                row![
+                    icon(Icon::Calendar, 12.0, colors.primary),
+                    text(tr("calendar_set_due")).size(12)
+                ]
+                .spacing(4)
+                .align_y(Alignment::Center),
+            )
+            .padding([2, 8])
+            .style(theme::chip(colors.primary, colors, false))
+            .on_press(Message::OpenRowDatePicker(target.clone(), DateKey::Due)),
+        );
     }
     let content = row![
         container(space()).width(3).height(20).style(theme::accent(accent)),
@@ -364,8 +399,53 @@ fn card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors
             .clip(true)
             .style(theme::board_card(colors, is_dragged(app, entry))),
     )
-    .on_press(Message::CalendarPress(target, date))
+    .on_press(Message::CalendarPress(target, from))
     .interaction(mouse::Interaction::Grab)
+    .into()
+}
+
+/// Width of the panel listing todos without a due date.
+const UNDATED_WIDTH: f32 = 300.0;
+
+/// The todos without a due date, as cards to drag onto a day or to give a
+/// date with the picker.
+fn undated_panel(app: &Floetask) -> Element<'_, Message> {
+    let colors = app.colors();
+    let todos = undated(app.listing.todos());
+    let header = row![
+        text(tr("calendar_undated_title")).size(15).width(Fill),
+        text(todos.len().to_string()).size(12).color(colors.muted),
+        icon_button(
+            Icon::Close,
+            tr("close"),
+            Some(Message::CalendarToggleUndated),
+            colors,
+            false
+        ),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let cards = Column::with_children(todos.into_iter().map(|entry| card(app, None, entry, colors)))
+        .spacing(8)
+        .padding(iced::padding::right(6));
+    let content = column![
+        header,
+        text(tr("calendar_undated_hint")).size(12).color(colors.muted),
+        scrollable(cards)
+            .direction(theme::thin_scrollbar())
+            .style(theme::slim_scroller(colors))
+            .height(Fill),
+    ]
+    .spacing(10);
+    mouse_area(
+        container(content)
+            .padding(12)
+            .width(UNDATED_WIDTH)
+            .height(Fill)
+            .style(theme::lane(colors, false)),
+    )
+    .on_enter(Message::CalendarHoverUndated(true))
+    .on_exit(Message::CalendarHoverUndated(false))
     .into()
 }
 

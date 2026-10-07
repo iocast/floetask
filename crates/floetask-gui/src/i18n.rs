@@ -112,7 +112,10 @@ fn english(key: &str) -> Option<&'static str> {
         "calendar_previous" => "Previous",
         "calendar_next" => "Next",
         "calendar_more" => "+{} more",
-        "calendar_undated" => "{} without a due date not shown",
+        "calendar_undated" => "{} without a due date",
+        "calendar_undated_title" => "Without due date",
+        "calendar_undated_hint" => "Drag a todo onto a day, or set its date here.",
+        "calendar_set_due" => "Set due date",
         "calendar_empty_day" => "Nothing due this day.",
         // About and updates
         "section_about" => "About",

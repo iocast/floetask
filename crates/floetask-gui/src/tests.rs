@@ -965,14 +965,14 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
     let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
     let target = TodoRef::new(slides.line, &slides.todo);
     let due = slides.todo.due().unwrap();
-    let _ = app.update(Message::CalendarPress(target.clone(), due));
+    let _ = app.update(Message::CalendarPress(target.clone(), Some(due)));
     let _ = app.update(Message::CalendarRelease);
     assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
     let _ = app.update(Message::CloseDialog);
 
     // Dropped on another day, only the due date changes.
     let next_day = floetask_domain::date::add_days(due, 2);
-    let _ = app.update(Message::CalendarPress(target.clone(), due));
+    let _ = app.update(Message::CalendarPress(target.clone(), Some(due)));
     let _ = app.update(Message::CalendarHover(next_day, true));
     let _ = app.update(Message::CalendarHover(due, false));
     assert_eq!(app.calendar_hover, Some(next_day));
@@ -993,4 +993,46 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
     assert_eq!(app.state.calendar_mode, CalendarMode::Day);
     assert!(simulator(app.view()).find("Prepare slides").is_ok());
     snapshot(&app, "calendar-day");
+}
+
+#[test]
+fn undated_panel_lists_todos_without_due_date_and_plans_them() {
+    use floetask_application::MainView;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let messages = click(&app, "2 without a due date");
+    assert!(
+        matches!(&messages[..], [Message::CalendarToggleUndated]),
+        "{messages:?}"
+    );
+    let _ = app.update(Message::CalendarToggleUndated);
+    assert!(app.calendar_undated_open);
+    assert!(simulator(app.view()).find("Without due date").is_ok());
+    assert!(simulator(app.view()).find("Legal review").is_ok());
+    snapshot(&app, "calendar-undated");
+
+    // A click on a card in the panel opens it.
+    let legal = app.listing.todos().find(|e| e.todo.body() == "Legal review").unwrap();
+    let target = TodoRef::new(legal.line, &legal.todo);
+    let _ = app.update(Message::CalendarPress(target.clone(), None));
+    let _ = app.update(Message::CalendarRelease);
+    assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
+    let _ = app.update(Message::CloseDialog);
+
+    // Dragged onto a day, it gets that due date.
+    let day = app.today;
+    let _ = app.update(Message::CalendarPress(target.clone(), None));
+    let _ = app.update(Message::CalendarHoverUndated(false));
+    let _ = app.update(Message::CalendarHover(day, true));
+    let _ = app.update(Message::CalendarRelease);
+    assert!(app.calendar_drag.is_none());
+    let moved = app
+        .services
+        .todo_files
+        .set_date(Path::new(TODO_PATH), &target, "due", Some(day), &app.file_options());
+    let _ = app.update(Message::Saved(PathBuf::from(TODO_PATH), moved));
+    let legal = app.listing.todos().find(|e| e.todo.body() == "Legal review").unwrap();
+    assert_eq!(legal.todo.due(), Some(day));
+    assert!(simulator(app.view()).find("1 without a due date").is_ok());
 }
