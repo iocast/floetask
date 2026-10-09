@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::SettingsStore;
-use floetask_application::{AppError, Settings, ThemePreference, WatcherOptions};
+use floetask_application::{AppError, MonthOverflow, Settings, ThemePreference, WatcherOptions};
 use floetask_domain::board::BoardColumns;
 use floetask_domain::{StatusSet, WeekStart};
 
@@ -58,6 +58,8 @@ struct SettingsFile {
     theme: String,
     /// `monday`, `saturday` or `sunday`.
     week_start: String,
+    /// `more` or `scroll`: what a full calendar month cell does.
+    month_overflow: String,
     language: String,
     exclude_lines_with_prefix: Vec<String>,
     watcher: WatcherFile,
@@ -149,6 +151,11 @@ impl From<&Settings> for SettingsFile {
                 WeekStart::Sunday => "sunday",
             }
             .to_owned(),
+            month_overflow: match s.month_overflow {
+                MonthOverflow::More => "more",
+                MonthOverflow::Scroll => "scroll",
+            }
+            .to_owned(),
             language: s.language.clone(),
             exclude_lines_with_prefix: s.exclude_lines_with_prefix.clone(),
             watcher: WatcherFile {
@@ -193,6 +200,10 @@ impl From<SettingsFile> for Settings {
                 "sunday" => WeekStart::Sunday,
                 _ => WeekStart::Monday,
             },
+            month_overflow: match f.month_overflow.as_str() {
+                "scroll" => MonthOverflow::Scroll,
+                _ => MonthOverflow::More,
+            },
             language: f.language,
             exclude_lines_with_prefix: f.exclude_lines_with_prefix,
             watcher: WatcherOptions {
@@ -224,6 +235,7 @@ mod tests {
             compact: true,
             theme: ThemePreference::Dark,
             week_start: WeekStart::Sunday,
+            month_overflow: MonthOverflow::Scroll,
             exclude_lines_with_prefix: vec!["##".into()],
             ..Settings::default()
         };

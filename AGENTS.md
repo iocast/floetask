@@ -8,7 +8,7 @@ Dependencies point inward only. Cargo enforces this: a crate cannot use a layer 
 
 ```
 floetask-app ──► floetask-gui ──► floetask-application ──► floetask-domain
-     │                               ▲
+     │                                 ▲
      └──────► floetask-infrastructure ─┘
 ```
 

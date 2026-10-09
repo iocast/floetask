@@ -62,6 +62,7 @@ notification_threshold_days = 2 # 0-10
 zoom_percent = 100              # 50-150
 theme = "system"                # system, light, dark
 week_start = "monday"           # monday, saturday, sunday
+month_overflow = "more"         # full calendar month cells: more (+N more), scroll
 language = "system"
 exclude_lines_with_prefix = ["##"]
 

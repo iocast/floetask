@@ -14,6 +14,16 @@ pub enum ThemePreference {
     Dark,
 }
 
+/// What a calendar month cell does with more todos than fit in it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MonthOverflow {
+    /// Show the todos that fit and "+N more", which opens the day.
+    #[default]
+    More,
+    /// List every todo and let the cell scroll.
+    Scroll,
+}
+
 /// How todo files are watched for external changes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WatcherOptions {
@@ -52,6 +62,7 @@ pub struct Settings {
     pub zoom_percent: u16,
     pub theme: ThemePreference,
     pub week_start: WeekStart,
+    pub month_overflow: MonthOverflow,
     /// `system` or a language code such as `en`.
     pub language: String,
     /// Lines starting with one of these are ignored and preserved.
@@ -80,6 +91,7 @@ impl Default for Settings {
             zoom_percent: 100,
             theme: ThemePreference::System,
             week_start: WeekStart::Monday,
+            month_overflow: MonthOverflow::More,
             language: "system".to_owned(),
             exclude_lines_with_prefix: Vec::new(),
             watcher: WatcherOptions::default(),

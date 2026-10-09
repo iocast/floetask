@@ -207,6 +207,7 @@ pub enum SettingChange {
     Zoom(u16),
     Theme(floetask_application::ThemePreference),
     WeekStart(floetask_domain::WeekStart),
+    MonthOverflow(floetask_application::MonthOverflow),
     StatusAdd(String),
     StatusRemove(String),
     StatusMove(usize, isize),

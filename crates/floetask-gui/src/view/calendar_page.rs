@@ -10,7 +10,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
-use floetask_application::TodoRef;
+use floetask_application::{MonthOverflow, TodoRef};
 use floetask_domain::Date;
 use floetask_domain::calendar::{CalendarMode, CalendarSpan, todos_by_day, undated};
 use floetask_domain::date::{Datelike, first_of_month};
@@ -23,8 +23,6 @@ use crate::app::{DateKey, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
 
-/// Todos a month cell shows before "+N more".
-const MONTH_CELL_TODOS: usize = 3;
 const WEEKDAYS: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
@@ -171,26 +169,93 @@ fn weekday_names<'a>(app: &Floetask, colors: Colors) -> Element<'a, Message> {
     .into()
 }
 
+/// The day number above the day's todos. When they do not all fit, the
+/// cell either shows as many as fit and "+N more", or scrolls, as set in
+/// `month_overflow`.
 fn month_cell<'a>(app: &'a Floetask, date: Date, in_month: bool, todos: &[&'a ListedTodo]) -> Element<'a, Message> {
+    let todos = todos.to_vec();
+    let content: Element<'a, Message> = match app.settings.month_overflow {
+        MonthOverflow::Scroll => month_cell_scrolling(app, date, in_month, &todos),
+        MonthOverflow::More => responsive(move |size| {
+            let shown = todos_that_fit(size.height, todos.len());
+            month_cell_entries(app, date, in_month, &todos, shown)
+        })
+        .into(),
+    };
+    drop_zone(
+        app,
+        date,
+        container(content).padding(6).width(Fill).height(Fill).clip(true),
+        in_month,
+    )
+}
+
+fn month_cell_scrolling<'a>(
+    app: &'a Floetask,
+    date: Date,
+    in_month: bool,
+    todos: &[&'a ListedTodo],
+) -> Element<'a, Message> {
     let colors = app.colors();
-    let mut entries = Column::new().spacing(4).push(day_number(app, date, in_month, colors));
-    for entry in todos.iter().take(MONTH_CELL_TODOS) {
+    let entries = Column::with_children(todos.iter().map(|entry| compact_card(app, date, entry, colors)))
+        .spacing(CELL_SPACING)
+        .padding(iced::padding::right(6))
+        .width(Fill);
+    column![
+        day_number(app, date, in_month, colors),
+        scrollable(entries)
+            .direction(theme::thin_scrollbar())
+            .style(theme::slim_scroller(colors))
+            .height(Fill)
+    ]
+    .spacing(CELL_SPACING)
+    .into()
+}
+
+/// The first `shown` todos and "+N more" for the rest.
+fn month_cell_entries<'a>(
+    app: &'a Floetask,
+    date: Date,
+    in_month: bool,
+    todos: &[&'a ListedTodo],
+    shown: usize,
+) -> Element<'a, Message> {
+    let colors = app.colors();
+    let mut entries = Column::new()
+        .spacing(CELL_SPACING)
+        .push(day_number(app, date, in_month, colors));
+    for entry in todos.iter().take(shown) {
         entries = entries.push(compact_card(app, date, entry, colors));
     }
-    if todos.len() > MONTH_CELL_TODOS {
+    if todos.len() > shown {
         entries = entries.push(
-            button(text(trf("calendar_more", &[&(todos.len() - MONTH_CELL_TODOS)])).size(11))
+            button(text(trf("calendar_more", &[&(todos.len() - shown)])).size(11))
                 .padding([1, 6])
                 .style(theme::ghost(colors, false))
                 .on_press(Message::CalendarOpenDay(date)),
         );
     }
-    drop_zone(
-        app,
-        date,
-        container(entries).padding(6).width(Fill).height(Fill).clip(true),
-        in_month,
-    )
+    entries.into()
+}
+
+/// Space between the entries of a month cell.
+const CELL_SPACING: f32 = 4.0;
+/// Heights in a month cell, from the sizes in `day_number`, `compact_card`
+/// and the "+N more" button: padding plus text at iced's 1.3 line height.
+const DAY_NUMBER_HEIGHT: f32 = 2.0 * 2.0 + 12.0 * 1.3;
+const COMPACT_CARD_HEIGHT: f32 = 6.0 * 2.0 + 13.0 * 1.3;
+const MORE_HEIGHT: f32 = 2.0 + 11.0 * 1.3;
+
+/// How many of `count` todos a month cell of `height` (inside its padding)
+/// shows: all if they fit, otherwise as many as leave room for "+N more".
+fn todos_that_fit(height: f32, count: usize) -> usize {
+    let available = height - DAY_NUMBER_HEIGHT;
+    let row = CELL_SPACING + COMPACT_CARD_HEIGHT;
+    if count as f32 * row <= available {
+        return count;
+    }
+    let room = available - (CELL_SPACING + MORE_HEIGHT);
+    ((room / row).floor().max(0.0) as usize).min(count)
 }
 
 /// The day's number; today is a filled circle. A click opens the day.
@@ -480,4 +545,26 @@ fn is_dragged(app: &Floetask, entry: &ListedTodo) -> bool {
     app.calendar_drag
         .as_ref()
         .is_some_and(|(target, _)| target.line == entry.line)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ROW: f32 = CELL_SPACING + COMPACT_CARD_HEIGHT;
+
+    #[test]
+    fn all_todos_show_when_they_fit() {
+        assert_eq!(todos_that_fit(DAY_NUMBER_HEIGHT + 3.0 * ROW, 3), 3);
+        assert_eq!(todos_that_fit(DAY_NUMBER_HEIGHT, 0), 0);
+    }
+
+    #[test]
+    fn more_takes_the_place_of_todos_that_do_not_fit() {
+        let more = CELL_SPACING + MORE_HEIGHT;
+        assert_eq!(todos_that_fit(DAY_NUMBER_HEIGHT + 3.0 * ROW, 5), 2);
+        assert_eq!(todos_that_fit(DAY_NUMBER_HEIGHT + 2.0 * ROW + more, 5), 2);
+        assert_eq!(todos_that_fit(DAY_NUMBER_HEIGHT + more, 5), 0);
+        assert_eq!(todos_that_fit(10.0, 5), 0);
+    }
 }

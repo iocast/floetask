@@ -8,7 +8,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Element, Fill};
 
-use floetask_application::{Settings, ThemePreference};
+use floetask_application::{MonthOverflow, Settings, ThemePreference};
 use floetask_domain::WeekStart;
 use floetask_domain::status::{StatusSet, is_valid_status};
 
@@ -287,6 +287,17 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         },
         |language| Message::Setting(SettingChange::Language(language.to_owned())),
     );
+    let month_overflow = choice(
+        &[MonthOverflow::More, MonthOverflow::Scroll],
+        s.month_overflow,
+        |overflow| {
+            tr(match overflow {
+                MonthOverflow::More => "month_overflow_more",
+                MonthOverflow::Scroll => "month_overflow_scroll",
+            })
+        },
+        |overflow| Message::Setting(SettingChange::MonthOverflow(overflow)),
+    );
     let zoom = slider(Settings::ZOOM_RANGE, s.zoom_percent, |percent| {
         Message::Setting(SettingChange::Zoom(percent))
     })
@@ -300,6 +311,12 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             setting("language", tr("language").to_owned(), language, colors),
             setting("zoom", trf("zoom", &[&s.zoom_percent]), zoom, colors),
             switch_setting("compact", s.compact, SettingChange::Compact, colors),
+            setting(
+                "month_overflow",
+                tr("month_overflow").to_owned(),
+                month_overflow,
+                colors,
+            ),
             switch_setting(
                 "disable_animations",
                 s.disable_animations,
