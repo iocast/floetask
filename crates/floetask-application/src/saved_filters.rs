@@ -1,8 +1,8 @@
 //! Named search queries the user saved.
 
-use floetask_domain::Date;
 use floetask_domain::search::Query;
 use floetask_domain::todo::Todo;
+use floetask_domain::{Date, WeekStart};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SavedFilter {
@@ -14,9 +14,11 @@ pub struct SavedFilter {
 
 impl SavedFilter {
     /// Whether `todo` matches this filter's query (plain text or expression).
-    pub fn matches(&self, todo: &Todo, today: Date) -> bool {
+    pub fn matches(&self, todo: &Todo, today: Date, week_start: WeekStart) -> bool {
         match Query::interpret(&self.query) {
-            floetask_domain::search::Interpretation::Ready(query) => !query.is_empty() && query.matches(todo, today),
+            floetask_domain::search::Interpretation::Ready(query) => {
+                !query.is_empty() && query.matches(todo, today, week_start)
+            }
             floetask_domain::search::Interpretation::Incomplete => false,
         }
     }
@@ -51,10 +53,11 @@ mod tests {
     fn overdue_matches_todos_due_today_or_earlier() {
         let overdue = &default_filters()[0];
         let today = parse_iso("2026-10-06").unwrap();
+        let matches = |todo: &Todo| overdue.matches(todo, today, WeekStart::Monday);
         let due = |date: &str| Todo::parse(&format!("Pay rent due:{date}"));
-        assert!(overdue.matches(&due("2026-10-01"), today));
-        assert!(overdue.matches(&due("2026-10-06"), today));
-        assert!(!overdue.matches(&due("2026-10-07"), today));
-        assert!(!overdue.matches(&Todo::parse("No date"), today));
+        assert!(matches(&due("2026-10-01")));
+        assert!(matches(&due("2026-10-06")));
+        assert!(!matches(&due("2026-10-07")));
+        assert!(!matches(&Todo::parse("No date")));
     }
 }

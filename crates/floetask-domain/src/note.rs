@@ -1,5 +1,5 @@
 //! The `note:` extension: links a todo to a notes file in a `<file>-notes/`
-//! folder next to the todo file (`todo.txt` keeps its notes in `todo-notes/`). See `features/note-extension.md`.
+//! folder next to the todo file (`todo.txt` keeps its notes in `todo-notes/`). See `features/todo-notes/note-extension.md`.
 //!
 //! This module only validates names and derives text; finding, creating and
 //! opening the file is the application layer's job.

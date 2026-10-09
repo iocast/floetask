@@ -1,7 +1,7 @@
 //! The search language: plain text or filter expressions.
 //!
 //! ```text
-//! +project @context due:  due: < today+3d  t:2021-06  pri >= B  (A)
+//! +project @context due:  due: < today+3d  due: end of week  t:2021-06  pri >= B  (A)
 //! complete  "literal text"  /regex/  not  and  or  ( ... )
 //! ```
 //!
@@ -13,7 +13,7 @@ mod eval;
 mod lexer;
 mod parser;
 
-use crate::date::Date;
+use crate::date::{Date, WeekStart};
 use crate::todo::Todo;
 
 pub use ast::{CmpOp, DateField, DateValue, Expr, NameMatch};
@@ -56,11 +56,12 @@ impl Query {
         parser::parse(input.trim())
     }
 
-    pub fn matches(&self, todo: &Todo, today: Date) -> bool {
+    /// `week_start` resolves phrases such as `due: end of week`.
+    pub fn matches(&self, todo: &Todo, today: Date, week_start: WeekStart) -> bool {
         match self {
             Query::Empty => true,
             Query::Literal(needle) => todo.raw().to_lowercase().contains(needle.as_str()),
-            Query::Expression(expr) => eval::evaluate(expr, todo, today),
+            Query::Expression(expr) => eval::evaluate(expr, todo, today, week_start),
         }
     }
 

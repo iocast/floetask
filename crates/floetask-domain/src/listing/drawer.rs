@@ -56,7 +56,7 @@ pub fn summarize_attributes(
                 let counted = options.passes_toggles(entry.todo, dates)
                     && options.passes_status(entry.todo, statuses, query)
                     && options.passes_filters(entry.todo, dates)
-                    && query.matches(entry.todo, dates.today);
+                    && query.matches(entry.todo, dates.today, dates.week_start);
                 for value in attribute.values(entry.todo, dates) {
                     let overdue = attribute == Attribute::Due && is_overdue(&value, dates);
                     match values.iter_mut().find(|v| v.value == value) {

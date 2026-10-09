@@ -652,6 +652,21 @@ fn pressing_and_releasing_in_place_opens_the_todo() {
 }
 
 #[test]
+fn dropping_a_card_back_in_its_column_does_not_open_it() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let messages = click(&app, "Legal review");
+    for message in messages.into_iter().filter(|m| !matches!(m, Message::BoardRelease)) {
+        let _ = app.update(message);
+    }
+    // The cursor leaves the card and comes back to its column.
+    let _ = app.update(Message::BoardCardLeft);
+    let _ = app.update(Message::BoardRelease);
+    assert!(app.drag.is_none());
+    assert!(app.dialog.is_none());
+}
+
+#[test]
 fn board_columns_are_set_per_file() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
@@ -972,6 +987,12 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
     assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
     let _ = app.update(Message::CloseDialog);
 
+    // Dragged away and dropped back on the same day, nothing opens.
+    let _ = app.update(Message::CalendarPress(target.clone(), Some(due)));
+    let _ = app.update(Message::CalendarCardLeft);
+    let _ = app.update(Message::CalendarRelease);
+    assert!(app.dialog.is_none());
+
     // Dropped on another day, only the due date changes.
     let next_day = floetask_domain::date::add_days(due, 2);
     let _ = app.update(Message::CalendarPress(target.clone(), Some(due)));
@@ -998,6 +1019,32 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
 }
 
 #[test]
+fn calendar_checkbox_completes_a_todo_without_dragging_it() {
+    use floetask_application::MainView;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
+    let (line, due) = (slides.line, slides.todo.due().unwrap());
+    let _ = app.update(Message::CalendarOpenDay(due));
+
+    // The checkbox sits just left of the todo text.
+    let mut ui = simulator(app.view());
+    let label = ui.find("Prepare slides").unwrap().bounds();
+    ui.point_at(iced::Point::new(label.x - 18.0, label.y + label.height / 2.0));
+    let _ = ui.simulate(iced_test::simulator::click());
+    let messages: Vec<Message> = ui.into_messages().collect();
+    assert!(
+        matches!(messages.first(), Some(Message::ToggleComplete(target)) if target.line == line),
+        "{messages:?}"
+    );
+    assert!(
+        !messages.iter().any(|m| matches!(m, Message::CalendarPress(..))),
+        "{messages:?}"
+    );
+}
+
+#[test]
 fn undated_panel_lists_todos_without_due_date_and_plans_them() {
     use floetask_application::MainView;
 
@@ -1021,6 +1068,12 @@ fn undated_panel_lists_todos_without_due_date_and_plans_them() {
     let _ = app.update(Message::CalendarRelease);
     assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
     let _ = app.update(Message::CloseDialog);
+
+    // Dragged and dropped back in the panel, nothing opens.
+    let _ = app.update(Message::CalendarPress(target.clone(), None));
+    let _ = app.update(Message::CalendarCardLeft);
+    let _ = app.update(Message::CalendarRelease);
+    assert!(app.dialog.is_none());
 
     // Dragged onto a day, it gets that due date.
     let day = app.today;

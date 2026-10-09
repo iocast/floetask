@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI agents and contributors working on floetask, a todo.txt manager in Rust with an iced GUI. The product spec starts at [FEATURES.md](FEATURES.md), an overview linking one file per topic in [features/](features/); store new requirement docs in `features/` and link them from the overview.
+Guidance for AI agents and contributors working on floetask, a todo.txt manager in Rust with an iced GUI. The product spec starts at [features/FEATURES.md](features/FEATURES.md), an overview linking one file per topic in [features/todo-notes/](features/todo-notes/); store new requirement docs there and link them from the overview. The backlog is `features/todo.txt` (untracked); its todos link to the spec files with `note:`, which is why the docs live in its notes folder.
 
 ## Architecture: clean architecture, enforced by crates
 
@@ -63,7 +63,7 @@ cargo clippy --workspace --all-targets
 FLOETASK_SNAPSHOTS=/some/dir cargo test -p floetask-gui   # also writes PNG snapshots of screens
 ```
 
-- Domain: unit and `proptest` tests next to the code; worked examples from the spec in `features/` are acceptance tests.
+- Domain: unit and `proptest` tests next to the code; worked examples from the spec in `features/todo-notes/` are acceptance tests.
 - Application: use-case tests with in-memory fakes of the ports (`todo_files/tests.rs`).
 - Infrastructure: tests against `tempfile` directories.
 - GUI: headless `iced_test` simulator tests in `floetask-gui/src/tests.rs` (click, type, feed messages back into `update`).
@@ -76,4 +76,4 @@ To try the app without touching real settings, point the XDG variables at a scra
 - Event sources (keyboard, window, theme, watcher, tick): `floetask-gui/src/app/subscriptions.rs`.
 - Views: `floetask-gui/src/view/`. The window is borderless: `title_bar.rs` draws the centred search, actions and window buttons, `files.rs` the file drawer, `board.rs` the status board with its mouse-area drag and drop, `calendar_page.rs` the day/week/month calendar (same drag and drop), `popover.rs` the floating menus (a small custom widget on iced's overlay layer), `mod.rs` adds the resize edges, and `app/window_frame.rs` handles drag, resize, minimise and maximise.
 - Look and feel: colours and every widget style live in `theme.rs` (light and dark `Colors`); icons are drawn in `view/icons.rs`. Views use these instead of iced's default styles.
-- Known gaps against FEATURES.md are listed in the README.
+- Known gaps against `features/FEATURES.md` are listed in the README.

@@ -1,11 +1,13 @@
 //! The calendar view: the active file's todos on a day, week or month
-//! calendar by due date (`features/18-calendar.md`).
+//! calendar by due date (`features/todo-notes/18-calendar.md`).
 //!
 //! Dragging works like on the board: pressing a todo starts a drag, every
 //! day reports when the cursor enters or leaves it, and releasing anywhere
 //! on the calendar drops the todo on the day under the cursor.
 
-use iced::widget::{Column, Row, button, column, container, mouse_area, responsive, row, scrollable, space, text};
+use iced::widget::{
+    Column, Row, button, checkbox, column, container, mouse_area, responsive, row, scrollable, space, text,
+};
 use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
 use floetask_application::TodoRef;
@@ -344,6 +346,7 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
         .color(if todo.is_complete() { colors.muted } else { colors.text });
     let content = row![
         container(space()).width(3).height(16).style(theme::accent(accent)),
+        complete_box(entry, 13.0, colors),
         label
     ]
     .spacing(8)
@@ -356,6 +359,7 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
             .style(theme::board_card(colors, is_dragged(app, entry))),
     )
     .on_press(Message::CalendarPress(target, from))
+    .on_exit(Message::CalendarCardLeft)
     .interaction(mouse::Interaction::Grab);
     with_tooltip(card, todo.display_text(), colors)
 }
@@ -369,12 +373,9 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
         Some(priority) if !todo.is_complete() => colors.priority(priority),
         _ => Color::TRANSPARENT,
     };
-    let mut details = column![body(app, todo, colors)].spacing(6).width(Fill);
-    if let Some(meta) = meta(app, todo, &target, None, true, colors) {
-        details = details.push(meta);
-    }
+    let mut extras: Vec<Element<'a, Message>> = meta(app, todo, &target, None, true, colors).into_iter().collect();
     if from.is_none() {
-        details = details.push(
+        extras.push(
             button(
                 row![
                     icon(Icon::Calendar, 12.0, colors.primary),
@@ -385,22 +386,36 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
             )
             .padding([2, 8])
             .style(theme::chip(colors.primary, colors, false))
-            .on_press(Message::OpenRowDatePicker(target.clone(), DateKey::Due)),
+            .on_press(Message::OpenRowDatePicker(target.clone(), DateKey::Due))
+            .into(),
         );
     }
-    let content = row![
-        container(space()).width(3).height(20).style(theme::accent(accent)),
-        details
-    ]
-    .spacing(10);
+    let accent = container(space()).width(3).height(20).style(theme::accent(accent));
+    let compact = app.settings.compact;
+    // Compact cards put the attributes under the checkbox, like the board.
+    let content: Element<'a, Message> = if compact {
+        let line = row![
+            accent,
+            complete_box(entry, 16.0, colors),
+            container(body(app, todo, colors)).width(Fill)
+        ]
+        .spacing(8);
+        column![line].extend(extras).spacing(6).into()
+    } else {
+        let details = column![body(app, todo, colors)].extend(extras).spacing(6).width(Fill);
+        row![accent, complete_box(entry, 16.0, colors), details]
+            .spacing(10)
+            .into()
+    };
     mouse_area(
         container(content)
-            .padding([10, 12])
+            .padding(if compact { [6, 10] } else { [10, 12] })
             .width(Fill)
             .clip(true)
             .style(theme::board_card(colors, is_dragged(app, entry))),
     )
     .on_press(Message::CalendarPress(target, from))
+    .on_exit(Message::CalendarCardLeft)
     .interaction(mouse::Interaction::Grab)
     .into()
 }
@@ -448,6 +463,17 @@ fn undated_panel(app: &Floetask) -> Element<'_, Message> {
     .on_enter(Message::CalendarHoverUndated(true))
     .on_exit(Message::CalendarHoverUndated(false))
     .into()
+}
+
+/// The round checkbox that completes a todo, as in the list and on the board.
+/// It takes the click, so ticking it does not start a drag.
+fn complete_box<'a>(entry: &ListedTodo, size: f32, colors: Colors) -> Element<'a, Message> {
+    let target = TodoRef::new(entry.line, &entry.todo);
+    checkbox(entry.todo.is_complete())
+        .on_toggle(move |_| Message::ToggleComplete(target.clone()))
+        .size(size)
+        .style(theme::round_checkbox(colors))
+        .into()
 }
 
 fn is_dragged(app: &Floetask, entry: &ListedTodo) -> bool {

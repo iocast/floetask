@@ -100,6 +100,9 @@ pub struct Floetask {
     pub(crate) calendar_anchor: Date,
     /// A todo being dragged on the calendar, with the day it came from.
     pub(crate) calendar_drag: Option<(TodoRef, Option<Date>)>,
+    /// The cursor left the calendar todo since it was pressed, so releasing
+    /// it is a drop, never a click.
+    pub(crate) calendar_drag_moved: bool,
     pub(crate) calendar_hover: Option<Date>,
     /// The panel listing todos without a due date is open.
     pub(crate) calendar_undated_open: bool,
@@ -175,6 +178,7 @@ impl Floetask {
             board_hover: None,
             calendar_anchor: today,
             calendar_drag: None,
+            calendar_drag_moved: false,
             calendar_hover: None,
             calendar_undated_open: false,
             calendar_undated_hover: false,
@@ -417,12 +421,14 @@ impl Floetask {
             | M::ClosePanelOverlay
             | M::CalendarHoverUndated(_)
             | M::CalendarHover(..)
+            | M::CalendarCardLeft
             | M::CalendarRelease => self.update_calendar(message),
             M::ToggleMainView
             | M::BoardGrouped(_)
             | M::ToggleBoardGroup(_)
             | M::BoardPress(..)
             | M::BoardHover(..)
+            | M::BoardCardLeft
             | M::BoardRelease
             | M::OpenBoardColumns
             | M::BoardColumnInput(_)
@@ -613,6 +619,7 @@ impl Floetask {
             self.documents.values(),
             self.settings.notification_threshold_days,
             &self.saved_filters,
+            self.settings.week_start,
         );
         if pending.is_empty() {
             return Task::none();

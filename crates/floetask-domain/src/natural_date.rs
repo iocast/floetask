@@ -13,7 +13,7 @@ use crate::recurrence::RecurrenceUnit;
 const DATE_KEYS: [&str; 2] = ["due", "t"];
 
 /// The longest phrase we try after a key, in words.
-const MAX_PHRASE_WORDS: usize = 4;
+pub(crate) const MAX_PHRASE_WORDS: usize = 4;
 
 /// Parses a relative date phrase.
 pub fn parse_phrase(phrase: &str, today: Date, week_start: WeekStart) -> Option<Date> {
@@ -23,6 +23,26 @@ pub fn parse_phrase(phrase: &str, today: Date, week_start: WeekStart) -> Option<
         .or_else(|| offset_phrase(&words, today))
         .or_else(|| weekday_phrase(&words, today, week_start))
         .or_else(|| month_phrase(&words, today))
+}
+
+/// Whether `phrase` reads as a date. Checked against a leap year so that
+/// `february 29` counts; on other days it simply resolves to no date.
+pub(crate) fn is_phrase(phrase: &str) -> bool {
+    let reference = Date::from_ymd_opt(2024, 1, 1).expect("valid date");
+    parse_phrase(phrase, reference, WeekStart::Monday).is_some()
+}
+
+/// Whether `phrase` is the start of a longer phrase, like `end of` or
+/// `next`, so a search typed so far is unfinished rather than wrong.
+pub(crate) fn is_phrase_start(phrase: &str) -> bool {
+    let lowered = phrase.trim().to_lowercase();
+    match lowered.split_whitespace().collect::<Vec<_>>().as_slice() {
+        ["end"] | ["end", "of"] | ["end", "of", "the" | "next"] => true,
+        ["next" | "this" | "in"] | ["day"] | ["day", "after"] => true,
+        ["in", amount] | [amount] if parse_amount(amount).is_some() => true,
+        [month] => parse_month(month).is_some(),
+        _ => false,
+    }
 }
 
 /// Phrases made only of keywords.

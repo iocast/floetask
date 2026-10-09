@@ -121,7 +121,7 @@ pub fn build_board(
         options.passes_toggles(todo, dates)
             && status_shown
             && options.passes_filters(todo, dates)
-            && query.matches(todo, dates.today)
+            && query.matches(todo, dates.today, dates.week_start)
     };
     let mut todos: Vec<ListedTodo> = document
         .todos()

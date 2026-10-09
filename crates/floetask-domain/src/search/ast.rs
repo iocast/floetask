@@ -76,10 +76,22 @@ pub struct DateValue {
     pub offset: Option<(i64, RecurrenceUnit)>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+impl DateValue {
+    /// `end of week`, `end of month`: a deadline, so `due: end of week`
+    /// without an operator means on or before it.
+    pub fn is_deadline(&self) -> bool {
+        matches!(&self.base, DateBase::Phrase(phrase) if phrase.starts_with("end "))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DateBase {
     Absolute(crate::date::Date),
     Today,
     Tomorrow,
     Yesterday,
+    /// A natural-language phrase such as `friday` or `end of month`,
+    /// lowercased. It depends on today and the week start, so it is
+    /// resolved when evaluated.
+    Phrase(String),
 }

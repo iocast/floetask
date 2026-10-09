@@ -40,6 +40,7 @@ impl Floetask {
             }
             Message::CalendarPress(target, day) => {
                 self.calendar_drag = Some((target, day));
+                self.calendar_drag_moved = false;
                 self.calendar_hover = day;
                 self.calendar_undated_hover = day.is_none();
                 Task::none()
@@ -69,21 +70,30 @@ impl Floetask {
                 }
                 Task::none()
             }
+            Message::CalendarCardLeft => {
+                if self.calendar_drag.is_some() {
+                    self.calendar_drag_moved = true;
+                }
+                Task::none()
+            }
             Message::CalendarRelease => self.drop_on_day(),
             _ => Task::none(),
         }
     }
 
     /// Ends a drag. Released on another day, the todo's `due:` moves there
-    /// (or is set, for a todo from the undated panel); released where it was
-    /// picked up, it was a click and opens the todo.
+    /// (or is set, for a todo from the undated panel); released on the todo
+    /// itself, it was a click and opens the todo. Dragged and dropped back
+    /// where it was picked up, nothing happens.
     fn drop_on_day(&mut self) -> Task<Message> {
         let Some((target, from)) = self.calendar_drag.take() else {
             return Task::none();
         };
+        let moved = std::mem::take(&mut self.calendar_drag_moved);
         match (from, self.calendar_hover) {
+            (Some(from), Some(day)) if from == day && moved => Task::none(),
             (Some(from), Some(day)) if from == day => self.update(Message::OpenTodo(target)),
-            (None, None) if self.calendar_undated_hover => self.update(Message::OpenTodo(target)),
+            (None, None) if self.calendar_undated_hover && !moved => self.update(Message::OpenTodo(target)),
             (_, Some(day)) => self.change_active_file(move |service, path, options| {
                 service.set_date(path, &target, "due", Some(day), options)
             }),

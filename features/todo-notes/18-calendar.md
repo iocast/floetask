@@ -26,6 +26,7 @@ A third way to show the active file, next to the list and the status board: todo
 ## 18.3 Interaction
 
 - Clicking a todo opens the edit dialog.
+- Each entry has a checkbox that completes or reopens the todo, as in the list and on the board; ticking it does not start a drag.
 - Dragging a todo to another day sets its `due:` to that day; only the `due:` token changes (round-trip rules, §1.3).
 - The title bar switches between list, board and calendar; `Ctrl+Alt+C` toggles between the calendar and the list.
 

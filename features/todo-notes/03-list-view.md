@@ -46,7 +46,7 @@ Splash screens for: no file open (open/create buttons), file has no todos (add b
 
 ## 3.6 Layout options (P1)
 
-- Compact mode (denser rows), toggle in settings and View menu.
+- Compact mode (denser rows), toggle in settings and View menu. On the status board and the calendar's week and day views it also tightens the cards and puts the attributes under the checkbox, at the card's full width.
 - Zoom 50–150 % in 10 % steps. iced: apply via the application `scale_factor`.
 - Disable animations toggle (relevant only if floetask adds animations).
 - The main view (list, board, calendar) is never narrower than 760 px. When the window is too narrow for it and the open side panels, panels hide in this order until it fits: the filter drawer, then the file drawer (then the calendar's undated panel). They come back when the window grows; their open or closed setting is kept.

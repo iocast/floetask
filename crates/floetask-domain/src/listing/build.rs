@@ -71,7 +71,7 @@ pub fn build_listing(
             options.passes_toggles(entry.todo, dates)
                 && options.passes_status(entry.todo, statuses, query)
                 && options.passes_filters(entry.todo, dates)
-                && query.matches(entry.todo, dates.today)
+                && query.matches(entry.todo, dates.today, dates.week_start)
         })
         .map(|entry| ListedTodo {
             line: entry.line,

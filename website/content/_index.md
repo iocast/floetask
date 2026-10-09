@@ -153,7 +153,7 @@ caption = "Markdown notes, saved next to your todo.txt."
 
 [[extra.screenshots]]
 file = "settings.png"
-caption = "Settings: theme, language, zoom and compact list."
+caption = "Settings: theme, language, zoom and compact mode."
 
 [[extra.screenshots]]
 file = "dark-editor.png"

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use floetask_domain::{Date, TodoDocument};
+use floetask_domain::{Date, TodoDocument, WeekStart};
 
 use crate::error::AppError;
 use crate::ports::{Clock, NotificationLog, Notifier};
@@ -33,12 +33,14 @@ impl NotificationService {
 
     /// Incomplete todos due from today up to `threshold_days` ahead, minus
     /// those matching a saved filter that suppresses notifications and those
-    /// already notified today. Overdue todos are not included.
+    /// already notified today. Overdue todos are not included. `week_start`
+    /// resolves filter phrases such as `due: end of week`.
     pub fn pending<'a>(
         &self,
         documents: impl IntoIterator<Item = &'a TodoDocument>,
         threshold_days: u8,
         saved_filters: &[SavedFilter],
+        week_start: WeekStart,
     ) -> Vec<DueNotification> {
         let today = self.clock.today();
         let suppressing: Vec<&SavedFilter> = saved_filters.iter().filter(|f| f.suppress_notifications).collect();
@@ -53,7 +55,7 @@ impl NotificationService {
                 if !in_window || todo.is_complete() {
                     return None;
                 }
-                if suppressing.iter().any(|filter| filter.matches(todo, today)) {
+                if suppressing.iter().any(|filter| filter.matches(todo, today, week_start)) {
                     return None;
                 }
                 let key = notification_key(today, todo.raw());
@@ -136,7 +138,7 @@ mod tests {
             query: "+quiet".into(),
             suppress_notifications: true,
         }];
-        let pending = service.pending([&document], 2, &filters);
+        let pending = service.pending([&document], 2, &filters, WeekStart::Monday);
         let bodies: Vec<_> = pending.iter().map(|n| n.body.as_str()).collect();
         assert_eq!(bodies, vec!["today", "soon"]);
         assert_eq!(pending[1].days_left, 2);
@@ -145,6 +147,6 @@ mod tests {
             service.send(notification, "Due").unwrap();
         }
         assert_eq!(notifier.0.lock().unwrap().len(), 2);
-        assert!(service.pending([&document], 2, &filters).is_empty());
+        assert!(service.pending([&document], 2, &filters, WeekStart::Monday).is_empty());
     }
 }

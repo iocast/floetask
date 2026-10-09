@@ -2,7 +2,7 @@
 
 # floetask
 
-A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.rs) GUI. The full specification is in [FEATURES.md](FEATURES.md); contributor and agent guidance is in [AGENTS.md](AGENTS.md).
+A todo.txt manager for the desktop, written in Rust with an [iced](https://iced.rs) GUI. The full specification is in [FEATURES.md](features/FEATURES.md); contributor and agent guidance is in [AGENTS.md](AGENTS.md).
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE-MIT)
@@ -26,11 +26,11 @@ floetask [OPTIONS] [TODO_FILE]
 
 ### Installers
 
-`cargo packager --release -p floetask-app` builds the installers for the current OS (Windows: setup `.exe` and `.msi`; macOS: `.app` and `.dmg`; Linux: `.deb` and AppImage) into `target/packages/`. Install the tool once with `cargo install cargo-packager --locked`. Pushing a version tag builds all three on GitHub Actions. Details and the signing to-do are in [features/14-platform.md](features/14-platform.md).
+`cargo packager --release -p floetask-app` builds the installers for the current OS (Windows: setup `.exe` and `.msi`; macOS: `.app` and `.dmg`; Linux: `.deb` and AppImage) into `target/packages/`. Install the tool once with `cargo install cargo-packager --locked`. Pushing a version tag builds all three on GitHub Actions. Details and the signing to-do are in [features/todo-notes/14-platform.md](features/todo-notes/14-platform.md).
 
 ### Updates
 
-Settings → About shows the version and checks for new releases (on start, or with **Check now**); **Install and restart** downloads the signed installer and runs it. Only release builds from the GitHub workflow can update themselves, after a one-time key setup: generate a key with `cargo packager signer generate`, then add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` and `FLOETASK_UPDATE_KEY_PASSWORD` and the variable `FLOETASK_UPDATE_PUBLIC_KEY` to the GitHub repository ([features/14-platform.md §14.2](features/14-platform.md)).
+Settings → About shows the version and checks for new releases (on start, or with **Check now**); **Install and restart** downloads the signed installer and runs it. Only release builds from the GitHub workflow can update themselves, after a one-time key setup: generate a key with `cargo packager signer generate`, then add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` and `FLOETASK_UPDATE_KEY_PASSWORD` and the variable `FLOETASK_UPDATE_PUBLIC_KEY` to the GitHub repository ([features/todo-notes/14-platform.md §14.2](features/todo-notes/14-platform.md)).
 
 A file passed on the command line is registered and opened. Without one, floetask reopens the files from last time.
 
@@ -102,13 +102,13 @@ The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New tod
 The theme follows the system until you pick light or dark in Settings (or press `Ctrl+Alt+D`).
 
 - **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
-- **Status** with `status:doing`, `status:waiting`, `status:someday` or your own value ([status-extension.md](features/status-extension.md)); the dialog has a status picker. Manage the global statuses (order, hidden, your own) in Settings → Statuses. The list groups by status (doing, to do, waiting), hides `someday` until you turn it on in the Filters tab, filter on it or search for `status:someday`, and completing a todo removes its status.
+- **Status** with `status:doing`, `status:waiting`, `status:someday` or your own value ([status-extension.md](features/todo-notes/status-extension.md)); the dialog has a status picker. Manage the global statuses (order, hidden, your own) in Settings → Statuses. The list groups by status (doing, to do, waiting), hides `someday` until you turn it on in the Filters tab, filter on it or search for `status:someday`, and completing a todo removes its status.
 - **Board** with the title-bar button or `Ctrl+Alt+B`: one column per status, plus Done. Drag a card to another column to change its status, or to Done to complete it. **Columns** on the board sets the columns for that file. When the list is grouped (for example by priority, after moving Priority to the top of the Sorting tab), each group gets its own board; the "Group by" switch next to Columns turns that off while keeping the sort order.
-- **Calendar** with the title-bar button or `Ctrl+Alt+C`: todos by due date in a day, week or month view, filtered like the list. Drag a todo to another day to change its due date; click it to edit. Details in [features/18-calendar.md](features/18-calendar.md).
+- **Calendar** with the title-bar button or `Ctrl+Alt+C`: todos by due date in a day, week or month view, filtered like the list. Drag a todo to another day to change its due date; click it to edit. Details in [features/todo-notes/18-calendar.md](features/todo-notes/18-calendar.md).
 - **Edit** by clicking a todo or pressing `Enter` on the selected one. Hover a todo for Edit, Copy, Archive and Delete.
 - **Complete** with the checkbox or `Space`. Completing a `rec:` todo adds its next occurrence.
 - **Filter** with the chips on a todo or in the drawer (`Ctrl+B`): click to include, Alt+click to exclude, right-click a project or context to rename or remove it across the file.
-- **Search** in the title bar (`Ctrl+F` focuses it). Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with the star and pick them from the arrow (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
+- **Search** in the title bar (`Ctrl+F` focuses it). Plain text matches anywhere; expressions such as `+work and due: < today+3d`, `due: end of week`, `(A) or pri >= C`, `not complete`, `/regex/` are evaluated. `Ctrl+Enter` in the search field turns the text into a new todo. Save searches with the star and pick them from the arrow (`Ctrl+Shift+F`); the bell mutes notifications for matching todos.
 - **Archive** completed todos with `Ctrl+Alt+A` or the file's ⋮ menu once an archive file is set (⋮ → Set archive file, or you are asked on first archive).
 
 | Shortcut                                  | Action                                                   |
@@ -130,9 +130,9 @@ The theme follows the system until you pick light or dark in Settings (or press 
 | `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete                           |
 | `Escape`                                  | Close dialog, menu, filter drawer, then clear the search |
 
-## Status against FEATURES.md
+## Status against [FEATURES.md](features/FEATURES.md)
 
-Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files in a file drawer with per-file menus, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, `note:` links to notes files (see [note-extension.md](features/note-extension.md)), empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and i18n-ready strings.
+Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files in a file drawer with per-file menus, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, `note:` links to notes files (see [note-extension.md](features/todo-notes/note-extension.md)), empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and i18n-ready strings.
 
 Not done yet:
 

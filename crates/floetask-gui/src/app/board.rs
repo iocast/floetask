@@ -15,6 +15,9 @@ pub struct BoardDrag {
     pub target: TodoRef,
     /// Lane the card was picked up from.
     pub from: LaneId,
+    /// The cursor left the card since the press, so releasing it is a drop,
+    /// never a click.
+    pub moved: bool,
 }
 
 impl Floetask {
@@ -39,7 +42,11 @@ impl Floetask {
                 self.persist_state()
             }
             Message::BoardPress(target, lane) => {
-                self.drag = Some(BoardDrag { target, from: lane });
+                self.drag = Some(BoardDrag {
+                    target,
+                    from: lane,
+                    moved: false,
+                });
                 self.board_hover = Some(lane);
                 Task::none()
             }
@@ -50,6 +57,12 @@ impl Floetask {
                     // Leaving one column and entering the next can arrive in
                     // either order, so only clear our own lane.
                     self.board_hover = None;
+                }
+                Task::none()
+            }
+            Message::BoardCardLeft => {
+                if let Some(drag) = &mut self.drag {
+                    drag.moved = true;
                 }
                 Task::none()
             }
@@ -126,8 +139,8 @@ impl Floetask {
     }
 
     /// Ends a drag. Released over another column, the card moves there;
-    /// released in its own column without moving away, it was a click and
-    /// opens the todo. Moving only changes the status: dropped on the same
+    /// released on the card itself, it was a click and opens the todo; dragged
+    /// and dropped back in its own column, nothing happens. Moving only changes the status: dropped on the same
     /// column of another group's board, nothing changes.
     fn drop_card(&mut self) -> Task<Message> {
         let Some(drag) = self.drag.take() else {
@@ -137,7 +150,11 @@ impl Floetask {
             return Task::none();
         };
         if lane == drag.from {
-            return self.update(Message::OpenTodo(drag.target));
+            return if drag.moved {
+                Task::none()
+            } else {
+                self.update(Message::OpenTodo(drag.target))
+            };
         }
         let Some(column) = self.board.lane(lane).and_then(|lane| lane.column.clone()) else {
             return Task::none();

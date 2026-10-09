@@ -6,6 +6,7 @@ use thiserror::Error;
 use super::ast::{CmpOp, DateBase, DateCondition, DateValue, Expr, PriorityCondition};
 use super::lexer::{Token, lex};
 use crate::date::parse_iso;
+use crate::natural_date::{MAX_PHRASE_WORDS, is_phrase, is_phrase_start};
 use crate::recurrence::RecurrenceUnit;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -128,7 +129,11 @@ impl Parser {
                 self.next();
                 Ok(DateCondition::Prefix(word))
             }
-            Some(Token::Word(_)) => Ok(DateCondition::Compare(CmpOp::Eq, self.date_value()?)),
+            Some(Token::Word(_)) => {
+                let value = self.date_value()?;
+                let op = if value.is_deadline() { CmpOp::Le } else { CmpOp::Eq };
+                Ok(DateCondition::Compare(op, value))
+            }
             _ => Ok(DateCondition::Exists),
         }
     }
@@ -152,7 +157,8 @@ impl Parser {
         }
     }
 
-    /// `2021-06-01`, `today`, `today+3d`, `today - 2w`, `tomorrow +1b`.
+    /// `2021-06-01`, `today`, `today+3d`, `today - 2w`, `tomorrow +1b`,
+    /// `friday`, `end of month`.
     fn date_value(&mut self) -> Result<DateValue, ParseError> {
         let Some(Token::Word(word)) = self.next() else {
             return Err(self.error("expected a date"));
@@ -169,10 +175,8 @@ impl Parser {
             "tomorrow" => DateBase::Tomorrow,
             "yesterday" => DateBase::Yesterday,
             _ => {
-                return Err(ParseError {
-                    message: format!("`{word}` is not a date"),
-                    at_end: false,
-                });
+                self.position -= 1;
+                return self.phrase_value();
             }
         };
         let attached = &word[split..];
@@ -182,6 +186,35 @@ impl Parser {
             self.separate_offset()?
         };
         Ok(DateValue { base, offset })
+    }
+
+    /// The longest run of words that reads as a natural date, such as
+    /// `end of week`. A known start like `end of` at the end of the input
+    /// counts as unfinished, so results do not flicker while typing.
+    fn phrase_value(&mut self) -> Result<DateValue, ParseError> {
+        let words: Vec<&str> = self.tokens[self.position..]
+            .iter()
+            .take(MAX_PHRASE_WORDS)
+            .map_while(|token| match token {
+                Token::Word(word) => Some(word.as_str()),
+                _ => None,
+            })
+            .collect();
+        for length in (1..=words.len()).rev() {
+            let phrase = words[..length].join(" ").to_lowercase();
+            if is_phrase(&phrase) {
+                self.position += length;
+                return Ok(DateValue {
+                    base: DateBase::Phrase(phrase),
+                    offset: None,
+                });
+            }
+        }
+        let typed = words.join(" ");
+        Err(ParseError {
+            message: format!("`{typed}` is not a date"),
+            at_end: self.position + words.len() == self.tokens.len() && is_phrase_start(&typed),
+        })
     }
 
     /// An offset written after a space: `+ 3d`, `+3d`, `- 3d`, `-3d`.

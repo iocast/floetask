@@ -3,7 +3,7 @@
 //! todo.txt only knows open and done. `status:<value>` adds states such as
 //! `doing` or `waiting`. A todo without the tag is `todo`, completion is never
 //! a status, and values a user invents are kept and treated as open. See
-//! features/status-extension.md for the full rules.
+//! features/todo-notes/status-extension.md for the full rules.
 
 /// The status of an open todo without a `status:` tag.
 pub const DEFAULT_STATUS: &str = "todo";

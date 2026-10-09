@@ -1,6 +1,6 @@
 //! The calendar view's rules: which days a day, week or month shows, how to
 //! step between periods, and which todos land on which day (by `due:`).
-//! See `features/18-calendar.md`.
+//! See `features/todo-notes/18-calendar.md`.
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::date::parse_iso;
+use crate::date::{WeekStart, parse_iso};
 
 fn today() -> Date {
     parse_iso("2024-03-13").unwrap()
@@ -13,7 +13,7 @@ fn query(input: &str) -> Query {
 }
 
 fn hits(input: &str, line: &str) -> bool {
-    query(input).matches(&Todo::parse(line), today())
+    query(input).matches(&Todo::parse(line), today(), WeekStart::Monday)
 }
 
 #[test]
@@ -63,6 +63,40 @@ fn dates() {
 }
 
 #[test]
+fn natural_date_phrases() {
+    // Today is Wednesday 2024-03-13; the week ends on Sunday 2024-03-17.
+    let friday = "a due:2024-03-15";
+    let sunday = "a due:2024-03-17";
+    let next_monday = "a due:2024-03-18";
+    assert!(hits("due: end of week", friday));
+    assert!(hits("due:end of the week", sunday));
+    assert!(!hits("due: end of week", next_monday));
+    assert!(hits("due: End Of Month", next_monday));
+    assert!(hits("due: friday", friday));
+    assert!(!hits("due: friday", sunday));
+    assert!(hits("due: <= friday", friday));
+    assert!(hits("due: > end of week", next_monday));
+    assert!(hits("due: == next week", next_monday));
+    assert!(hits("t: <= end of month", "a t:2024-03-31"));
+    assert!(hits("due: end of week and +work", "a +work due:2024-03-14"));
+    assert!(!hits("due: end of week and +work", "a +home due:2024-03-14"));
+}
+
+#[test]
+fn deadline_follows_the_week_start() {
+    let saturday = Todo::parse("a due:2024-03-16");
+    let query = query("due: end of week");
+    assert!(query.matches(&saturday, today(), WeekStart::Monday));
+    assert!(!query.matches(&saturday, today(), WeekStart::Saturday));
+}
+
+#[test]
+fn unknown_words_after_a_date_key_are_text() {
+    assert!(matches!(query("due: soonish"), Query::Literal(_)));
+    assert!(matches!(query("due: end of +work"), Query::Literal(_)));
+}
+
+#[test]
 fn priority_and_complete() {
     assert!(hits("(B)", "(B) task"));
     assert!(!hits("(B)", "(C) task"));
@@ -82,7 +116,16 @@ fn text_and_regex() {
 
 #[test]
 fn unfinished_expressions_are_incomplete() {
-    for input in ["+work and", "due: <", "(+work", "\"open", "pri >"] {
+    for input in [
+        "+work and",
+        "due: <",
+        "(+work",
+        "\"open",
+        "pri >",
+        "due: end",
+        "due: end of",
+        "due: <= next",
+    ] {
         assert!(matches!(Query::interpret(input), Interpretation::Incomplete), "{input}");
     }
 }

@@ -15,7 +15,8 @@ Grammar:
 - `+` any project; `+bi` project contains `bi`; `+"big"` exact project.
 - `@` / `@ho` / `@"home"` likewise for contexts.
 - `due:` has a due date; `due: <op> DATE`; `due:2021-06` prefix match. Same for `t:`.
-- DATE = ISO date or `today` / `tomorrow` / `yesterday`, optionally `± N(d|b|w|m|y)`.
+- DATE = ISO date or `today` / `tomorrow` / `yesterday`, optionally `± N(d|b|w|m|y)`, or a natural-language phrase from [§4.5](04-dates.md#45-natural-language-dates-p1) such as `friday`, `next week`, `end of month` (resolved with the week-start setting).
+- Without an operator, an `end of …` phrase is a deadline and means `<=`: `due: end of week` is everything due by the end of this week. Other dates mean `==`.
 - `priority` / `pri` has priority; `pri <op> A`; `(B)` shorthand for `pri == B`.
 - `complete` keyword.
 - `"text"` or `'text'` literal; `/regex/` regex match.

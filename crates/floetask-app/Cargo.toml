@@ -22,7 +22,7 @@ windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
 winresource = "0.1"
 
 # Installers and bundles, built with `cargo packager --release` (see
-# features/14-platform.md). Each OS builds its own formats.
+# features/todo-notes/14-platform.md). Each OS builds its own formats.
 [package.metadata.packager]
 product-name = "floetask"
 identifier = "com.iocast.floetask"

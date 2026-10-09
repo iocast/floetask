@@ -3,3 +3,7 @@
 .DS_Store
 .idea/
 .vscode/
+# The local backlog and what floetask writes next to it
+/features/todo.txt*
+/features/done.txt*
+/features/done-notes/

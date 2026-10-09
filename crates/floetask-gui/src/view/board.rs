@@ -238,20 +238,29 @@ fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colo
         .size(16)
         .style(theme::round_checkbox(colors));
 
-    let mut details = column![body(app, todo, colors)].spacing(6).width(Fill);
     // The column already names the status, so its chip is left out.
-    if let Some(meta) = meta(app, todo, &target, None, false, colors) {
-        details = details.push(meta);
-    }
-    let content = row![accent, done, details].spacing(10).align_y(Alignment::Start);
+    let meta = meta(app, todo, &target, None, false, colors);
+    let compact = app.settings.compact;
+    let content: Element<'a, Message> = if compact {
+        // The attributes go under the checkbox too, using the card's full
+        // width, so a card needs fewer lines.
+        let line = row![accent, done, container(body(app, todo, colors)).width(Fill)]
+            .spacing(8)
+            .align_y(Alignment::Start);
+        column![line].extend(meta).spacing(6).into()
+    } else {
+        let details = column![body(app, todo, colors)].extend(meta).spacing(6).width(Fill);
+        row![accent, done, details].spacing(10).align_y(Alignment::Start).into()
+    };
     mouse_area(
         container(content)
-            .padding([10, 12])
+            .padding(if compact { [6, 10] } else { [10, 12] })
             .width(Fill)
             .style(theme::board_card(colors, dragged))
             .clip(true),
     )
     .on_press(Message::BoardPress(target, lane))
+    .on_exit(Message::BoardCardLeft)
     .interaction(mouse::Interaction::Grab)
     .into()
 }

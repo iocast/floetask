@@ -156,6 +156,8 @@ pub enum Message {
     /// The cursor entered or left the undated panel.
     CalendarHoverUndated(bool),
     CalendarHover(Date, bool),
+    /// The cursor left a todo on the calendar: a press there became a drag.
+    CalendarCardLeft,
     CalendarRelease,
     /// Turns the board's one-board-per-group layout on or off.
     BoardGrouped(bool),
@@ -165,6 +167,8 @@ pub enum Message {
     BoardPress(TodoRef, LaneId),
     /// The mouse entered (`true`) or left a lane.
     BoardHover(LaneId, bool),
+    /// The cursor left a card: a press there became a drag.
+    BoardCardLeft,
     BoardRelease,
     OpenBoardColumns,
     BoardColumnInput(String),
