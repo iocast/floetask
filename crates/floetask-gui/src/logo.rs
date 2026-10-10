@@ -16,9 +16,9 @@ pub fn view<'a, Message: 'a>(size: f32) -> Element<'a, Message> {
 
 /// The window and taskbar icon. `None` only if the embedded PNG is broken.
 pub fn window_icon() -> Option<window::Icon> {
-    let decoder = png::Decoder::new(ICON_PNG);
+    let decoder = png::Decoder::new(std::io::Cursor::new(ICON_PNG));
     let mut reader = decoder.read_info().ok()?;
-    let mut pixels = vec![0; reader.output_buffer_size()];
+    let mut pixels = vec![0; reader.output_buffer_size()?];
     let frame = reader.next_frame(&mut pixels).ok()?;
     pixels.truncate(frame.buffer_size());
     if frame.color_type != png::ColorType::Rgba {
