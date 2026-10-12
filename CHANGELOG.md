@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.4.0-rc.2] - 2026-10-12
+
 ### Added
 - Release channel in Settings → About: *Stable* offers releases only, *Preview* also offers release candidates, to try the next version early
 - Roll back in Settings → About: install one of the last ten earlier versions of your channel over the current one, e.g. to leave a preview; todo files and settings are kept
@@ -73,7 +75,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0-rc.1...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0-rc.2...HEAD
+[0.4.0-rc.2]: https://github.com/iocast/floetask/compare/v0.4.0-rc.1...v0.4.0-rc.2
 [0.4.0-rc.1]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0-rc.1
 [0.3.1]: https://github.com/iocast/floetask/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/iocast/floetask/compare/v0.2.2...v0.3.0
