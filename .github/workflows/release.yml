@@ -13,14 +13,28 @@ jobs:
   validate:
     name: Validate Versions
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v6
 
       - name: Check version match
+        id: check
         run: |
           # Extract tag version (strips 'refs/tags/' and optional 'v')
           TAG_VERSION=${GITHUB_REF#refs/tags/}
           TAG_VERSION=${TAG_VERSION#v}
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+          # A release candidate (X.Y.Z-rc.N) has its own changelog section and
+          # Cargo.toml version like any release (scripts/release.ps1 rc), so it
+          # passes the same check; it is only published as a pre-release.
+          if [[ "$TAG_VERSION" =~ -rc\.[0-9]+$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
           # Extract Cargo.toml version
           CARGO_VERSION=$(grep '^version' Cargo.toml | head -n 1 | cut -d '"' -f 2)
@@ -86,7 +100,15 @@ jobs:
           fi
 
       - name: Build installers
-        run: cargo packager --release -p floetask-app --formats ${{ matrix.formats }}
+        shell: bash
+        run: |
+          FORMATS="${{ matrix.formats }}"
+          # MSI versions are numeric (x.y.z.w) and cannot carry "-rc.N", so
+          # release candidates ship the setup .exe only on Windows.
+          if [ "${{ needs.validate.outputs.prerelease }}" = "true" ]; then
+            FORMATS="${FORMATS//,wix/}"
+          fi
+          cargo packager --release -p floetask-app --formats "$FORMATS"
         env:
           # The AppImage tooling is itself an AppImage; runners have no FUSE.
           APPIMAGE_EXTRACT_AND_RUN: 1
@@ -112,16 +134,16 @@ jobs:
 
   release:
     name: Publish Release
-    needs: build
+    needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6   # needed to read CHANGELOG.md
 
       - name: Extract changelog section
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/}
-          TAG_VERSION=${TAG_VERSION#v}
-          awk -v ver="$TAG_VERSION" '
+          awk -v ver="$VERSION" '
             $0 ~ "^## \\[" ver "\\]" { flag=1; next }
             flag && /^## \[/ { flag=0 }
             flag { print }
@@ -133,7 +155,10 @@ jobs:
         with:
           path: artifacts
 
+      # Installed apps read latest.json from the latest release; a release
+      # candidate is never offered as an update.
       - name: Write the updater manifest
+        if: needs.validate.outputs.prerelease != 'true'
         run: python3 scripts/update-manifest.py artifacts "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" release_notes.md artifacts/latest.json
 
       - name: Create GitHub Release
@@ -141,5 +166,7 @@ jobs:
         with:
           body_path: release_notes.md
           files: artifacts/**/*
+          prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.validate.outputs.prerelease == 'true' && 'false' || 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
