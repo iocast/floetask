@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.4.0-rc.1] - 2026-10-12
+
 ### Added
 - Note window: clicking a todo's note opens it in a separate floetask window with the Markdown editor instead of the default app; one window is reused for every note, saves as you type (and on `Ctrl+S` or closing), and can still open the note in the default app; it opens where you left it
 - The add/edit dialog can open its note in the note window, taking along unsaved text
@@ -64,7 +66,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.3.1...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0-rc.1...HEAD
+[0.4.0-rc.1]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0-rc.1
 [0.3.1]: https://github.com/iocast/floetask/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/iocast/floetask/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/iocast/floetask/compare/v0.2.1...v0.2.2
