@@ -147,13 +147,22 @@ impl Updater for Fixed {
     fn is_configured(&self) -> bool {
         true
     }
-    fn check(&self) -> Result<Option<AvailableUpdate>, AppError> {
-        Ok(Some(AvailableUpdate {
-            version: "0.2.0".to_owned(),
-            notes: Some("Faster board".to_owned()),
-        }))
+    /// A preview newer than the running build, and older releases.
+    fn releases(&self) -> Result<Vec<PublishedRelease>, AppError> {
+        let release = |version: &str, newer: bool, notes: Option<&str>| PublishedRelease {
+            version: version.to_owned(),
+            prerelease: version.contains("-rc."),
+            notes: notes.map(str::to_owned),
+            newer,
+        };
+        Ok(vec![
+            release("9.0.0-rc.1", true, Some("Faster board")),
+            release("0.3.1", false, None),
+            release("0.3.1-rc.1", false, None),
+            release("0.3.0", false, None),
+        ])
     }
-    fn install_latest(&self) -> Result<(), AppError> {
+    fn install(&self, _version: &str) -> Result<(), AppError> {
         Ok(())
     }
 }
@@ -1186,15 +1195,46 @@ fn about_page_shows_the_version_and_an_available_update() {
             .is_ok()
     );
 
+    // Before a check there is nothing to roll back to yet.
+    assert!(
+        simulator(app.view())
+            .find("Check for updates to list earlier versions.")
+            .is_ok()
+    );
     let messages = click(&app, "Check now");
     assert!(matches!(&messages[..], [Message::CheckForUpdates]));
     let _ = app.update(Message::CheckForUpdates);
     assert_eq!(app.update, crate::app::UpdateState::Checking);
-    let found = app.services.ports.updater.check();
+    let found = app.services.ports.updater.releases();
     let _ = app.update(Message::UpdateChecked(true, found));
-    assert!(matches!(&app.update, crate::app::UpdateState::Available(update) if update.version == "0.2.0"));
-    snapshot(&app, "settings-about");
+    // The stable channel does not offer the release candidate.
+    assert_eq!(app.update, crate::app::UpdateState::UpToDate);
+
+    // The preview channel does, and switching checks again.
+    let _ = app.update(Message::Setting(SettingChange::UpdateChannel(
+        floetask_application::UpdateChannel::Preview,
+    )));
+    assert_eq!(app.update, crate::app::UpdateState::Checking);
+    let found = app.services.ports.updater.releases();
+    let _ = app.update(Message::UpdateChecked(true, found));
+    assert!(matches!(&app.update, crate::app::UpdateState::Available(release) if release.version == "9.0.0-rc.1"));
+    assert!(
+        simulator(app.view())
+            .find("floetask 9.0.0-rc.1 (preview) is available.")
+            .is_ok()
+    );
     assert!(simulator(app.view()).find("Install and restart").is_ok());
+
+    // Rolling back installs the earlier version picked.
+    let _ = app.update(Message::RollbackChoice("0.3.1".to_owned()));
+    snapshot(&app, "settings-about");
+    let messages = click(&app, "Install");
+    let [Message::InstallRelease(version)] = &messages[..] else {
+        panic!("expected InstallRelease, got {messages:?}")
+    };
+    assert_eq!(version, "0.3.1");
+    let _ = app.update(Message::InstallRelease(version.clone()));
+    assert_eq!(app.update, crate::app::UpdateState::Installing("0.3.1".to_owned()));
 }
 
 #[test]

@@ -6,6 +6,13 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- Release channel in Settings → About: *Stable* offers releases only, *Preview* also offers release candidates, to try the next version early
+- Roll back in Settings → About: install one of the last ten earlier versions of your channel over the current one, e.g. to leave a preview; todo files and settings are kept
+
+### Changed
+- Release candidates are published with an updater manifest, and the app lists releases through the GitHub API
+
 ## [0.4.0-rc.1] - 2026-10-12
 
 ### Added

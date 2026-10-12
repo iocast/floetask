@@ -16,13 +16,14 @@ pub mod saved_filters;
 pub mod settings;
 pub mod state;
 pub mod todo_files;
+pub mod updates;
 
 pub use colors::{ColorOverrides, PaletteOverrides};
 pub use error::AppError;
 pub use notes::{NoteService, NoteStatus};
 pub use notifications::{DueNotification, NotificationService};
 pub use saved_filters::SavedFilter;
-pub use settings::{MonthOverflow, Settings, ThemePreference, WatcherOptions};
+pub use settings::{MonthOverflow, Settings, ThemePreference, UpdateChannel, WatcherOptions};
 pub use state::{AppState, DrawerTab, MainView, TodoFileEntry, WindowState};
 pub use todo_files::{FileOptions, InputOptions, TodoFileService, TodoRef};
 

@@ -89,23 +89,29 @@ pub trait ColorStore: Send + Sync {
     fn location(&self) -> PathBuf;
 }
 
-/// A newer release than the running one.
+/// A published release of floetask that this build can install.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AvailableUpdate {
+pub struct PublishedRelease {
+    /// Without the `v`, e.g. `0.4.0` or `0.4.0-rc.1`.
     pub version: String,
+    /// A release candidate, offered on the preview channel only.
+    pub prerelease: bool,
     /// Release notes, when the release has any.
     pub notes: Option<String>,
+    /// Newer than the running build. Older releases are what a rollback
+    /// can go back to.
+    pub newer: bool,
 }
 
-/// Finds and installs new releases of floetask.
+/// Finds and installs releases of floetask.
 pub trait Updater: Send + Sync {
     /// Whether this build knows where releases are published and how to
     /// verify them. Local builds usually do not.
     fn is_configured(&self) -> bool;
-    /// Asks the release server for a newer version.
-    fn check(&self) -> Result<Option<AvailableUpdate>, AppError>;
-    /// Downloads the newest release, verifies its signature and starts its
-    /// installer. On success the installer replaces the running app, which
-    /// may exit before this returns.
-    fn install_latest(&self) -> Result<(), AppError>;
+    /// The published releases other than the running one, newest first.
+    fn releases(&self) -> Result<Vec<PublishedRelease>, AppError>;
+    /// Downloads exactly this version, newer or older than the running one,
+    /// verifies its signature and starts its installer. On success the
+    /// installer replaces the running app, which may exit before this returns.
+    fn install(&self, version: &str) -> Result<(), AppError>;
 }

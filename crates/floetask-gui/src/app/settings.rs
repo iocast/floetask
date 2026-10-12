@@ -26,8 +26,15 @@ impl Floetask {
                 Task::none()
             }
             Message::Setting(change) => {
+                // Another channel offers other releases: look again.
+                let recheck = matches!(change, SettingChange::UpdateChannel(_));
                 self.apply_setting(change);
-                self.save_settings()
+                let save = self.save_settings();
+                if recheck {
+                    Task::batch([save, self.check_for_updates(true)])
+                } else {
+                    save
+                }
             }
             Message::ToggleTheme => {
                 let dark = self.colors().dark;
@@ -58,6 +65,7 @@ impl Floetask {
             SettingChange::Compact(on) => s.compact = on,
             SettingChange::Notifications(on) => s.notifications = on,
             SettingChange::CheckForUpdates(on) => s.check_for_updates = on,
+            SettingChange::UpdateChannel(channel) => s.update_channel = channel,
             SettingChange::NotificationThreshold(days) => s.notification_threshold_days = days,
             SettingChange::Zoom(percent) => s.zoom_percent = percent,
             SettingChange::Theme(theme) => s.theme = theme,

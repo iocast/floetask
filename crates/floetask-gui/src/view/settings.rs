@@ -8,7 +8,9 @@ use iced::widget::{
 };
 use iced::{Alignment, Element, Fill};
 
-use floetask_application::{MonthOverflow, Settings, ThemePreference};
+use floetask_application::ports::PublishedRelease;
+use floetask_application::updates::rollback_targets;
+use floetask_application::{MonthOverflow, Settings, ThemePreference, UpdateChannel};
 use floetask_domain::WeekStart;
 use floetask_domain::status::{StatusSet, is_valid_status};
 
@@ -395,27 +397,44 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         match &app.update {
             UpdateState::Idle => row![primary_button(tr("check_now"), Message::CheckForUpdates, colors)].into(),
             UpdateState::Checking => line(tr("update_checking").to_owned(), colors.muted).into(),
-            UpdateState::UpToDate => row![
-                line(tr("update_up_to_date").to_owned(), colors.success),
-                space::horizontal(),
-                primary_button(tr("check_now"), Message::CheckForUpdates, colors),
-            ]
-            .align_y(Alignment::Center)
-            .into(),
-            UpdateState::Available(update) => {
-                let mut details = column![line(trf("update_available", &[&update.version]), colors.primary)].spacing(6);
-                if let Some(notes) = &update.notes {
-                    details = details.push(text(notes.clone()).size(12).color(colors.muted));
-                }
+            UpdateState::UpToDate => {
+                // A preview build on the stable channel waits for the next
+                // release, which is newer than any of its candidates.
+                let (message, color) = if running_preview() && app.settings.update_channel == UpdateChannel::Stable {
+                    (tr("update_preview_on_stable"), colors.muted)
+                } else {
+                    (tr("update_up_to_date"), colors.success)
+                };
                 row![
-                    details.width(Fill),
-                    primary_button(tr("update_install"), Message::InstallUpdate, colors)
+                    line(message.to_owned(), color).width(Fill),
+                    primary_button(tr("check_now"), Message::CheckForUpdates, colors),
                 ]
                 .spacing(16)
                 .align_y(Alignment::Center)
                 .into()
             }
-            UpdateState::Installing => line(tr("update_installing").to_owned(), colors.muted).into(),
+            UpdateState::Available(release) => {
+                let mut details = column![line(
+                    trf("update_available", &[&version_label(release)]),
+                    colors.primary
+                )]
+                .spacing(6);
+                if let Some(notes) = &release.notes {
+                    details = details.push(text(notes.clone()).size(12).color(colors.muted));
+                }
+                row![
+                    details.width(Fill),
+                    primary_button(
+                        tr("update_install"),
+                        Message::InstallRelease(release.version.clone()),
+                        colors
+                    )
+                ]
+                .spacing(16)
+                .align_y(Alignment::Center)
+                .into()
+            }
+            UpdateState::Installing(version) => line(trf("update_installing", &[version]), colors.muted).into(),
             UpdateState::Failed(error) => row![
                 line(trf("update_failed", &[error]), colors.danger).width(Fill),
                 primary_button(tr("check_now"), Message::CheckForUpdates, colors),
@@ -434,8 +453,100 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             SettingChange::CheckForUpdates,
             colors,
         ));
+        let channel = choice(
+            &[UpdateChannel::Stable, UpdateChannel::Preview],
+            app.settings.update_channel,
+            |channel| {
+                tr(match channel {
+                    UpdateChannel::Stable => "update_channel_stable",
+                    UpdateChannel::Preview => "update_channel_preview",
+                })
+            },
+            |channel| Message::Setting(SettingChange::UpdateChannel(channel)),
+        );
+        items.push(setting(
+            "update_channel",
+            tr("update_channel").to_owned(),
+            channel,
+            colors,
+        ));
+        items.push(rollback(app, colors));
     }
     page("section_about", items)
+}
+
+/// Installs an earlier release over this one. The list fills with the
+/// releases of the channel once a check has found them.
+fn rollback(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let targets: Vec<RollbackChoice> = rollback_targets(&app.published, app.settings.update_channel)
+        .into_iter()
+        .map(|release| RollbackChoice {
+            version: release.version.clone(),
+            label: version_label(release),
+        })
+        .collect();
+    let busy = matches!(app.update, UpdateState::Checking | UpdateState::Installing(_));
+    let control: Element<'_, Message> = if targets.is_empty() {
+        text(tr(if app.published.is_empty() {
+            "rollback_check_first"
+        } else {
+            "rollback_none"
+        }))
+        .size(13)
+        .color(colors.muted)
+        .into()
+    } else {
+        let selected = app
+            .rollback_to
+            .as_ref()
+            .and_then(|version| targets.iter().find(|choice| &choice.version == version).cloned());
+        let install = selected
+            .as_ref()
+            .filter(|_| !busy)
+            .map(|choice| Message::InstallRelease(choice.version.clone()));
+        row![
+            pick_list(targets, selected, |choice: RollbackChoice| Message::RollbackChoice(
+                choice.version
+            ))
+            .placeholder(tr("rollback_pick"))
+            .width(CONTROL_WIDTH),
+            button(text(tr("rollback_install")).size(14))
+                .padding([8, 16])
+                .style(theme::secondary(colors))
+                .on_press_maybe(install),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .into()
+    };
+    setting("rollback", tr("rollback").to_owned(), control, colors)
+}
+
+/// Whether this build is a release candidate.
+fn running_preview() -> bool {
+    env!("CARGO_PKG_VERSION").contains('-')
+}
+
+/// A version as offered: release candidates are marked as previews.
+fn version_label(release: &PublishedRelease) -> String {
+    if release.prerelease {
+        trf("update_preview_version", &[&release.version])
+    } else {
+        release.version.clone()
+    }
+}
+
+/// An earlier version in the rollback list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RollbackChoice {
+    version: String,
+    label: String,
+}
+
+impl std::fmt::Display for RollbackChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.label)
+    }
 }
 
 /// A pick list over a few values shown through `label`.

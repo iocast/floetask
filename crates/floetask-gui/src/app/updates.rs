@@ -1,9 +1,10 @@
-//! Checking for and installing new releases (Settings → About).
+//! Checking for, installing and rolling back releases (Settings → About).
 
 use iced::Task;
 
 use floetask_application::AppError;
-use floetask_application::ports::AvailableUpdate;
+use floetask_application::ports::PublishedRelease;
+use floetask_application::updates::offered;
 
 use super::{Floetask, Message};
 use crate::i18n::trf;
@@ -15,8 +16,9 @@ pub enum UpdateState {
     Idle,
     Checking,
     UpToDate,
-    Available(AvailableUpdate),
-    Installing,
+    Available(PublishedRelease),
+    /// Downloading and installing this version.
+    Installing(String),
     Failed(String),
 }
 
@@ -25,10 +27,14 @@ impl Floetask {
         match message {
             Message::CheckForUpdates => self.check_for_updates(true),
             Message::UpdateChecked(manual, result) => self.update_checked(manual, result),
-            Message::InstallUpdate => {
-                self.update = UpdateState::Installing;
+            Message::RollbackChoice(version) => {
+                self.rollback_to = Some(version);
+                Task::none()
+            }
+            Message::InstallRelease(version) => {
+                self.update = UpdateState::Installing(version.clone());
                 let updater = self.services.ports.updater.clone();
-                Task::perform(async move { updater.install_latest() }, Message::UpdateInstalled)
+                Task::perform(async move { updater.install(&version) }, Message::UpdateInstalled)
             }
             Message::UpdateInstalled(result) => {
                 // On success the installer takes over and the app usually has
@@ -43,8 +49,8 @@ impl Floetask {
         }
     }
 
-    /// Asks for a newer release. The automatic check on start stays silent
-    /// unless it finds one.
+    /// Lists the published releases. The automatic check on start stays
+    /// silent unless it finds an update.
     pub(super) fn check_for_updates(&mut self, manual: bool) -> Task<Message> {
         let updater = self.services.ports.updater.clone();
         if !updater.is_configured() {
@@ -53,33 +59,47 @@ impl Floetask {
         if manual {
             self.update = UpdateState::Checking;
         }
-        Task::perform(async move { updater.check() }, move |result| {
+        Task::perform(async move { updater.releases() }, move |result| {
             Message::UpdateChecked(manual, result)
         })
     }
 
-    fn update_checked(&mut self, manual: bool, result: Result<Option<AvailableUpdate>, AppError>) -> Task<Message> {
-        match result {
-            Ok(Some(update)) => {
+    fn update_checked(&mut self, manual: bool, result: Result<Vec<PublishedRelease>, AppError>) -> Task<Message> {
+        let releases = match result {
+            Ok(releases) => releases,
+            Err(error) => {
+                // A failed check on start is not worth interrupting for.
+                if manual {
+                    self.update = UpdateState::Failed(error.to_string());
+                }
+                return Task::none();
+            }
+        };
+        self.published = releases;
+        if self
+            .rollback_to
+            .as_ref()
+            .is_some_and(|version| !self.published.iter().any(|release| &release.version == version))
+        {
+            self.rollback_to = None;
+        }
+        match offered(&self.published, self.settings.update_channel).cloned() {
+            Some(release) => {
                 // A manual check shows the result on the About page itself.
                 let notice = if manual {
                     Task::none()
                 } else {
-                    self.toast(trf("update_available_toast", &[&update.version]))
+                    self.toast(trf("update_available_toast", &[&release.version]))
                 };
-                self.update = UpdateState::Available(update);
+                self.update = UpdateState::Available(release);
                 notice
             }
-            Ok(None) if manual => {
-                self.update = UpdateState::UpToDate;
+            None => {
+                if manual {
+                    self.update = UpdateState::UpToDate;
+                }
                 Task::none()
             }
-            Err(error) if manual => {
-                self.update = UpdateState::Failed(error.to_string());
-                Task::none()
-            }
-            // A failed or empty check on start is not worth interrupting for.
-            _ => Task::none(),
         }
     }
 }

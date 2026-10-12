@@ -142,6 +142,11 @@ pub struct Floetask {
     pub(crate) watch_generation: u64,
     /// The release check on the About page.
     pub(crate) update: UpdateState,
+    /// The releases the last check found, newest first: for the channel's
+    /// offer and the rollback list.
+    pub(crate) published: Vec<floetask_application::ports::PublishedRelease>,
+    /// The earlier version picked on the About page to roll back to.
+    pub(crate) rollback_to: Option<String>,
 }
 
 impl Floetask {
@@ -207,6 +212,8 @@ impl Floetask {
             modifiers: iced::keyboard::Modifiers::default(),
             watch_generation: 0,
             update: UpdateState::default(),
+            published: Vec::new(),
+            rollback_to: None,
         };
         let toast_tasks: Vec<_> = toasts.into_iter().map(|text| app.toast_error(text)).collect();
         let load_files = Task::batch([app.load_all_files(), app.persist_state()]);
@@ -458,9 +465,11 @@ impl Floetask {
             | M::AskDeleteSavedFilter(_)
             | M::ToggleSuppress(_) => self.update_search(message),
 
-            M::CheckForUpdates | M::UpdateChecked(..) | M::InstallUpdate | M::UpdateInstalled(_) => {
-                self.update_updates(message)
-            }
+            M::CheckForUpdates
+            | M::UpdateChecked(..)
+            | M::InstallRelease(_)
+            | M::RollbackChoice(_)
+            | M::UpdateInstalled(_) => self.update_updates(message),
             M::OpenSettings | M::Setting(_) | M::ToggleTheme | M::SettingsSection(_) | M::SettingsStatusInput(_) => {
                 self.update_settings(message)
             }

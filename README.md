@@ -30,7 +30,7 @@ floetask [OPTIONS] [TODO_FILE]
 
 ### Updates
 
-Settings → About shows the version and checks for new releases (on start, or with **Check now**); **Install and restart** downloads the signed installer and runs it. Only release builds from the GitHub workflow can update themselves, after a one-time key setup: generate a key with `cargo packager signer generate`, then add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` and `FLOETASK_UPDATE_KEY_PASSWORD` and the variable `FLOETASK_UPDATE_PUBLIC_KEY` to the GitHub repository ([features/todo-notes/14-platform.md §14.2](features/todo-notes/14-platform.md)).
+Settings → About shows the version and checks for new releases (on start, or with **Check now**); **Install and restart** downloads the signed installer and runs it. The **Release channel** *Preview* also offers release candidates, and **Roll back** installs an earlier version of your channel. Only release builds from the GitHub workflow can update themselves, after a one-time key setup: generate a key with `cargo packager signer generate`, then add the secrets `FLOETASK_UPDATE_PRIVATE_KEY` and `FLOETASK_UPDATE_KEY_PASSWORD` and the variable `FLOETASK_UPDATE_PUBLIC_KEY` to the GitHub repository ([features/todo-notes/14-platform.md §14.2](features/todo-notes/14-platform.md)).
 
 A file passed on the command line is registered and opened. Without one, floetask reopens the files from last time.
 

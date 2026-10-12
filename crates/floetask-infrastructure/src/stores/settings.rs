@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::SettingsStore;
-use floetask_application::{AppError, MonthOverflow, Settings, ThemePreference, WatcherOptions};
+use floetask_application::{AppError, MonthOverflow, Settings, ThemePreference, UpdateChannel, WatcherOptions};
 use floetask_domain::board::BoardColumns;
 use floetask_domain::{StatusSet, WeekStart};
 
@@ -52,6 +52,8 @@ struct SettingsFile {
     compact: bool,
     notifications: bool,
     check_for_updates: bool,
+    /// `stable` or `preview` (release candidates too).
+    update_channel: String,
     notification_threshold_days: u8,
     zoom_percent: u16,
     /// `system`, `light` or `dark`.
@@ -137,6 +139,11 @@ impl From<&Settings> for SettingsFile {
             compact: s.compact,
             notifications: s.notifications,
             check_for_updates: s.check_for_updates,
+            update_channel: match s.update_channel {
+                UpdateChannel::Stable => "stable",
+                UpdateChannel::Preview => "preview",
+            }
+            .to_owned(),
             notification_threshold_days: s.notification_threshold_days,
             zoom_percent: s.zoom_percent,
             theme: match s.theme {
@@ -188,6 +195,10 @@ impl From<SettingsFile> for Settings {
             compact: f.compact,
             notifications: f.notifications,
             check_for_updates: f.check_for_updates,
+            update_channel: match f.update_channel.as_str() {
+                "preview" => UpdateChannel::Preview,
+                _ => UpdateChannel::Stable,
+            },
             notification_threshold_days: f.notification_threshold_days,
             zoom_percent: f.zoom_percent,
             theme: match f.theme.as_str() {
@@ -236,6 +247,7 @@ mod tests {
             theme: ThemePreference::Dark,
             week_start: WeekStart::Sunday,
             month_overflow: MonthOverflow::Scroll,
+            update_channel: UpdateChannel::Preview,
             exclude_lines_with_prefix: vec!["##".into()],
             ..Settings::default()
         };

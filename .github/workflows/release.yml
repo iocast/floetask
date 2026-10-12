@@ -112,10 +112,11 @@ jobs:
         env:
           # The AppImage tooling is itself an AppImage; runners have no FUSE.
           APPIMAGE_EXTRACT_AND_RUN: 1
-          # Compiled into the app: where the updater looks and which key it
-          # trusts (features/todo-notes/14-platform.md §14.2). Without them the build
-          # works but cannot update itself.
-          FLOETASK_UPDATE_ENDPOINT: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
+          # Compiled into the app: where the updater lists releases (release
+          # candidates included, for the preview channel and rollbacks) and
+          # which key it trusts (features/todo-notes/14-platform.md §14.2).
+          # Without them the build works but cannot update itself.
+          FLOETASK_UPDATE_RELEASES: https://api.github.com/repos/${{ github.repository }}/releases
           FLOETASK_UPDATE_PUBLIC_KEY: ${{ vars.FLOETASK_UPDATE_PUBLIC_KEY }}
 
       - name: Upload installers
@@ -155,10 +156,12 @@ jobs:
         with:
           path: artifacts
 
-      # Installed apps read latest.json from the latest release; a release
-      # candidate is never offered as an update.
+      # Every release carries its manifest: the app installs a version, newer
+      # or older, from that release's latest.json. A release candidate's is
+      # only read on the preview channel or for a rollback; builds before
+      # 0.4 read releases/latest/download/latest.json, which never points
+      # at a pre-release.
       - name: Write the updater manifest
-        if: needs.validate.outputs.prerelease != 'true'
         run: python3 scripts/update-manifest.py artifacts "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" release_notes.md artifacts/latest.json
 
       - name: Create GitHub Release

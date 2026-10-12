@@ -131,7 +131,25 @@ fn english(key: &str) -> Option<&'static str> {
         "update_available" => "floetask {} is available.",
         "update_available_toast" => "floetask {} is available. Install it from Settings → About.",
         "update_install" => "Install and restart",
-        "update_installing" => "Downloading and installing… floetask restarts when it is done.",
+        "update_installing" => "Downloading and installing floetask {}… floetask restarts when it is done.",
+        "update_preview_version" => "{} (preview)",
+        "update_preview_on_stable" => {
+            "You are running a preview. The stable channel updates it with the next release; to leave it now, roll back below."
+        }
+        "update_channel" => "Release channel",
+        "update_channel_desc" => {
+            "Preview also offers release candidates: the next version a few days early, to try new features and report problems before everyone gets them. They are tested less. Switch back to Stable at any time."
+        }
+        "update_channel_stable" => "Stable",
+        "update_channel_preview" => "Preview",
+        "rollback" => "Roll back",
+        "rollback_desc" => {
+            "Install an earlier version over this one, to leave a preview or to step back from a release with a problem. Your todo files and settings are kept."
+        }
+        "rollback_pick" => "Earlier version",
+        "rollback_install" => "Install",
+        "rollback_check_first" => "Check for updates to list earlier versions.",
+        "rollback_none" => "No earlier version on this channel.",
         "update_failed" => "Update failed: {}",
         "updates_not_configured" => "This build cannot update itself. Releases from the project's release page can.",
         "notes_placeholder" => "Notes in Markdown, saved to a file next to your todo file",

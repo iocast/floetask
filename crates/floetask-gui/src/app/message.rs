@@ -159,12 +159,15 @@ pub enum Message {
 
     // Updates (Settings → About)
     CheckForUpdates,
-    /// Whether the user asked, and what the release server said.
+    /// Whether the user asked, and the published releases.
     UpdateChecked(
         bool,
-        Result<Option<floetask_application::ports::AvailableUpdate>, AppError>,
+        Result<Vec<floetask_application::ports::PublishedRelease>, AppError>,
     ),
-    InstallUpdate,
+    /// Installs this version: the offered update, or an older one (a rollback).
+    InstallRelease(String),
+    /// The earlier version picked to roll back to.
+    RollbackChoice(String),
     UpdateInstalled(Result<(), AppError>),
 
     // Dialogs
@@ -235,6 +238,7 @@ pub enum SettingChange {
     Compact(bool),
     Notifications(bool),
     CheckForUpdates(bool),
+    UpdateChannel(floetask_application::UpdateChannel),
     NotificationThreshold(u8),
     Zoom(u16),
     Theme(floetask_application::ThemePreference),

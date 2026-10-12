@@ -24,6 +24,17 @@ pub enum MonthOverflow {
     Scroll,
 }
 
+/// Which releases the updater offers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum UpdateChannel {
+    /// Releases only.
+    #[default]
+    Stable,
+    /// Release candidates (`X.Y.Z-rc.N`) too: the next version early, for
+    /// people who want to try it before everyone gets it.
+    Preview,
+}
+
 /// How todo files are watched for external changes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WatcherOptions {
@@ -57,6 +68,7 @@ pub struct Settings {
     pub notifications: bool,
     /// Look for a new release on start.
     pub check_for_updates: bool,
+    pub update_channel: UpdateChannel,
     /// Notify about todos due within this many days (0 = today only).
     pub notification_threshold_days: u8,
     pub zoom_percent: u16,
@@ -87,6 +99,7 @@ impl Default for Settings {
             compact: false,
             notifications: true,
             check_for_updates: true,
+            update_channel: UpdateChannel::Stable,
             notification_threshold_days: 2,
             zoom_percent: 100,
             theme: ThemePreference::System,

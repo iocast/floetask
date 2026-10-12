@@ -93,9 +93,9 @@ rc [patch|minor|major|X.Y.Z] [-y|--yes]
     from a rollback), sets $CARGO_TOML_FILE to X.Y.Z-rc.N, commits "Release vX.Y.Z-rc.N",
     pushes, tags with the section as message and pushes the tag.
   - Fails if the section has no entries: each candidate lists what changed since the last.
-  - The release workflow publishes it as a pre-release: never marked latest, never offered to
-    installed apps as an update, and without the MSI (its version must be numeric; Windows
-    gets the setup .exe).
+  - The release workflow publishes it as a pre-release: never marked latest, without the MSI
+    (its version must be numeric; Windows gets the setup .exe). Installed apps offer it only
+    on the Preview release channel (Settings -> About), and can roll back from it.
   - 'new' later collects the entries of all candidates of X.Y.Z into [X.Y.Z].
 
 EOF
