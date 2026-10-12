@@ -24,7 +24,7 @@ pub mod todo;
 
 pub use date::{Date, WeekStart};
 pub use document::{DocumentError, TodoDocument};
-pub use note::{NoteError, NoteName};
+pub use note::{NoteError, NoteLink, NoteName};
 pub use priority::Priority;
 pub use recurrence::{Recurrence, RecurrenceUnit};
 pub use status::StatusSet;

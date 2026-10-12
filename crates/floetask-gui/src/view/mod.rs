@@ -14,6 +14,7 @@ mod empty;
 mod files;
 pub mod icons;
 pub mod list;
+mod note_window;
 mod popover;
 mod search;
 mod settings;
@@ -27,6 +28,8 @@ use floetask_application::MainView;
 
 use crate::app::{Dialog, Floetask, Message};
 use crate::theme;
+
+pub use note_window::view as note_window;
 
 pub const LIST_ID: &str = "todo-list";
 pub const SEARCH_ID: &str = "search";

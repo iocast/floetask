@@ -12,30 +12,68 @@ use iced::{Subscription, event, keyboard, window};
 use floetask_application::WatcherOptions;
 use floetask_application::ports::FileWatcher;
 
-use super::{Floetask, Message};
+use super::{Dialog, Floetask, Message};
 
 const TICK: Duration = Duration::from_secs(60);
 
 pub(super) fn all(app: &Floetask) -> Subscription<Message> {
     Subscription::batch([
-        keyboard::listen().filter_map(|event| match event {
-            keyboard::Event::KeyPressed { key, modifiers, .. } => Some(Message::KeyPressed(key, modifiers)),
-            keyboard::Event::ModifiersChanged(modifiers) => Some(Message::ModifiersChanged(modifiers)),
-            _ => None,
-        }),
-        event::listen_with(|event, _status, id| match event {
-            iced::Event::Window(
-                event @ (window::Event::FileDropped(_)
-                | window::Event::Resized(_)
-                | window::Event::Moved(_)
-                | window::Event::CloseRequested),
+        // Keys no widget took, with the window they came from, since the
+        // main window and the note window handle them differently.
+        event::listen_with(|event, status, id| match (event, status) {
+            (iced::Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }), event::Status::Ignored) => {
+                Some(Message::KeyPressed(id, key, modifiers))
+            }
+            (iced::Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)), event::Status::Ignored) => {
+                Some(Message::ModifiersChanged(modifiers))
+            }
+            (
+                iced::Event::Window(
+                    event @ (window::Event::FileDropped(_)
+                    | window::Event::Resized(_)
+                    | window::Event::Moved(_)
+                    | window::Event::CloseRequested),
+                ),
+                _,
             ) => Some(Message::Window(id, event)),
             _ => None,
         }),
         iced::system::theme_changes().map(|mode| Message::SystemDark(mode == iced::theme::Mode::Dark)),
         iced::time::every(TICK).map(|_| Message::Tick),
         watch(app),
+        note_editors(app),
     ])
+}
+
+/// The notes editors' caret blink, and `Escape` from a focused one: the
+/// editor takes the key, so the key listener above never sees it, yet in the
+/// dialog it should still close the dialog.
+fn note_editors(app: &Floetask) -> Subscription<Message> {
+    let dialog = match &app.dialog {
+        Some(Dialog::Editor(editor)) => Some(editor.note.state()),
+        _ => None,
+    };
+    let window = app.note_window.as_ref().map(|window| window.note.state());
+    let mut subscriptions = Vec::new();
+    if let Some(state) = dialog {
+        subscriptions.push(state.subscription().map(Message::EditorNoteAction));
+    }
+    if let Some(state) = window {
+        subscriptions.push(state.subscription().map(Message::NoteWindowAction));
+    }
+    if dialog.is_some_and(|state| state.is_focused()) {
+        subscriptions.push(event::listen_with(|event, status, id| match (event, status) {
+            (
+                iced::Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::Escape),
+                    ..
+                }),
+                event::Status::Captured,
+            ) => Some(Message::NoteEditorEscape(id)),
+            _ => None,
+        }));
+    }
+    Subscription::batch(subscriptions)
 }
 
 /// What to watch. Hashed by generation and paths, so the subscription is

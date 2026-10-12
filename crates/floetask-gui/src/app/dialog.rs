@@ -1,14 +1,18 @@
 //! Modal dialogs and their state.
 
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 
 use iced::widget::text_editor;
+use iced_markdown_editor::{Action, EditorState, EditorStyle, Event, Output, Paper, ZoomSettings};
 
 use floetask_application::TodoRef;
 use floetask_domain::date::first_of_month;
 use floetask_domain::listing::Attribute;
 use floetask_domain::note::default_name;
-use floetask_domain::{Date, NoteError, NoteName, RecurrenceUnit};
+use floetask_domain::{Date, NoteError, NoteLink, NoteName, RecurrenceUnit};
+
+use crate::theme::{self, Colors};
 
 /// The date extensions that have a picker.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,14 +75,14 @@ pub struct Editor {
     pub recurrence_strict: bool,
     pub pomodoros: String,
     /// The todo's notes in Markdown, saved to its `note:` file.
-    pub note: text_editor::Content,
-    /// The note text as read from disk, to tell whether the user changed it.
-    /// Empty while the file is missing or still loading.
-    pub note_loaded: String,
+    pub note: NoteField,
+    /// A file the user picked to link that lies outside the notes folder,
+    /// while the dialog asks whether to move it in or keep it where it is.
+    pub pending_link: Option<PathBuf>,
 }
 
 impl Editor {
-    pub fn new(target: Option<TodoRef>, text: &str) -> Self {
+    pub fn new(target: Option<TodoRef>, text: &str, colors: Colors) -> Self {
         Self {
             target,
             content: text_editor::Content::with_text(text),
@@ -89,8 +93,8 @@ impl Editor {
             recurrence_unit: RecurrenceUnit::Week,
             recurrence_strict: false,
             pomodoros: "1".to_owned(),
-            note: text_editor::Content::new(),
-            note_loaded: String::new(),
+            note: NoteField::new(colors),
+            pending_link: None,
         }
     }
 
@@ -100,30 +104,26 @@ impl Editor {
     }
 
     pub fn note_text(&self) -> String {
-        let text = self.note.text();
-        text.strip_suffix('\n').map(str::to_owned).unwrap_or(text)
+        self.note.text().to_owned()
     }
 
     /// Shows a note read from disk, unless the user already started typing.
     pub fn load_note(&mut self, text: &str) {
-        if self.note_text().is_empty() {
-            let text = text.strip_suffix('\n').unwrap_or(text);
-            self.note = text_editor::Content::with_text(text);
-            self.note_loaded = text.to_owned();
+        if self.note.text().trim().is_empty() {
+            self.note.show(text);
         }
     }
 
     /// Whether saving should write the note file: the text differs from
     /// what was loaded. An empty note that was never written stays unwritten.
     pub fn note_changed(&self) -> bool {
-        self.note_text() != self.note_loaded
+        self.note.changed()
     }
 
-    /// The note file this todo links to: its `note:` value, or the name a
-    /// new note would get. `None` when the `note:` value is invalid.
-    pub fn note_target(&self) -> Option<Result<NoteName, NoteError>> {
+    /// The note this todo links to, from its `note:` value; `None` without one.
+    pub fn note_target(&self) -> Option<Result<NoteLink, NoteError>> {
         let todo = floetask_domain::Todo::from_user_text(&self.text());
-        todo.note_name()
+        todo.note_link()
     }
 
     /// The name a new note gets from the todo text, e.g. `write-report.md`.
@@ -168,6 +168,94 @@ impl Editor {
             selection: None,
         });
         self.suggestions.clear();
+    }
+}
+
+/// The Markdown editor for a todo's note. It remembers the Markdown it was
+/// loaded with, so saving can tell whether the user changed the note.
+pub struct NoteField {
+    state: EditorState,
+    /// The editor's Markdown, rebuilt on each change instead of in `view`.
+    markdown: String,
+    /// The Markdown as loaded; empty while the file is missing or loading.
+    /// It comes from the editor's own serialiser like `markdown`, so a note
+    /// the user did not touch is never rewritten in the editor's format.
+    loaded: String,
+}
+
+impl NoteField {
+    pub(crate) fn new(colors: Colors) -> Self {
+        let state = EditorState::new()
+            .paper(Paper::fill())
+            .zoom_settings(ZoomSettings::disabled())
+            .style(theme::markdown_editor(colors));
+        let markdown = state.markdown();
+        Self {
+            state,
+            loaded: markdown.clone(),
+            markdown,
+        }
+    }
+
+    pub fn state(&self) -> &EditorState {
+        &self.state
+    }
+
+    /// Forwards a widget action, keeping the Markdown up to date.
+    pub fn update(&mut self, action: Action) -> Output {
+        let output = self.state.update(action);
+        if output.events.contains(&Event::Changed) {
+            self.markdown = self.state.markdown();
+        }
+        output
+    }
+
+    /// The note in Markdown, without the final newline.
+    pub fn text(&self) -> &str {
+        self.markdown.strip_suffix('\n').unwrap_or(&self.markdown)
+    }
+
+    /// Replaces the note with one read from disk.
+    pub fn show(&mut self, text: &str) {
+        self.replace(text);
+        self.loaded = self.markdown.clone();
+    }
+
+    /// Replaces the note as if the user had typed `text`.
+    pub fn replace(&mut self, text: &str) {
+        self.state.set_markdown(text);
+        self.markdown = self.state.markdown();
+    }
+
+    /// The whole note in Markdown, as it is written to the file.
+    pub fn markdown(&self) -> &str {
+        &self.markdown
+    }
+
+    pub fn changed(&self) -> bool {
+        self.markdown != self.loaded
+    }
+
+    /// Records that `saved` is now on disk. Typing that went on while it
+    /// was being written still counts as a change.
+    pub fn mark_saved(&mut self, saved: String) {
+        self.loaded = saved;
+    }
+
+    /// Follows a theme change; the editor draws its own colours.
+    pub fn set_style(&mut self, style: EditorStyle) {
+        if *self.state.current_style() != style {
+            self.state.set_style(style);
+        }
+    }
+}
+
+impl std::fmt::Debug for NoteField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NoteField")
+            .field("markdown", &self.markdown)
+            .field("loaded", &self.loaded)
+            .finish_non_exhaustive()
     }
 }
 

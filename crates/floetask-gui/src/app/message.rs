@@ -5,7 +5,7 @@ use iced::{keyboard, window};
 
 use floetask_application::{AppError, DrawerTab, SavedFilter, TodoRef};
 use floetask_domain::listing::{Attribute, LaneId};
-use floetask_domain::{Date, Priority, RecurrenceUnit, TodoDocument};
+use floetask_domain::{Date, NoteLink, Priority, RecurrenceUnit, TodoDocument};
 
 use super::dialog::DateKey;
 
@@ -14,7 +14,8 @@ pub enum Message {
     // Runtime events
     SystemDark(bool),
     Tick,
-    KeyPressed(keyboard::Key, keyboard::Modifiers),
+    /// A key no widget took, in the window it was pressed in.
+    KeyPressed(window::Id, keyboard::Key, keyboard::Modifiers),
     ModifiersChanged(keyboard::Modifiers),
     Quit,
     WindowReady(Option<window::Id>),
@@ -82,10 +83,41 @@ pub enum Message {
     EditorApplyRecurrence(bool),
     EditorPomodoros(String),
     EditorApplyPomodoros(bool),
-    EditorNoteAction(text_editor::Action),
+    EditorNoteAction(iced_markdown_editor::Action),
     /// The note file of the todo being edited, read from disk (`None`: missing).
     NoteLoaded(TodoRef, Result<Option<String>, AppError>),
+    /// Asks for a Markdown file on disk to link instead of creating one.
+    EditorPickNoteFile,
+    NoteFilePicked(Option<PathBuf>),
+    /// Answers to "move the picked file into the notes folder?".
+    EditorMovePickedNote,
+    EditorKeepPickedNote,
+    EditorCancelPickedNote,
+    /// A picked file, moved into the notes folder, ready to link.
+    NoteFileMoved(Result<NoteLink, AppError>),
+    /// Removes the todo's `note:` tag; the file is kept.
+    EditorUnlinkNote,
+    /// A note just linked in the dialog, read from disk (`None`: missing).
+    NoteLinked(NoteLink, Result<Option<String>, AppError>),
+    /// Hands the dialog's note over to the note window.
+    EditorOpenNoteWindow,
+    /// The dialog's note, ready for the note window: its link and its text
+    /// on disk (`None`: no file yet).
+    NoteHandedOver(Result<(NoteLink, Option<String>), AppError>),
     SaveEditor,
+
+    // Note window
+    /// A note opened from a todo card, created first when missing.
+    NoteWindowLoaded(PathBuf, Result<(NoteLink, String), AppError>),
+    NoteWindowAction(iced_markdown_editor::Action),
+    /// Saves the note window if this is still its latest edit.
+    NoteWindowAutosave(u64),
+    NoteWindowSave,
+    /// A note window save finished: the file, the text written, the result.
+    NoteWindowSaved(PathBuf, String, Result<(), AppError>),
+    NoteWindowOpenExternally,
+    /// `Escape` taken by a focused notes editor, in the window it came from.
+    NoteEditorEscape(window::Id),
 
     // Calendar (row date picker or editor)
     CalendarMonth(i32),

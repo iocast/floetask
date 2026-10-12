@@ -87,6 +87,8 @@ pub struct AppState {
     /// Keys of the list groups the user collapsed (`Group::key`).
     pub collapsed_list_groups: Vec<String>,
     pub window: WindowState,
+    /// Where the note window was last, so it opens there again.
+    pub note_window: WindowState,
 }
 
 impl Default for AppState {
@@ -106,6 +108,11 @@ impl Default for AppState {
             collapsed_board_groups: Vec::new(),
             collapsed_list_groups: Vec::new(),
             window: WindowState::default(),
+            note_window: WindowState {
+                width: 760.0,
+                height: 820.0,
+                ..WindowState::default()
+            },
         }
     }
 }

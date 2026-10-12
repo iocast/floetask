@@ -1,5 +1,7 @@
 //! The `note:` extension: links a todo to a notes file in a `<file>-notes/`
-//! folder next to the todo file (`todo.txt` keeps its notes in `todo-notes/`). See `features/todo-notes/note-extension.md`.
+//! folder next to the todo file (`todo.txt` keeps its notes in `todo-notes/`),
+//! or to a Markdown file elsewhere by its absolute path. See
+//! `features/todo-notes/note-extension.md`.
 //!
 //! This module only validates names and derives text; finding, creating and
 //! opening the file is the application layer's job.
@@ -17,6 +19,9 @@ const NOTES_FOLDER_SUFFIX: &str = "-notes";
 
 /// Extension assumed when a note name has none.
 const DEFAULT_EXTENSION: &str = "md";
+
+/// Extensions of the files that can be linked as notes: Markdown and text.
+const LINKABLE_EXTENSIONS: [&str; 3] = ["md", "markdown", "txt"];
 
 /// Longest name [`suggest_name`] produces, without the extension.
 const SUGGESTION_MAX_LEN: usize = 40;
@@ -67,6 +72,34 @@ impl NoteName {
         })
     }
 
+    /// The name linking to an existing file in the notes folder, given its
+    /// `/`-separated path relative to that folder. `None` for files that are
+    /// not Markdown or text, and for names breaking the rules. A name without
+    /// extension is refused too: `parse` would add `.md` and point elsewhere.
+    pub fn of_file(relative: &str) -> Option<NoteName> {
+        let name = Self::parse(relative).ok().filter(|name| name.0 == relative)?;
+        let extension = relative.rsplit_once('.').map(|(_, extension)| extension)?;
+        LINKABLE_EXTENSIONS.contains(&extension).then_some(name)
+    }
+
+    /// A valid name for a file moved into the notes folder: its name
+    /// slugified like [`suggest_name`], keeping a Markdown or text extension.
+    /// `My Plan.MD` becomes `my-plan.md`.
+    pub fn from_file_name(file_name: &str) -> NoteName {
+        let (stem, extension) = match file_name.rsplit_once('.') {
+            Some((stem, extension)) if !stem.is_empty() => (stem, extension.to_lowercase()),
+            _ => (file_name, String::new()),
+        };
+        let extension = if LINKABLE_EXTENSIONS.contains(&extension.as_str()) {
+            extension
+        } else {
+            DEFAULT_EXTENSION.to_owned()
+        };
+        let stem = slugify(stem);
+        let stem = if stem.is_empty() { FALLBACK_NAME } else { &stem };
+        NoteName(format!("{stem}.{extension}"))
+    }
+
     /// The path relative to the notes folder, `/`-separated.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -97,6 +130,109 @@ impl std::fmt::Display for NoteName {
     }
 }
 
+/// Where a `note:` value points: a file in the todo file's notes folder,
+/// or a file the user keeps somewhere else, linked by its absolute path.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum NoteLink {
+    Folder(NoteName),
+    /// An absolute, `/`-separated path. Its `note:` value is percent-encoded
+    /// to stay one todo.txt extension (see [`encode`]).
+    External(String),
+}
+
+impl NoteLink {
+    /// Reads a `note:` value: an absolute path (`/...`, `C%3A/...`) links a
+    /// file outside the notes folder, anything else is a folder name.
+    pub fn parse(value: &str) -> Result<Self, NoteError> {
+        let path = decode(value);
+        if is_absolute(&path) {
+            Ok(Self::External(path))
+        } else {
+            NoteName::parse(value).map(Self::Folder)
+        }
+    }
+
+    /// A link to a file outside the notes folder, given its absolute path
+    /// (`\` separators are accepted). `None` for a relative path.
+    pub fn external(path: &str) -> Option<Self> {
+        let path = path.replace('\\', "/");
+        is_absolute(&path).then_some(Self::External(path))
+    }
+
+    /// The `note:` value for this link.
+    pub fn value(&self) -> String {
+        match self {
+            Self::Folder(name) => name.as_str().to_owned(),
+            Self::External(path) => encode(path),
+        }
+    }
+
+    /// The file's name without its folders, for a short label.
+    pub fn file_name(&self) -> &str {
+        let path = match self {
+            Self::Folder(name) => name.as_str(),
+            Self::External(path) => path,
+        };
+        path.rsplit('/').next().unwrap_or(path)
+    }
+}
+
+impl std::fmt::Display for NoteLink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Folder(name) => write!(f, "{name}"),
+            Self::External(path) => f.write_str(path),
+        }
+    }
+}
+
+/// A Unix path, a Windows drive path or a UNC path (`//server/share`).
+fn is_absolute(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    path.starts_with('/')
+        || (bytes.len() > 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && matches!(bytes[2], b'/' | b'\\'))
+}
+
+/// Percent-encodes a path so it reads back as one todo.txt extension value:
+/// whitespace splits tokens, a `:` turns the token into text, and so does a
+/// value starting with `//` (it looks like a URL), as a UNC path does.
+fn encode(path: &str) -> String {
+    let mut encoded = String::with_capacity(path.len());
+    for (i, c) in path.chars().enumerate() {
+        let unc_start = i == 0 && path.starts_with("//");
+        if c == '%' || c == ':' || c.is_whitespace() || unc_start {
+            let mut buffer = [0; 4];
+            for byte in c.encode_utf8(&mut buffer).bytes() {
+                encoded.push_str(&format!("%{byte:02X}"));
+            }
+        } else {
+            encoded.push(c);
+        }
+    }
+    encoded
+}
+
+/// Undoes [`encode`]. A `%` not followed by two hex digits stays as it is.
+fn decode(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = value.get(i + 1..i + 3).and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        match (bytes[i], hex) {
+            (b'%', Some(byte)) => {
+                decoded.push(byte);
+                i += 3;
+            }
+            (byte, _) => {
+                decoded.push(byte);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(decoded).unwrap_or_else(|_| value.to_owned())
+}
+
 /// The folder next to a todo file that its note names are relative to:
 /// `todo.txt` gets `todo-notes`, `work.todo.txt` gets `work.todo-notes`.
 /// Each todo file has its own folder, so two lists never share notes.
@@ -122,6 +258,15 @@ impl Todo {
     pub fn with_note(&self, name: Option<&NoteName>) -> Todo {
         self.with_extension(NOTE_KEY, name.map(NoteName::as_str))
     }
+
+    /// Where this todo's note is, in the notes folder or elsewhere.
+    pub fn note_link(&self) -> Option<Result<NoteLink, NoteError>> {
+        self.note().map(NoteLink::parse)
+    }
+
+    pub fn with_note_link(&self, link: Option<&NoteLink>) -> Todo {
+        self.with_extension(NOTE_KEY, link.map(NoteLink::value).as_deref())
+    }
 }
 
 /// Name used when the todo text gives nothing to slugify.
@@ -137,8 +282,14 @@ pub fn default_name(todo: &Todo) -> NoteName {
 /// excludes them.
 pub fn suggest_name(todo: &Todo) -> Option<NoteName> {
     let first_line = todo.body().lines().next().unwrap_or_default();
+    NoteName::parse(&slugify(first_line)).ok()
+}
+
+/// Lowercase ASCII letters and digits joined by single `-`, at most about
+/// [`SUGGESTION_MAX_LEN`] long.
+fn slugify(text: &str) -> String {
     let mut slug = String::new();
-    for c in first_line.chars().flat_map(char::to_lowercase) {
+    for c in text.chars().flat_map(char::to_lowercase) {
         if c.is_ascii_alphanumeric() {
             slug.push(c);
         } else if !slug.is_empty() && !slug.ends_with('-') {
@@ -148,8 +299,7 @@ pub fn suggest_name(todo: &Todo) -> Option<NoteName> {
             break;
         }
     }
-    let slug = slug.trim_end_matches('-');
-    NoteName::parse(slug).ok()
+    slug.trim_end_matches('-').to_owned()
 }
 
 /// What a new note file starts with: the todo text as a heading.
@@ -189,6 +339,68 @@ mod tests {
         assert_eq!(name("a/../../b"), Err(NoteError::OutsideNotesFolder));
         assert_eq!(name(".."), Err(NoteError::OutsideNotesFolder));
         assert_eq!(name("a//b"), Err(NoteError::OutsideNotesFolder));
+    }
+
+    #[test]
+    fn absolute_values_link_files_outside_the_notes_folder() {
+        let link = |value: &str| NoteLink::parse(value).unwrap();
+        assert_eq!(link("plan"), NoteLink::Folder(NoteName::parse("plan.md").unwrap()));
+        assert_eq!(
+            link("C%3A/Users/Me/My%20Notes/Plan.md"),
+            NoteLink::External("C:/Users/Me/My Notes/Plan.md".into())
+        );
+        assert_eq!(
+            link("/home/me/100%25.md"),
+            NoteLink::External("/home/me/100%.md".into())
+        );
+        assert_eq!(link("/a/b%zz.md"), NoteLink::External("/a/b%zz.md".into()));
+        assert!(NoteLink::parse("../secret").is_err());
+
+        let external = NoteLink::external(r"C:\Users\Me\My Notes\Plan.md").unwrap();
+        assert_eq!(external.value(), "C%3A/Users/Me/My%20Notes/Plan.md");
+        let unc = NoteLink::external("//server/share/a.md").unwrap();
+        assert_eq!(unc.value(), "%2F/server/share/a.md");
+        assert_eq!(external.file_name(), "Plan.md");
+        assert_eq!(NoteLink::external("notes/plan.md"), None);
+
+        let todo = Todo::parse("Plan offsite +work").with_note_link(Some(&external));
+        assert_eq!(todo.raw(), "Plan offsite +work note:C%3A/Users/Me/My%20Notes/Plan.md");
+        assert_eq!(todo.note_link(), Some(Ok(external)));
+        assert_eq!(todo.body(), "Plan offsite");
+    }
+
+    #[test]
+    fn moved_files_get_valid_names() {
+        let name = |file: &str| NoteName::from_file_name(file).to_string();
+        assert_eq!(name("My Plan.MD"), "my-plan.md");
+        assert_eq!(name("notes.txt"), "notes.txt");
+        assert_eq!(name("Über.markdown"), "ber.markdown");
+        assert_eq!(name("draft"), "draft.md");
+        assert_eq!(name("scan.pdf"), "scan.md");
+        assert_eq!(name("!!!.md"), "note.md");
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn external_paths_survive_the_round_trip(path in "/[^\u{0}]{0,40}") {
+            let link = NoteLink::external(&path).unwrap();
+            let value = link.value();
+            proptest::prop_assert!(!value.contains(char::is_whitespace));
+            let todo = Todo::parse("Task").with_note_link(Some(&link));
+            proptest::prop_assert_eq!(todo.note_link(), Some(Ok(link)));
+        }
+    }
+
+    #[test]
+    fn links_only_markdown_and_text_files() {
+        let of_file = |relative: &str| NoteName::of_file(relative).map(|name| name.to_string());
+        assert_eq!(of_file("plan.md"), Some("plan.md".into()));
+        assert_eq!(of_file("work/q4.markdown"), Some("work/q4.markdown".into()));
+        assert_eq!(of_file("call.txt"), Some("call.txt".into()));
+        assert_eq!(of_file("plan.md.bak"), None);
+        assert_eq!(of_file("README"), None);
+        assert_eq!(of_file("readme"), None);
+        assert_eq!(of_file("My Plan.md"), None);
     }
 
     #[test]

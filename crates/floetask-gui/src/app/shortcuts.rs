@@ -9,7 +9,15 @@ use floetask_application::{MainView, TodoRef};
 use super::{Floetask, Message, ViewToggle};
 
 impl Floetask {
-    pub(super) fn on_key(&mut self, key: Key, modifiers: Modifiers) -> Task<Message> {
+    pub(super) fn on_key(&mut self, window: iced::window::Id, key: Key, modifiers: Modifiers) -> Task<Message> {
+        // The note window has one shortcut of its own; the list's would act
+        // on a window the user is not looking at.
+        if self.note_window.as_ref().is_some_and(|note| note.id == window) {
+            return match key.as_ref() {
+                Key::Character("s") if modifiers.command() => self.update(Message::NoteWindowSave),
+                _ => Task::none(),
+            };
+        }
         if let Some(message) = self.shortcut(&key, modifiers) {
             return self.update(message);
         }

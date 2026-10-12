@@ -58,6 +58,8 @@ struct StateFile {
     sorting: Option<SortingFile>,
     view: Option<ViewFile>,
     window: Option<WindowFile>,
+    /// Missing in older files: the default size, placed by the system.
+    note_window: Option<WindowFile>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -164,13 +166,8 @@ impl From<&AppState> for StateFile {
                 completed_last: state.sorting.completed_last,
             }),
             view: Some(ViewFile::from(&state.view)),
-            window: Some(WindowFile {
-                width: state.window.width,
-                height: state.window.height,
-                x: state.window.x,
-                y: state.window.y,
-                maximized: state.window.maximized,
-            }),
+            window: Some(WindowFile::from(&state.window)),
+            note_window: Some(WindowFile::from(&state.note_window)),
         }
     }
 }
@@ -257,16 +254,32 @@ impl From<StateFile> for AppState {
                 "week" => CalendarMode::Week,
                 _ => CalendarMode::Month,
             },
-            window: file
-                .window
-                .map(|w| WindowState {
-                    width: w.width,
-                    height: w.height,
-                    x: w.x,
-                    y: w.y,
-                    maximized: w.maximized,
-                })
-                .unwrap_or(defaults.window),
+            window: file.window.map(WindowState::from).unwrap_or(defaults.window),
+            note_window: file.note_window.map(WindowState::from).unwrap_or(defaults.note_window),
+        }
+    }
+}
+
+impl From<&WindowState> for WindowFile {
+    fn from(window: &WindowState) -> Self {
+        Self {
+            width: window.width,
+            height: window.height,
+            x: window.x,
+            y: window.y,
+            maximized: window.maximized,
+        }
+    }
+}
+
+impl From<WindowFile> for WindowState {
+    fn from(window: WindowFile) -> Self {
+        Self {
+            width: window.width,
+            height: window.height,
+            x: window.x,
+            y: window.y,
+            maximized: window.maximized,
         }
     }
 }
@@ -319,6 +332,9 @@ mod tests {
         state.board_grouped = false;
         state.toggle_board_group("priority:A");
         state.toggle_list_group("projects:");
+        state.note_window.x = Some(40.0);
+        state.note_window.y = Some(60.0);
+        state.note_window.width = 640.0;
         store.save(&state).unwrap();
         assert_eq!(store.load(), state);
     }

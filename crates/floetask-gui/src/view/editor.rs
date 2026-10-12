@@ -4,19 +4,22 @@ use iced::keyboard::{Key, key::Named};
 use iced::widget::{
     Column, Row, button, checkbox, column, container, pick_list, row, space, text, text_editor, text_input,
 };
+use std::path::Path;
+
 use iced::{Alignment, Border, Element, Fill};
+use iced_markdown_editor::markdown_editor;
 
 use floetask_application::NoteService;
 use floetask_domain::status::DEFAULT_STATUS;
 use floetask_domain::todo::Todo;
-use floetask_domain::{NoteName, Priority, RecurrenceUnit};
+use floetask_domain::{NoteLink, Priority, RecurrenceUnit};
 
 use super::EDITOR_ID;
 use super::calendar;
 use super::icons::{Icon, icon};
 use super::list::status_label;
 use super::popover::popover;
-use super::widgets::{caption, primary_button, secondary_button, title};
+use super::widgets::{caption, primary_button, secondary_button, title, with_tooltip};
 use crate::app::{DateKey, Editor, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
@@ -212,43 +215,114 @@ fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message>
     column![repeat, pomodoros].spacing(10).into()
 }
 
-/// The todo's notes, in Markdown. Saving writes them to the `note:` file,
-/// adding the tag with a name taken from the todo text when there is none.
+/// The todo's notes, in a Markdown editor. Saving writes them to the
+/// `note:` file, adding the tag with a name taken from the todo text when
+/// there is none. The header links a file from disk instead, opens the note
+/// in the note window, or unlinks it.
 fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
-    let field = text_editor(&editor.note)
-        .placeholder(tr("notes_placeholder"))
-        .on_action(Message::EditorNoteAction)
-        .min_height(72)
-        .max_height(200)
-        .padding(10)
-        .size(14)
-        .style(field_style(colors))
-        .key_binding(|press| match press.key.as_ref() {
-            Key::Named(Named::Enter) if press.modifiers.command() => {
-                Some(text_editor::Binding::Custom(Message::SaveEditor))
-            }
-            Key::Named(Named::Escape) => Some(text_editor::Binding::Custom(Message::CloseDialog)),
-            _ => text_editor::Binding::from_key_press(press),
-        });
-    let mut header = row![icon(Icon::Note, 14.0, colors.muted), caption(tr("notes"), colors)]
-        .spacing(6)
-        .align_y(Alignment::Center);
+    let target = editor.note_target();
+    let tool = |glyph: Icon, hint: &'static str, message: Message| {
+        let button = button(icon(glyph, 14.0, colors.muted))
+            .padding(5)
+            .style(theme::ghost(colors, false))
+            .on_press(message);
+        with_tooltip(button, tr(hint), colors)
+    };
+    let mut header = row![
+        icon(Icon::Note, 14.0, colors.muted),
+        caption(tr("notes"), colors),
+        space::horizontal(),
+        tool(Icon::Attach, "link_note_file", Message::EditorPickNoteFile),
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center);
+    if !matches!(target, Some(Err(_))) {
+        header = header.push(tool(Icon::Window, "open_note_window", Message::EditorOpenNoteWindow));
+    }
+    if target.is_some() {
+        header = header.push(tool(Icon::Close, "unlink_note", Message::EditorUnlinkNote));
+    }
+
+    let mut section = column![header].spacing(8);
+    if let Some(picked) = &editor.pending_link {
+        section = section.push(link_question(app, picked, colors));
+    }
+    // While the note window has this note, the dialog leaves it alone.
+    let field: Element<'a, Message> = if app.dialog_note_in_window() {
+        container(
+            row![
+                text(tr("note_in_window")).size(13).color(colors.muted).width(Fill),
+                secondary_button(tr("show_note_window"), Message::EditorOpenNoteWindow, colors),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .padding([10, 12])
+        .style(theme::note_field(colors, false))
+        .into()
+    } else {
+        let state = editor.note.state();
+        container(
+            markdown_editor(state)
+                .status_bar(false)
+                .height(220)
+                .view()
+                .map(Message::EditorNoteAction),
+        )
+        .padding(4)
+        .style(theme::note_field(colors, state.is_focused()))
+        .into()
+    };
+
     // Say where the notes go once there is something to save.
     let folder = app
         .active_path()
         .map(|path| NoteService::folder_name(&path))
         .unwrap_or_default();
-    let saved_to = |name: &NoteName| trf("note_saved_to", &[&format!("{folder}/{name}")]);
-    let hint = match editor.note_target() {
-        Some(Ok(name)) => Some((saved_to(&name), colors.muted)),
-        Some(Err(error)) => Some((error.to_string(), colors.danger)),
-        None if !editor.note_text().trim().is_empty() => Some((saved_to(&editor.new_note_name()), colors.muted)),
-        None => None,
+    let saved_to = |link: &NoteLink| match link {
+        NoteLink::Folder(name) => trf("note_saved_to", &[&format!("{folder}/{name}")]),
+        NoteLink::External(path) => trf("note_saved_to", &[path]),
     };
-    if let Some((hint, color)) = hint {
-        header = header.push(space::horizontal()).push(text(hint).size(12).color(color));
-    }
-    column![header, field].spacing(8).into()
+    let (hint, color) = match target {
+        Some(Ok(link)) => (saved_to(&link), colors.muted),
+        Some(Err(error)) => (error.to_string(), colors.danger),
+        None if !editor.note.text().trim().is_empty() => {
+            (saved_to(&NoteLink::Folder(editor.new_note_name())), colors.muted)
+        }
+        None => (tr("notes_placeholder").to_owned(), colors.muted),
+    };
+    section.push(field).push(text(hint).size(12).color(color)).into()
+}
+
+/// Asks what to do with a picked file outside the notes folder: move it in
+/// with the other notes, or link it where it is.
+fn link_question<'a>(app: &Floetask, picked: &Path, colors: Colors) -> Element<'a, Message> {
+    let file_name = picked
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let folder = app
+        .active_path()
+        .map(|path| NoteService::folder_name(&path))
+        .unwrap_or_default();
+    container(
+        column![
+            text(trf("note_outside_folder", &[&file_name, &folder])).size(13),
+            row![
+                primary_button(trf("note_move_into", &[&folder]), Message::EditorMovePickedNote, colors),
+                secondary_button(tr("note_keep_in_place"), Message::EditorKeepPickedNote, colors),
+                space::horizontal(),
+                secondary_button(tr("cancel"), Message::EditorCancelPickedNote, colors),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        ]
+        .spacing(10),
+    )
+    .padding(12)
+    .width(Fill)
+    .style(theme::code(colors))
+    .into()
 }
 
 fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {

@@ -14,7 +14,7 @@ use floetask_domain::date::format_iso;
 use floetask_domain::human_date::display_bucket;
 use floetask_domain::listing::{Attribute, ListedTodo};
 use floetask_domain::todo::TextSegment;
-use floetask_domain::{Date, Todo};
+use floetask_domain::{Date, NoteLink, Todo};
 
 use super::LIST_ID;
 use super::icons::{Icon, icon};
@@ -399,13 +399,18 @@ pub(crate) fn meta<'a>(
 /// broken link and is created on click; an invalid name cannot be opened.
 fn note_button<'a>(app: &Floetask, note: &'a str, target: &TodoRef, colors: Colors) -> Element<'a, Message> {
     let status = app.note_statuses.get(note).copied().unwrap_or(NoteStatus::Missing);
+    // A note kept elsewhere shows its file name; the tooltip has the path.
+    let (label, location) = match NoteLink::parse(note) {
+        Ok(link @ NoteLink::External(_)) => (link.file_name().to_owned(), link.to_string()),
+        _ => (note.to_owned(), note.to_owned()),
+    };
     let (glyph, color, hint) = match status {
         NoteStatus::Present => (Icon::Note, colors.primary, tr("open_note").to_owned()),
-        NoteStatus::Missing => (Icon::NoteBroken, colors.muted, trf("note_missing", &[&note])),
-        NoteStatus::Invalid => (Icon::NoteBroken, colors.danger, trf("note_invalid", &[&note])),
+        NoteStatus::Missing => (Icon::NoteBroken, colors.muted, trf("note_missing", &[&location])),
+        NoteStatus::Invalid => (Icon::NoteBroken, colors.danger, trf("note_invalid", &[&location])),
     };
     let chip = button(
-        row![icon(glyph, 12.0, color), text(note).size(12)]
+        row![icon(glyph, 12.0, color), text(label).size(12)]
             .spacing(4)
             .align_y(Alignment::Center),
     )

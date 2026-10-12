@@ -40,7 +40,7 @@ File locations follow the [XDG Base Directory Specification](https://specificati
 | Directory | Files |
 |---|---|
 | `~/.config/floetask/` | `config.toml` (settings; `--config FILE` overrides the path), `colors.toml` and `filters.toml` (saved searches), both next to the config file |
-| `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, window), `notified.toml` (notification de-dup) |
+| `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, main and note window), `notified.toml` (notification de-dup) |
 | `~/.local/share/floetask/` | unused; older versions kept `filters.toml` here and it is moved on start |
 | `~/.cache/floetask/` | `floetask.png` (Windows: the icon notifications show, written on start) |
 
@@ -72,8 +72,9 @@ To try the app without touching real settings, point the XDG variables at a scra
 
 ## Where things are
 
-- Message flow: `floetask-gui/src/app/mod.rs` dispatches each `Message` to a handler module (`files.rs`, `list.rs`, `board.rs`, `calendar.rs`, `editing.rs`, `drawer.rs`, `search.rs`, `settings.rs`, `shortcuts.rs`).
+- Message flow: `floetask-gui/src/app/mod.rs` dispatches each `Message` to a handler module (`files.rs`, `list.rs`, `board.rs`, `calendar.rs`, `editing.rs`, `drawer.rs`, `search.rs`, `settings.rs`, `shortcuts.rs`, `note_window.rs`).
+- Windows: the GUI runs as an `iced::daemon`. `lib.rs` opens the main window; `app/note_window.rs` opens the note window (one, reused for every note, saved as the user types) and `view_window` picks the view by window id. Keys arrive with their window id, so main-window shortcuts never fire from the note window.
 - Event sources (keyboard, window, theme, watcher, tick): `floetask-gui/src/app/subscriptions.rs`.
-- Views: `floetask-gui/src/view/`. The window is borderless: `title_bar.rs` draws the centred search, actions and window buttons, `files.rs` the file drawer, `board.rs` the status board with its mouse-area drag and drop, `calendar_page.rs` the day/week/month calendar (same drag and drop), `popover.rs` the floating menus (a small custom widget on iced's overlay layer), `mod.rs` adds the resize edges, and `app/window_frame.rs` handles drag, resize, minimise and maximise.
+- Views: `floetask-gui/src/view/`. The window is borderless: `title_bar.rs` draws the centred search, actions and window buttons, `files.rs` the file drawer, `board.rs` the status board with its mouse-area drag and drop, `calendar_page.rs` the day/week/month calendar (same drag and drop), `popover.rs` the floating menus (a small custom widget on iced's overlay layer), `note_window.rs` the note window (it keeps the system frame), `mod.rs` adds the resize edges, and `app/window_frame.rs` handles drag, resize, minimise and maximise.
 - Look and feel: colours and every widget style live in `theme.rs` (light and dark `Colors`); icons are drawn in `view/icons.rs`. Views use these instead of iced's default styles.
 - Known gaps against `features/FEATURES.md` are listed in the README.

@@ -11,6 +11,7 @@ mod editing;
 mod files;
 mod list;
 mod message;
+mod note_window;
 mod search;
 mod settings;
 mod shortcuts;
@@ -45,6 +46,7 @@ pub use dialog::{Calendar, DateKey, Dialog, Editor, Pending, SettingsDialog, Set
 #[cfg(test)]
 pub(crate) use editing::NoteSave;
 pub use message::{Message, SettingChange, ViewToggle};
+pub use note_window::NoteWindow;
 pub use updates::UpdateState;
 
 /// What the composition root hands to the GUI.
@@ -124,6 +126,8 @@ pub struct Floetask {
     pub(crate) row_menu: Option<usize>,
     pub(crate) file_menu: Option<usize>,
     pub(crate) dialog: Option<Dialog>,
+    /// The second window, editing a note; reused for every note.
+    pub(crate) note_window: Option<NoteWindow>,
     pub(crate) toasts: Vec<Toast>,
     next_toast_id: u64,
     /// Held modifier keys, so Ctrl+Enter in the search field can be told
@@ -194,6 +198,7 @@ impl Floetask {
             row_menu: None,
             file_menu: None,
             dialog: None,
+            note_window: None,
             toasts: Vec::new(),
             next_toast_id: 0,
             window: None,
@@ -214,16 +219,31 @@ impl Floetask {
         } else {
             Task::none()
         };
-        let window = window::oldest().map(Message::WindowReady);
         let system_theme = iced::system::theme().map(|mode| Message::SystemDark(mode == iced::theme::Mode::Dark));
         (
             app,
             Task::batch(
-                [load_files, saved_filters, system_theme, window, updates]
+                [load_files, saved_filters, system_theme, updates]
                     .into_iter()
                     .chain(toast_tasks),
             ),
         )
+    }
+
+    /// The title of either window.
+    pub fn window_title(&self, id: window::Id) -> String {
+        match &self.note_window {
+            Some(window) if window.id == id => format!("{} - floetask", window.title()),
+            _ => self.title(),
+        }
+    }
+
+    /// Draws either window: the note window, or the main one.
+    pub fn view_window(&self, id: window::Id) -> Element<'_, Message> {
+        match &self.note_window {
+            Some(window) if window.id == id => crate::view::note_window(self, window),
+            _ => self.view(),
+        }
     }
 
     pub fn title(&self) -> String {
@@ -298,6 +318,17 @@ impl Floetask {
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
+        let task = self.dispatch(message);
+        // The notes editor draws its own colours, so it follows the theme
+        // whichever message changed it.
+        let style = crate::theme::markdown_editor(self.colors());
+        if let Some(Dialog::Editor(editor)) = &mut self.dialog {
+            editor.note.set_style(style);
+        }
+        task
+    }
+
+    fn dispatch(&mut self, message: Message) -> Task<Message> {
         use Message as M;
         match message {
             M::SystemDark(dark) => {
@@ -305,7 +336,7 @@ impl Floetask {
                 Task::none()
             }
             M::Tick => self.tick(),
-            M::KeyPressed(key, modifiers) => self.on_key(key, modifiers),
+            M::KeyPressed(id, key, modifiers) => self.on_key(id, key, modifiers),
             M::ModifiersChanged(modifiers) => {
                 self.modifiers = modifiers;
                 Task::none()
@@ -375,9 +406,32 @@ impl Floetask {
             | M::EditorApplyPomodoros(_)
             | M::EditorNoteAction(_)
             | M::NoteLoaded(..)
+            | M::EditorPickNoteFile
+            | M::NoteFilePicked(_)
+            | M::EditorMovePickedNote
+            | M::EditorKeepPickedNote
+            | M::EditorCancelPickedNote
+            | M::NoteFileMoved(_)
+            | M::EditorUnlinkNote
+            | M::NoteLinked(..)
+            | M::EditorOpenNoteWindow
+            | M::NoteHandedOver(_)
             | M::SaveEditor
             | M::CalendarMonth(_)
             | M::CalendarPick(_) => self.update_editing(message),
+
+            M::NoteWindowLoaded(..)
+            | M::NoteWindowAction(_)
+            | M::NoteWindowAutosave(_)
+            | M::NoteWindowSave
+            | M::NoteWindowSaved(..)
+            | M::NoteWindowOpenExternally => self.update_note_window(message),
+            // A focused notes editor takes `Escape`; in the dialog it still
+            // closes the dialog, in the note window it does nothing.
+            M::NoteEditorEscape(id) => match &self.note_window {
+                Some(window) if window.id == id => Task::none(),
+                _ => self.close_dialog(),
+            },
 
             M::ToggleDrawer
             | M::DrawerTab(_)
@@ -640,7 +694,10 @@ impl Floetask {
         )
     }
 
-    fn on_window_event(&mut self, _id: window::Id, event: window::Event) -> Task<Message> {
+    fn on_window_event(&mut self, id: window::Id, event: window::Event) -> Task<Message> {
+        if self.note_window.as_ref().is_some_and(|window| window.id == id) {
+            return self.on_note_window_event(event);
+        }
         match event {
             window::Event::FileDropped(path) => self.open_path(path),
             window::Event::Resized(size) => {
@@ -662,6 +719,7 @@ impl Floetask {
 impl Floetask {
     /// Saves where the user left off, then exits.
     fn quit(&mut self) -> Task<Message> {
+        self.save_note_window_now();
         if let Err(error) = self.services.ports.state.save(&self.state) {
             eprintln!("floetask: {error}");
         }

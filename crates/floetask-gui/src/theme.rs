@@ -6,6 +6,7 @@
 
 use iced::widget::{button, checkbox, container, scrollable, text_input};
 use iced::{Background, Border, Color, Shadow, Theme, Vector, border};
+use iced_markdown_editor::{EditorStyle, Palette, Typography};
 
 use floetask_application::{ColorOverrides, PaletteOverrides};
 use floetask_domain::Priority;
@@ -310,6 +311,74 @@ pub fn code(colors: Colors) -> impl Fn(&Theme) -> container::Style {
         },
         ..container::Style::default()
     }
+}
+
+/// A strip across a window, such as the note window's header.
+pub fn bar(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.surface),
+        text_color: Some(colors.text),
+        ..container::Style::default()
+    }
+}
+
+/// The frame of the Markdown notes editor. It is padded so the editor's
+/// square toolbar and page stay inside the rounded corners.
+pub fn note_field(colors: Colors, focused: bool) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.background),
+        border: Border {
+            radius: 10.0.into(),
+            width: 1.0,
+            color: if focused { colors.primary } else { colors.border },
+        },
+        ..container::Style::default()
+    }
+}
+
+/// The Markdown notes editor in floetask's colours. Toolbar and page share
+/// the field's background and draw no frames of their own, so the editor
+/// reads as one field like the dialog's other inputs.
+pub fn markdown_editor(colors: Colors) -> EditorStyle {
+    let palette = Palette {
+        background: colors.background,
+        page: colors.background,
+        page_border: colors.background,
+        page_shadow: Color::TRANSPARENT,
+        ink: colors.text,
+        heading: colors.text,
+        quote: colors.muted,
+        quote_bar: colors.border,
+        code: colors.text,
+        code_background: colors.surface,
+        inline_code_background: colors.border,
+        link: colors.primary,
+        marker: colors.muted,
+        rule: colors.border,
+        selection: colors.primary.scale_alpha(0.3),
+        caret: colors.text,
+        toolbar_background: colors.background,
+        toolbar_border: colors.background,
+        toolbar_text: colors.text,
+        toolbar_hover: colors.hover,
+        toolbar_active: colors.tint(colors.primary, 0.14),
+        accent: colors.primary,
+        muted: colors.muted,
+    };
+    // Sized like the dialog's text fields rather than a printed page.
+    let typography = Typography {
+        fill_padding: 8.0,
+        body_size: 14.0,
+        body_line_height: 21.0,
+        paragraph_spacing: 8.0,
+        heading_sizes: [20.0, 17.0, 15.0],
+        code_size: 13.0,
+        code_line_height: 19.0,
+        list_indent: 24.0,
+        quote_indent: 18.0,
+        ..Typography::default()
+    };
+    EditorStyle { palette, typography }
 }
 
 // Buttons

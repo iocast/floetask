@@ -8,8 +8,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use iced_test::simulator;
-
 use floetask_application::ports::*;
 use floetask_application::{
     AppError, AppState, ColorOverrides, NoteStatus, Ports, SavedFilter, Services, Settings, TodoRef, WatcherOptions,
@@ -217,13 +215,29 @@ fn click(app: &Floetask, label: &str) -> Vec<Message> {
 }
 
 /// Writes a snapshot when `FLOETASK_SNAPSHOTS` names a directory.
+/// iced's simulator with the fonts the notes editor measures text with.
+fn simulator<'a>(
+    element: impl Into<iced::Element<'a, Message>>,
+) -> iced_test::Simulator<'a, Message, iced::Theme, iced::Renderer> {
+    let settings = iced::Settings {
+        fonts: iced_markdown_editor::FONTS.iter().map(|&font| font.into()).collect(),
+        ..iced::Settings::default()
+    };
+    iced_test::Simulator::with_settings(settings, element)
+}
+
 fn snapshot(app: &Floetask, name: &str) {
+    snapshot_view(app, app.view(), name);
+}
+
+/// Like [`snapshot`], for a view other than the main window's.
+fn snapshot_view(app: &Floetask, view: iced::Element<'_, Message>, name: &str) {
     let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") else {
         return;
     };
     let path = PathBuf::from(dir).join(name);
     let _ = std::fs::remove_file(path.with_extension("png"));
-    let mut ui = simulator(app.view());
+    let mut ui = simulator(view);
     let snapshot = ui.snapshot(&app.theme()).unwrap();
     snapshot.matches_image(&path).unwrap();
 }
@@ -334,6 +348,7 @@ fn escape_closes_dialog_then_drawer() {
     snapshot(&app, "settings");
     let escape = || {
         Message::KeyPressed(
+            iced::window::Id::unique(),
             iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
             Default::default(),
         )
@@ -363,6 +378,7 @@ fn keyboard_moves_selection() {
     let mut app = app();
     let down = || {
         Message::KeyPressed(
+            iced::window::Id::unique(),
             iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowDown),
             Default::default(),
         )
@@ -430,6 +446,7 @@ fn editor_date_picker_floats_over_the_dialog() {
     // Escape closes the calendar first, then the dialog.
     let _ = app.update(Message::EditorOpenCalendar(crate::app::DateKey::Threshold));
     let escape = Message::KeyPressed(
+        iced::window::Id::unique(),
         iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
         Default::default(),
     );
@@ -446,6 +463,40 @@ fn runtime() -> tokio::runtime::Runtime {
         .enable_time()
         .build()
         .unwrap()
+}
+
+/// Feeds `message` to `update`, runs the tasks it returns on `runtime` and
+/// feeds their messages back in, until nothing is left. Window and widget
+/// operations have no window to act on here and are dropped.
+fn drive(runtime: &tokio::runtime::Runtime, app: &mut Floetask, message: Message) {
+    use iced_test::futures::futures::StreamExt;
+    let mut pending = vec![message];
+    while let Some(message) = pending.pop() {
+        let Some(stream) = iced_test::runtime::task::into_stream(app.update(message)) else {
+            continue;
+        };
+        let outputs: Vec<Message> = runtime.block_on(
+            stream
+                .filter_map(|action| async move {
+                    match action {
+                        iced_test::runtime::Action::Output(message) => Some(message),
+                        _ => None,
+                    }
+                })
+                .collect(),
+        );
+        pending.extend(outputs.into_iter().rev());
+    }
+}
+
+/// The note window's text, without the final newline.
+fn note_window_text(app: &Floetask) -> String {
+    app.note_window
+        .as_ref()
+        .expect("note window open")
+        .note
+        .text()
+        .to_owned()
 }
 
 /// Where the sample file's note `name` lives.
@@ -468,14 +519,11 @@ fn notes_link_open_and_warn_when_orphaned() {
         panic!("expected OpenNote, got {messages:?}")
     };
     let todo = floetask_domain::Todo::parse(&target.raw);
-    let opened = app.services.notes.open(Path::new(TODO_PATH), &todo);
-    assert_eq!(opened, Ok(note_path("shopping.md")));
+    drive(&runtime, &mut app, Message::OpenNote(target.clone()));
     assert_eq!(
         app.services.ports.files.read(&note_path("shopping.md")).unwrap(),
-        "# Buy milk
-"
+        "# Buy milk\n"
     );
-    let _ = app.update(Message::NoteOpened(opened));
     assert_eq!(app.note_statuses["shopping"], NoteStatus::Present);
 
     // Deleting the only todo linking a note warns and keeps the file.
@@ -492,7 +540,7 @@ fn notes_link_open_and_warn_when_orphaned() {
 /// Puts `text` in the open dialog's notes field.
 fn type_note(app: &mut Floetask, text: &str) {
     if let Some(Dialog::Editor(editor)) = &mut app.dialog {
-        editor.note = iced::widget::text_editor::Content::with_text(text);
+        editor.note.replace(text);
     }
 }
 
@@ -520,10 +568,11 @@ fn notes_typed_in_a_new_todo_create_the_file_and_tag() {
         save_notes(&app),
         Ok("(A) Write report +work note:write-report.md".to_owned())
     );
+    // The editor saves Markdown in its own canonical form.
     let files = &app.services.ports.files;
     assert_eq!(
         files.read(&note_path("write-report.md")).unwrap(),
-        "# Outline\n- intro\n"
+        "# Outline\n\n- intro\n"
     );
     // Another todo with the same text never overwrites that note.
     assert_eq!(
@@ -555,8 +604,199 @@ fn editing_a_todo_loads_and_saves_its_note() {
     assert_eq!(save_notes(&app), Ok(text));
     assert_eq!(
         app.services.ports.files.read(&note_path("slides.md")).unwrap(),
-        "# Slides\nAgenda first\n"
+        "# Slides\n\nAgenda first\n"
     );
+}
+
+/// The open dialog's editor.
+fn editor(app: &Floetask) -> &crate::app::Editor {
+    match &app.dialog {
+        Some(Dialog::Editor(editor)) => editor,
+        _ => panic!("editor closed"),
+    }
+}
+
+#[test]
+fn picked_files_are_moved_into_the_notes_folder_or_linked_in_place() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+    let _ = app.update(Message::NewTodo);
+    if let Some(Dialog::Editor(editor)) = &mut app.dialog {
+        editor.set_text("Plan the offsite");
+    }
+
+    // A file outside the notes folder asks before it is linked.
+    let plan = PathBuf::from("/elsewhere/My Plan.md");
+    files.write(&plan, "# Agenda\n\n- budget\n", false).unwrap();
+    let _ = app.update(Message::NoteFilePicked(Some(plan.clone())));
+    assert_eq!(editor(&app).pending_link, Some(plan.clone()));
+    snapshot(&app, "editor-link-question");
+
+    // Moving it gives it a valid name in the notes folder.
+    drive(&runtime, &mut app, Message::EditorMovePickedNote);
+    assert_eq!(editor(&app).text(), "Plan the offsite note:my-plan.md");
+    assert_eq!(editor(&app).note_text(), "# Agenda\n\n- budget");
+    assert_eq!(editor(&app).pending_link, None);
+    assert!(!files.exists(&plan));
+    assert_eq!(files.read(&note_path("my-plan.md")).unwrap(), "# Agenda\n\n- budget\n");
+    // An untouched linked note is not rewritten.
+    assert_eq!(save_notes(&app), Ok("Plan the offsite note:my-plan.md".to_owned()));
+
+    // Keeping it links the file where it is, by its path.
+    let kept = PathBuf::from("/elsewhere/Keep Me.md");
+    files.write(&kept, "# Kept\n", false).unwrap();
+    let _ = app.update(Message::NoteFilePicked(Some(kept.clone())));
+    drive(&runtime, &mut app, Message::EditorKeepPickedNote);
+    assert_eq!(editor(&app).text(), "Plan the offsite note:/elsewhere/Keep%20Me.md");
+    assert_eq!(editor(&app).note_text(), "# Kept");
+    assert!(files.exists(&kept));
+
+    // A file already in the notes folder links without asking.
+    drive(
+        &runtime,
+        &mut app,
+        Message::NoteFilePicked(Some(note_path("slides.md"))),
+    );
+    assert_eq!(editor(&app).text(), "Plan the offsite note:slides.md");
+    assert_eq!(editor(&app).pending_link, None);
+
+    // Unlinking removes the tag and keeps the file.
+    let _ = app.update(Message::EditorUnlinkNote);
+    assert_eq!(editor(&app).text(), "Plan the offsite");
+    assert_eq!(editor(&app).note_text(), "");
+    assert_eq!(save_notes(&app), Ok("Plan the offsite".to_owned()));
+    assert!(files.exists(&note_path("slides.md")));
+}
+
+#[test]
+fn the_note_window_saves_edits_and_is_reused() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+    let target = |app: &Floetask, note: &str| {
+        let entry = app
+            .listing
+            .todos()
+            .find(|entry| entry.todo.note() == Some(note))
+            .unwrap();
+        TodoRef::new(entry.line, &entry.todo)
+    };
+
+    let open = Message::OpenNote(target(&app, "slides"));
+    drive(&runtime, &mut app, open);
+    let id = app.note_window.as_ref().unwrap().id;
+    assert_eq!(app.window_title(id), "todo-notes/slides.md - floetask");
+    assert_eq!(note_window_text(&app), "# Slides");
+    if let Some(window) = &app.note_window {
+        let mut ui = simulator(crate::view::note_window(&app, window));
+        assert!(ui.find("todo-notes/slides.md").is_ok());
+        assert!(ui.find("Saved").is_ok());
+        snapshot_view(&app, crate::view::note_window(&app, window), "note-window");
+    }
+
+    // Edits are written on Ctrl+S (and once typing pauses).
+    if let Some(window) = &mut app.note_window {
+        window.note.replace("# Slides\n\nAgenda first");
+    }
+    let save = Message::KeyPressed(
+        id,
+        iced::keyboard::Key::Character("s".into()),
+        iced::keyboard::Modifiers::CTRL,
+    );
+    drive(&runtime, &mut app, save);
+    assert_eq!(
+        files.read(&note_path("slides.md")).unwrap(),
+        "# Slides\n\nAgenda first\n"
+    );
+    assert!(!app.note_window.as_ref().unwrap().note.changed());
+
+    // Another note opens in the same window, after the first one is saved.
+    if let Some(window) = &mut app.note_window {
+        window.note.replace("# Slides\n\nAgenda last");
+    }
+    let open = Message::OpenNote(target(&app, "shopping"));
+    drive(&runtime, &mut app, open);
+    assert_eq!(app.note_window.as_ref().unwrap().id, id);
+    assert_eq!(note_window_text(&app), "# Buy milk");
+    assert_eq!(
+        files.read(&note_path("slides.md")).unwrap(),
+        "# Slides\n\nAgenda last\n"
+    );
+
+    // Where the window is moved and resized is remembered for next time.
+    let _ = app.update(Message::Window(
+        id,
+        iced::window::Event::Moved(iced::Point::new(40.0, 60.0)),
+    ));
+    let _ = app.update(Message::Window(
+        id,
+        iced::window::Event::Resized(iced::Size::new(640.0, 700.0)),
+    ));
+    let main = app.state.window;
+
+    // Closing the window saves it too.
+    if let Some(window) = &mut app.note_window {
+        window.note.replace("# Buy milk\n\nOat milk");
+    }
+    drive(
+        &runtime,
+        &mut app,
+        Message::Window(id, iced::window::Event::CloseRequested),
+    );
+    assert!(app.note_window.is_none());
+    assert_eq!(
+        files.read(&note_path("shopping.md")).unwrap(),
+        "# Buy milk\n\nOat milk\n"
+    );
+    let last = app.state.note_window;
+    assert_eq!((last.x, last.y), (Some(40.0), Some(60.0)));
+    assert_eq!((last.width, last.height), (640.0, 700.0));
+    // The main window keeps its own place.
+    assert_eq!(app.state.window, main);
+}
+
+#[test]
+fn the_dialog_hands_its_note_to_the_note_window() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+    let _ = app.update(Message::NewTodo);
+    if let Some(Dialog::Editor(editor)) = &mut app.dialog {
+        editor.set_text("Plan the offsite");
+    }
+    type_note(&mut app, "# Agenda");
+
+    // The note gets its file and tag, and what was typed goes along and is
+    // saved from the window once typing pauses.
+    drive(&runtime, &mut app, Message::EditorOpenNoteWindow);
+    assert_eq!(editor(&app).text(), "Plan the offsite note:plan-the-offsite.md");
+    assert_eq!(note_window_text(&app), "# Agenda");
+    assert_eq!(files.read(&note_path("plan-the-offsite.md")).unwrap(), "# Agenda\n");
+    assert!(app.dialog_note_in_window());
+    snapshot(&app, "editor-note-in-window");
+    assert!(
+        simulator(app.view())
+            .find("This note is open in its own window.")
+            .is_ok()
+    );
+
+    // When the window closes, the dialog shows the note as saved there.
+    if let Some(window) = &mut app.note_window {
+        window.note.replace("# Agenda\n\n- budget");
+    }
+    let id = app.note_window.as_ref().unwrap().id;
+    drive(
+        &runtime,
+        &mut app,
+        Message::Window(id, iced::window::Event::CloseRequested),
+    );
+    assert!(!app.dialog_note_in_window());
+    assert_eq!(editor(&app).note_text(), "# Agenda\n\n- budget");
+    assert!(!editor(&app).note_changed());
 }
 
 #[test]

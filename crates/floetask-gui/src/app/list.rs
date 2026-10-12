@@ -4,6 +4,7 @@ use iced::Task;
 use iced::widget::operation;
 
 use floetask_application::{NoteService, TodoRef};
+use floetask_domain::NoteLink;
 use floetask_domain::listing::ListedTodo;
 use floetask_domain::todo::Todo;
 
@@ -20,13 +21,14 @@ impl Floetask {
                 self.dialog = Some(Dialog::Editor(Box::new(Editor::new(
                     Some(target.clone()),
                     &todo.editable_text(),
+                    self.colors(),
                 ))));
                 let focus = operation::focus(view::EDITOR_ID);
                 // Fill the notes field from the note file, if there is one.
-                match (self.active_path(), todo.note_name().and_then(Result::ok)) {
-                    (Some(path), Some(name)) => {
+                match (self.active_path(), todo.note_link().and_then(Result::ok)) {
+                    (Some(path), Some(link)) => {
                         let notes = self.services.notes.clone();
-                        let load = Task::perform(async move { notes.read(&path, &name) }, move |result| {
+                        let load = Task::perform(async move { notes.read(&path, &link) }, move |result| {
                             Message::NoteLoaded(target.clone(), result)
                         });
                         Task::batch([focus, load])
@@ -76,7 +78,10 @@ impl Floetask {
                 };
                 let service = self.services.notes.clone();
                 let todo = Todo::parse(&target.raw);
-                Task::perform(async move { service.open(&path, &todo) }, Message::NoteOpened)
+                let todo_file = path.clone();
+                Task::perform(async move { service.load_or_create(&path, &todo) }, move |result| {
+                    Message::NoteWindowLoaded(todo_file.clone(), result)
+                })
             }
             Message::NoteOpened(result) => match result {
                 // The note may have just been created: update its link.
@@ -152,7 +157,10 @@ impl Floetask {
             .active_document()
             .and_then(|document| NoteService::orphaned_by_delete(document, &target))
             .zip(self.active_path())
-            .map(|(name, path)| format!("{}/{name}", NoteService::folder_name(&path)));
+            .map(|(link, path)| match link {
+                NoteLink::Folder(name) => format!("{}/{name}", NoteService::folder_name(&path)),
+                NoteLink::External(path) => path,
+            });
         let delete = self.change_active_file(move |service, path, options| service.delete(path, &target, options));
         match orphan {
             Some(name) => Task::batch([delete, self.toast(trf("note_orphaned", &[&name]))]),

@@ -6,6 +6,14 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- Note window: clicking a todo's note opens it in a separate floetask window with the Markdown editor instead of the default app; one window is reused for every note, saves as you type (and on `Ctrl+S` or closing), and can still open the note in the default app; it opens where you left it
+- The add/edit dialog can open its note in the note window, taking along unsaved text
+- Link a Markdown file from disk to a todo instead of creating a note: move it into the notes folder, or keep it where it is and link it by its path (`note:` accepts percent-encoded absolute paths, e.g. `note:C%3A/Users/me/My%20Notes/plan.md`); unlink a note again, the file is kept
+
+### Changed
+- The notes field in the add/edit dialog is now a WYSIWYG Markdown editor with a formatting toolbar and a Source mode, in floetask's colours; edited notes are saved in canonical Markdown
+
 ## [0.3.1] - 2026-10-07
 
 ### Fixed
