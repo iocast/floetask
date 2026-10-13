@@ -24,6 +24,37 @@ impl WeekStart {
             WeekStart::Sunday => Weekday::Sun,
         }
     }
+
+    /// Where the week usually starts in a locale's region (`en-US`,
+    /// `de_CH.UTF-8`), after the Unicode CLDR: Sunday in the Americas and
+    /// much of Asia, Saturday in parts of the Middle East, Monday elsewhere
+    /// and when the locale names no region.
+    pub fn for_locale(locale: &str) -> WeekStart {
+        const SUNDAY: &[&str] = &[
+            "AG", "AS", "BD", "BR", "BS", "BT", "BW", "BZ", "CA", "CN", "CO", "DM", "DO", "ET", "GT", "GU", "HK", "HN",
+            "ID", "IL", "IN", "JM", "JP", "KE", "KH", "KR", "LA", "MH", "MM", "MO", "MT", "MX", "MZ", "NI", "NP", "PA",
+            "PE", "PH", "PK", "PR", "PT", "PY", "SA", "SG", "SV", "TH", "TT", "TW", "UM", "US", "VE", "VI", "WS", "YE",
+            "ZA", "ZW",
+        ];
+        const SATURDAY: &[&str] = &[
+            "AE", "AF", "BH", "DJ", "DZ", "EG", "IQ", "IR", "JO", "KW", "LY", "OM", "QA", "SD", "SY",
+        ];
+        // The region is the first two-letter subtag after the language;
+        // a four-letter script (`zh-Hant-TW`) comes before it.
+        let region = locale
+            .split(['.', '@'])
+            .next()
+            .unwrap_or_default()
+            .split(['-', '_'])
+            .skip(1)
+            .find(|part| part.len() == 2 && part.chars().all(|c| c.is_ascii_alphabetic()))
+            .map(str::to_ascii_uppercase);
+        match region.as_deref() {
+            Some(region) if SUNDAY.contains(&region) => WeekStart::Sunday,
+            Some(region) if SATURDAY.contains(&region) => WeekStart::Saturday,
+            _ => WeekStart::Monday,
+        }
+    }
 }
 
 /// Parses a strict ISO date (`2024-03-09`).
@@ -112,6 +143,18 @@ mod tests {
 
     fn d(s: &str) -> Date {
         parse_iso(s).unwrap()
+    }
+
+    #[test]
+    fn week_start_follows_the_locale_region() {
+        assert_eq!(WeekStart::for_locale("en-US"), WeekStart::Sunday);
+        assert_eq!(WeekStart::for_locale("en_CA.UTF-8"), WeekStart::Sunday);
+        assert_eq!(WeekStart::for_locale("zh-Hant-TW"), WeekStart::Sunday);
+        assert_eq!(WeekStart::for_locale("ar-EG"), WeekStart::Saturday);
+        assert_eq!(WeekStart::for_locale("de-CH"), WeekStart::Monday);
+        assert_eq!(WeekStart::for_locale("en-GB"), WeekStart::Monday);
+        assert_eq!(WeekStart::for_locale("fr"), WeekStart::Monday);
+        assert_eq!(WeekStart::for_locale("es-419"), WeekStart::Monday);
     }
 
     #[test]

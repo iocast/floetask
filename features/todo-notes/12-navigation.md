@@ -26,6 +26,7 @@ An application menu (File, Edit, View, Todos, Window, Help). iced has no native 
 | Toggle theme | Ctrl+Alt+D |
 | Close window / Quit | Ctrl+W / Ctrl+Q |
 | Save in dialog / save search as todo | Ctrl+Enter |
+| Save the note (note window) | Ctrl+S |
 | Close dialog / drawer / clear search | Escape |
 | Open selected todo | Enter |
 | Delete selected todo | Delete or Ctrl+Backspace |

@@ -8,7 +8,7 @@ use floetask_application::{AppError, FileOptions, TodoFileService};
 use floetask_domain::TodoDocument;
 
 use super::{Dialog, Floetask, Message, Pending, absolute};
-use crate::i18n::{tr, trf};
+use crate::i18n::{self, tr, trf};
 
 impl Floetask {
     pub(super) fn update_files(&mut self, message: Message) -> Task<Message> {
@@ -22,7 +22,7 @@ impl Floetask {
             Message::SavedCount(path, result, key) => match result {
                 Ok((document, count)) => {
                     let reload = self.document_saved(path, document);
-                    Task::batch([reload, self.toast(trf(key, &[&count]))])
+                    Task::batch([reload, self.toast(trf(key, &[("count", count.into())]))])
                 }
                 Err(error) => self.save_failed(path, &error),
             },
@@ -66,7 +66,7 @@ impl Floetask {
                 self.file_menu = None;
                 if let Some(entry) = self.state.files.get(index) {
                     self.dialog = Some(Dialog::Confirm {
-                        message: trf("remove_file_confirm", &[&entry.file_name()]),
+                        message: trf("remove_file_confirm", &[("file", entry.file_name().into())]),
                         detail: Some(entry.path.display().to_string()),
                         pending: Pending::RemoveFile(index),
                     });
@@ -123,7 +123,11 @@ impl Floetask {
                     .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_default();
-                self.toast_error(format!("{}: {error}", trf("file_load_failed", &[&name])))
+                self.toast_error(format!(
+                    "{}: {}",
+                    trf("file_load_failed", &[("file", name.into())]),
+                    i18n::error_text(&error)
+                ))
             }
         }
     }

@@ -66,6 +66,12 @@ impl Clock for Fixed {
     }
 }
 
+impl SystemLocale for Fixed {
+    fn language(&self) -> Option<String> {
+        Some("en-GB".to_owned())
+    }
+}
+
 impl SettingsStore for Fixed {
     fn load(&self) -> Result<Settings, AppError> {
         Ok(Settings::default())
@@ -193,6 +199,7 @@ fn app() -> Floetask {
     let ports = Ports {
         files,
         clock: fixed.clone(),
+        locale: fixed.clone(),
         settings: fixed.clone(),
         state: fixed.clone(),
         saved_filters: fixed.clone(),
@@ -396,6 +403,34 @@ fn keyboard_moves_selection() {
     let _ = app.update(down());
     assert_eq!(app.selected, Some(1));
     assert_eq!(app.selected_todo().unwrap().todo.body(), "Call mom");
+}
+
+#[test]
+fn switching_the_language_changes_every_screen_at_once() {
+    let mut app = app();
+    let _ = app.update(Message::Setting(SettingChange::Language("de".to_owned())));
+    assert_eq!(app.settings.language, "de");
+    let mut ui = simulator(app.view());
+    for text in ["In Arbeit", "Offen", "Wartet", "Erledigt", "Prepare slides"] {
+        assert!(ui.find(text).is_ok(), "missing {text}");
+    }
+    assert!(ui.find("Doing").is_err(), "English left on the list");
+    drop(ui);
+    snapshot(&app, "de-list");
+
+    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::OpenSettings);
+    assert!(simulator(app.view()).find("Einstellungen").is_ok());
+    snapshot(&app, "de-settings");
+    let _ = app.update(Message::CloseDialog);
+
+    // Today is 2026-10-04.
+    let _ = app.update(Message::ShowMainView(floetask_application::MainView::Calendar));
+    assert!(simulator(app.view()).find("Oktober 2026").is_ok());
+    snapshot(&app, "de-calendar");
+
+    let _ = app.update(Message::Setting(SettingChange::Language("system".to_owned())));
+    assert!(simulator(app.view()).find("October 2026").is_ok());
 }
 
 #[test]

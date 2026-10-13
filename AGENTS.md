@@ -15,9 +15,9 @@ floetask-app ──► floetask-gui ──► floetask-application ──► flo
 | Crate | Layer | Holds | May depend on |
 |---|---|---|---|
 | `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `note:` name rules, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts), the status board (columns, lanes, moving a todo), the calendar (spans, todos by day) | `chrono`, `regex`, `thiserror` only |
-| `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` (including the `Updater`) | domain |
-| `floetask-infrastructure` | Adapters | Local file system with safe writes, debounced watcher, TOML stores (config, state, filters, notified, colors), XDG paths, OS notifications, opening links, release updates | domain, application, I/O crates |
-| `floetask-gui` | Presentation | iced app: state, messages, update handlers, views, theme, i18n | domain, application, `iced`, `rfd` (never infrastructure) |
+| `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` (including the `Updater` and `SystemLocale`) | domain |
+| `floetask-infrastructure` | Adapters | Local file system with safe writes, debounced watcher, TOML stores (config, state, filters, notified, colors), XDG paths, OS notifications, opening links, release updates, the OS language | domain, application, I/O crates |
+| `floetask-gui` | Presentation | iced app: state, messages, update handlers, views, theme, i18n (Fluent files in `locales/`) | domain, application, `iced`, `rfd`, `fluent-bundle` (never infrastructure) |
 | `floetask-app` | Composition root | CLI (`clap`), wires infrastructure ports into services, starts the GUI | everything |
 
 Rules:
@@ -52,7 +52,7 @@ Safe writes put `<file>.tmp` and `<file>.bak` next to the target file, because a
 - Match the surrounding code. Comments are sparse and only explain non-obvious decisions.
 - `rustfmt.toml` sets `max_width = 120`. Run `cargo fmt --all`.
 - `cargo clippy --workspace --all-targets` must stay warning-free.
-- User-facing strings go through `i18n::tr` / `trf` in `floetask-gui/src/i18n.rs`; add the English text there.
+- User-facing strings go through `i18n::tr` / `trf` (`floetask-gui/src/i18n/`). Add the text to `crates/floetask-gui/locales/en/floetask.ftl` and translate it in every other locale file; tests fail when a language misses a key or a view passes literal text to `text(...)` / `button(...)`. Placeholders are named: `trf("calendar_more", &[("count", n.into())])`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 - todo.txt round-trip is sacred: edits must change only the tokens they touch (`Todo::rebuild`, token spans). Add a property test when you touch parsing.
 
 ## Testing

@@ -9,6 +9,7 @@ pub mod clock;
 pub mod colors;
 pub mod desktop;
 pub mod fs;
+pub mod locale;
 pub mod paths;
 pub mod stores;
 pub mod updater;
@@ -26,6 +27,7 @@ pub fn ports(paths: &AppPaths) -> Ports {
     Ports {
         files: Arc::new(fs::LocalFileSystem),
         clock: Arc::new(clock::SystemClock),
+        locale: Arc::new(locale::OsLocale),
         settings: Arc::new(stores::settings::TomlSettingsStore::new(paths.config_file.clone())),
         state: Arc::new(stores::state::TomlStateStore::new(paths.state_file())),
         saved_filters: Arc::new(stores::filters::TomlSavedFilterStore::new(paths.filters_file())),

@@ -35,7 +35,7 @@ impl Floetask {
             }
             Message::AskRemoveValue(attribute, value) => {
                 self.dialog = Some(Dialog::Confirm {
-                    message: trf("remove_value_confirm", &[&tag(attribute, &value)]),
+                    message: trf("remove_value_confirm", &[("value", tag(attribute, &value).into())]),
                     detail: None,
                     pending: Pending::RemoveValue(attribute, value),
                 });

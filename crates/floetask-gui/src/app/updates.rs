@@ -41,7 +41,7 @@ impl Floetask {
                 // exited already; on macOS and Linux it is replaced in place.
                 self.update = match result {
                     Ok(()) => UpdateState::Idle,
-                    Err(error) => UpdateState::Failed(error.to_string()),
+                    Err(error) => UpdateState::Failed(crate::i18n::error_text(&error)),
                 };
                 Task::none()
             }
@@ -70,7 +70,7 @@ impl Floetask {
             Err(error) => {
                 // A failed check on start is not worth interrupting for.
                 if manual {
-                    self.update = UpdateState::Failed(error.to_string());
+                    self.update = UpdateState::Failed(crate::i18n::error_text(&error));
                 }
                 return Task::none();
             }
@@ -89,7 +89,10 @@ impl Floetask {
                 let notice = if manual {
                     Task::none()
                 } else {
-                    self.toast(trf("update_available_toast", &[&release.version]))
+                    self.toast(trf(
+                        "update_available_toast",
+                        &[("version", release.version.as_str().into())],
+                    ))
                 };
                 self.update = UpdateState::Available(release);
                 notice

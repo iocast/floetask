@@ -34,6 +34,7 @@ use std::sync::Arc;
 pub struct Ports {
     pub files: Arc<dyn ports::FileSystem>,
     pub clock: Arc<dyn ports::Clock>,
+    pub locale: Arc<dyn ports::SystemLocale>,
     pub settings: Arc<dyn ports::SettingsStore>,
     pub state: Arc<dyn ports::StateStore>,
     pub saved_filters: Arc<dyn ports::SavedFilterStore>,

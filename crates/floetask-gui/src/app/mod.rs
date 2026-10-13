@@ -36,9 +36,9 @@ use floetask_domain::listing::{
     summarize_attributes,
 };
 use floetask_domain::search::Query;
-use floetask_domain::{Date, TodoDocument};
+use floetask_domain::{Date, TodoDocument, WeekStart};
 
-use crate::i18n::tr;
+use crate::i18n::{self, tr};
 use crate::theme::Colors;
 
 pub use board::BoardDrag;
@@ -154,16 +154,20 @@ impl Floetask {
         let services = startup.services;
         let ports = &services.ports;
         let mut toasts = Vec::new();
-        let settings = ports.settings.load().unwrap_or_else(|error| {
-            toasts.push(error.to_string());
+        let system_locale = ports.locale.language();
+        let mut settings = ports.settings.load().unwrap_or_else(|error| {
+            toasts.push(i18n::error_text(&error));
             Settings::default()
         });
-        // Write the defaults once so users find a config file to edit.
+        // Write the defaults once so users find a config file to edit. The
+        // week starts where it does in the user's region.
         if !ports.files.exists(&ports.settings.location()) {
+            settings.week_start = system_locale.as_deref().map(WeekStart::for_locale).unwrap_or_default();
             let _ = ports.settings.save(&settings);
         }
+        i18n::set_language(i18n::resolve(&settings.language, system_locale.as_deref()));
         let color_overrides = ports.colors.load().unwrap_or_else(|error| {
-            toasts.push(error.to_string());
+            toasts.push(i18n::error_text(&error));
             ColorOverrides::default()
         });
         let mut state = ports.state.load();
@@ -629,7 +633,7 @@ impl Floetask {
     }
 
     pub(crate) fn report(&mut self, error: &AppError) -> Task<Message> {
-        self.toast_error(error.to_string())
+        self.toast_error(i18n::error_text(error))
     }
 
     pub(crate) fn close_dialog(&mut self) -> Task<Message> {
@@ -693,7 +697,7 @@ impl Floetask {
                     let title = match notification.days_left {
                         0 => tr("due_today").to_owned(),
                         1 => tr("due_tomorrow").to_owned(),
-                        days => crate::i18n::trf("due_in_days", &[&days]),
+                        days => i18n::trf("due_in_days", &[("days", days.into())]),
                     };
                     service.send(notification, &title)?;
                 }

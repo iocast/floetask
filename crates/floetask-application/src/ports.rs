@@ -28,6 +28,12 @@ pub trait Clock: Send + Sync {
     fn today(&self) -> Date;
 }
 
+/// The language the operating system shows its own interface in.
+pub trait SystemLocale: Send + Sync {
+    /// A locale tag such as `de-CH`, or `None` when the OS names none.
+    fn language(&self) -> Option<String>;
+}
+
 /// User settings (the config file).
 pub trait SettingsStore: Send + Sync {
     fn load(&self) -> Result<Settings, AppError>;

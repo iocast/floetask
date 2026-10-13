@@ -29,7 +29,10 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     // than status; otherwise the switch is shown disabled.
     let grouping = board_grouping(&app.state.sorting);
     let group_label = match grouping {
-        Some(attribute) => trf("board_group_by", &[&tr(attribute.key()).to_lowercase()]),
+        Some(attribute) => trf(
+            "board_group_by",
+            &[("attribute", tr(attribute.key()).to_lowercase().into())],
+        ),
         None => tr("board_group").to_owned(),
     };
     let group_switch: iced::widget::Row<'_, Message> = row![

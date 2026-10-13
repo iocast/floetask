@@ -90,9 +90,16 @@ fn small<'a>(glyph: Icon, hint: &'a str, message: Message, colors: Colors, activ
 pub fn summary(app: &Floetask) -> Element<'_, Message> {
     let counts = app.listing.counts;
     container(
-        text(trf("counts", &[&counts.visible, &counts.total, &counts.completed]))
-            .size(12)
-            .color(app.colors().muted),
+        text(trf(
+            "counts",
+            &[
+                ("visible", counts.visible.into()),
+                ("total", counts.total.into()),
+                ("completed", counts.completed.into()),
+            ],
+        ))
+        .size(12)
+        .color(app.colors().muted),
     )
     .padding([0, 4])
     .into()

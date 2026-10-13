@@ -74,7 +74,11 @@ impl Floetask {
                 affects_list = true;
             }
             SettingChange::MonthOverflow(overflow) => s.month_overflow = overflow,
-            SettingChange::Language(language) => s.language = language,
+            SettingChange::Language(language) => {
+                s.language = language;
+                let system_locale = self.services.ports.locale.language();
+                crate::i18n::set_language(crate::i18n::resolve(&s.language, system_locale.as_deref()));
+            }
             SettingChange::StatusAdd(status) => {
                 if s.statuses.add(&status)
                     && let Some(Dialog::Settings(dialog)) = &mut self.dialog

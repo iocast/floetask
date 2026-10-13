@@ -254,7 +254,7 @@ impl Floetask {
             }
             (Err(error), window) => {
                 if let Some(window) = window {
-                    window.error = Some(error.to_string());
+                    window.error = Some(crate::i18n::error_text(&error));
                 }
                 self.report(&error)
             }

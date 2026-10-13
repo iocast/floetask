@@ -183,7 +183,10 @@ fn filters(app: &Floetask) -> Element<'_, Message> {
     let hidden_statuses: Vec<String> = app.settings.statuses.hidden().iter().map(|s| status_label(s)).collect();
     let mut toggles = column![];
     if !hidden_statuses.is_empty() {
-        let label = trf("show_hidden_statuses", &[&hidden_statuses.join(", ").to_lowercase()]);
+        let label = trf(
+            "show_hidden_statuses",
+            &[("statuses", hidden_statuses.join(", ").to_lowercase().into())],
+        );
         toggles = toggles.push(switch(label, view.show_hidden_statuses, |on| {
             Message::ViewToggle(ViewToggle::HiddenStatuses, on)
         }));

@@ -20,7 +20,7 @@ use super::LIST_ID;
 use super::icons::{Icon, icon};
 use super::widgets::{icon_button, with_tooltip};
 use crate::app::{DateKey, Floetask, Message};
-use crate::i18n::{tr, trf};
+use crate::i18n::{self, tr, trf};
 use crate::theme::{self, Colors};
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
@@ -76,7 +76,7 @@ pub(crate) fn group_header<'a>(
         let empty_label = if attribute == Attribute::Status {
             tr("status_done").to_owned()
         } else {
-            trf("no_value", &[&tr(attribute.key()).to_lowercase()])
+            trf("no_value", &[("attribute", tr(attribute.key()).to_lowercase().into())])
         };
         label = label.push(group_title(&empty_label, colors));
     }
@@ -379,14 +379,14 @@ pub(crate) fn meta<'a>(
     }
     if let Some(completed) = todo.completed() {
         chips = chips.push(
-            text(trf("completed_on", &[&format_iso(completed)]))
+            text(trf("completed_on", &[("date", format_iso(completed).into())]))
                 .size(12)
                 .color(colors.muted),
         );
         empty = false;
     } else if let Some(created) = todo.created() {
         chips = chips.push(
-            text(trf("created_on", &[&format_iso(created)]))
+            text(trf("created_on", &[("date", format_iso(created).into())]))
                 .size(12)
                 .color(colors.muted),
         );
@@ -406,8 +406,16 @@ fn note_button<'a>(app: &Floetask, note: &'a str, target: &TodoRef, colors: Colo
     };
     let (glyph, color, hint) = match status {
         NoteStatus::Present => (Icon::Note, colors.primary, tr("open_note").to_owned()),
-        NoteStatus::Missing => (Icon::NoteBroken, colors.muted, trf("note_missing", &[&location])),
-        NoteStatus::Invalid => (Icon::NoteBroken, colors.danger, trf("note_invalid", &[&location])),
+        NoteStatus::Missing => (
+            Icon::NoteBroken,
+            colors.muted,
+            trf("note_missing", &[("note", location.as_str().into())]),
+        ),
+        NoteStatus::Invalid => (
+            Icon::NoteBroken,
+            colors.danger,
+            trf("note_invalid", &[("note", location.as_str().into())]),
+        ),
     };
     let chip = button(
         row![icon(glyph, 12.0, color), text(label).size(12)]
@@ -460,7 +468,7 @@ pub(crate) fn date_label(app: &Floetask, date: Date, is_due: bool) -> String {
     if app.settings.human_friendly_dates
         && let Some(bucket) = display_bucket(date, app.today, app.settings.week_start, is_due)
     {
-        return tr(bucket.key()).to_owned();
+        return bucket_label(bucket.key()).unwrap_or(bucket.key()).to_owned();
     }
     format_iso(date)
 }
@@ -472,18 +480,20 @@ pub(crate) fn attribute_label(attribute: Attribute, value: &str) -> String {
         Attribute::Projects | Attribute::Contexts => value.to_owned(),
         Attribute::Priority => format!("({value})"),
         Attribute::Status => status_label(value),
-        _ => tr(value).to_owned(),
+        // Date groups are named by their bucket, such as `next week`.
+        _ => bucket_label(value).unwrap_or(value).to_owned(),
     }
+}
+
+/// A human-friendly date bucket (`next week`) in the user's language.
+fn bucket_label(key: &str) -> Option<&'static str> {
+    i18n::tr_known(&format!("bucket_{}", key.replace(' ', "_")))
 }
 
 /// A status name for display: built-in statuses are translated, custom
 /// ones are shown as written.
 pub(crate) fn status_label(status: &str) -> String {
-    let key = format!("status_{status}");
-    match tr(&key) {
-        translated if translated != key => translated.to_owned(),
-        _ => status.to_owned(),
-    }
+    i18n::tr_known(&format!("status_{status}")).unwrap_or(status).to_owned()
 }
 
 /// Icon and colour of a status chip. `waiting` stands out, since the todo

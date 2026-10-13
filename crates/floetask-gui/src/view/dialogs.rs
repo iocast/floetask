@@ -36,7 +36,10 @@ pub fn rename<'a>(app: &'a Floetask, attribute: Attribute, from: &'a str, input:
         .padding(10)
         .style(theme::input(colors));
     column![
-        title(trf("rename_title", &[&attribute_label(attribute, from)])),
+        title(trf(
+            "rename_title",
+            &[("value", attribute_label(attribute, from).into())]
+        )),
         field,
         row![
             danger_button(
@@ -148,7 +151,7 @@ pub fn board_columns<'a>(app: &'a Floetask, columns: &'a [String], input: &'a st
     .align_y(Alignment::Center);
 
     column![
-        title(trf("board_columns_title", &[&file])),
+        title(trf("board_columns_title", &[("file", file.into())])),
         text(tr("board_columns_hint")).size(13).color(colors.muted),
         rows,
         suggestions,

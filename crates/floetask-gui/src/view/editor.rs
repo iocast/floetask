@@ -21,7 +21,7 @@ use super::list::status_label;
 use super::popover::popover;
 use super::widgets::{caption, primary_button, secondary_button, title, with_tooltip};
 use crate::app::{DateKey, Editor, Floetask, Message};
-use crate::i18n::{tr, trf};
+use crate::i18n::{self, tr, trf};
 use crate::theme::{self, Colors};
 
 pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
@@ -280,12 +280,12 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
         .map(|path| NoteService::folder_name(&path))
         .unwrap_or_default();
     let saved_to = |link: &NoteLink| match link {
-        NoteLink::Folder(name) => trf("note_saved_to", &[&format!("{folder}/{name}")]),
-        NoteLink::External(path) => trf("note_saved_to", &[path]),
+        NoteLink::Folder(name) => trf("note_saved_to", &[("path", format!("{folder}/{name}").into())]),
+        NoteLink::External(path) => trf("note_saved_to", &[("path", path.as_str().into())]),
     };
     let (hint, color) = match target {
         Some(Ok(link)) => (saved_to(&link), colors.muted),
-        Some(Err(error)) => (error.to_string(), colors.danger),
+        Some(Err(error)) => (i18n::error_text(&error.into()), colors.danger),
         None if !editor.note.text().trim().is_empty() => {
             (saved_to(&NoteLink::Folder(editor.new_note_name())), colors.muted)
         }
@@ -307,9 +307,17 @@ fn link_question<'a>(app: &Floetask, picked: &Path, colors: Colors) -> Element<'
         .unwrap_or_default();
     container(
         column![
-            text(trf("note_outside_folder", &[&file_name, &folder])).size(13),
+            text(trf(
+                "note_outside_folder",
+                &[("file", file_name.as_str().into()), ("folder", folder.as_str().into())]
+            ))
+            .size(13),
             row![
-                primary_button(trf("note_move_into", &[&folder]), Message::EditorMovePickedNote, colors),
+                primary_button(
+                    trf("note_move_into", &[("folder", folder.as_str().into())]),
+                    Message::EditorMovePickedNote,
+                    colors
+                ),
                 secondary_button(tr("note_keep_in_place"), Message::EditorKeepPickedNote, colors),
                 space::horizontal(),
                 secondary_button(tr("cancel"), Message::EditorCancelPickedNote, colors),
@@ -335,7 +343,7 @@ fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
             .prepare_new_todos(&editor.text(), &app.input_options())
             .len();
         if count > 1 {
-            trf("add_count", &[&count])
+            trf("add_count", &[("count", count.into())])
         } else {
             tr("add").to_owned()
         }

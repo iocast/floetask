@@ -13,7 +13,7 @@ use iced_markdown_editor::Event;
 
 use super::{Calendar, DateKey, Dialog, Editor, Floetask, Message};
 use crate::compose::edit_text;
-use crate::i18n::tr;
+use crate::i18n::{self, tr};
 use crate::view;
 
 impl Floetask {
@@ -259,7 +259,7 @@ impl Floetask {
         };
         let target = match editor.note_target().transpose() {
             Ok(target) => target,
-            Err(error) => return self.toast_error(error.to_string()),
+            Err(error) => return self.toast_error(i18n::error_text(&error.into())),
         };
         if self.dialog_note_in_window()
             && let Some(window) = &self.note_window
@@ -319,7 +319,7 @@ impl Floetask {
         let note = match NoteSave::from_editor(editor) {
             Ok(_) if self.dialog_note_in_window() => NoteSave::Keep,
             Ok(note) => note,
-            Err(error) => return self.toast_error(error.to_string()),
+            Err(error) => return self.toast_error(i18n::error_text(&error.into())),
         };
         let Some(path) = self.active_path() else {
             return Task::none();

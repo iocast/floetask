@@ -18,7 +18,7 @@ use super::icons::Icon;
 use super::list::status_label;
 use super::widgets::{icon_button, primary_button, title};
 use crate::app::{Floetask, Message, SettingChange, SettingsDialog, SettingsSection, UpdateState};
-use crate::i18n::{LANGUAGES, tr, trf};
+use crate::i18n::{self, Language, tr, trf};
 use crate::theme::{self, Colors};
 
 const SIDEBAR_WIDTH: f32 = 180.0;
@@ -277,15 +277,15 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         },
         |theme| Message::Setting(SettingChange::Theme(theme)),
     );
+    let languages = i18n::language_choices();
     let language = choice(
-        &LANGUAGES,
-        LANGUAGES.into_iter().find(|l| *l == s.language).unwrap_or("system"),
-        |language| {
-            tr(if language == "system" {
-                "language_system"
-            } else {
-                "language_en"
-            })
+        &languages,
+        languages.iter().copied().find(|l| *l == s.language).unwrap_or("system"),
+        // Each language by its own name, so users find theirs whatever the
+        // interface shows.
+        |code| match Language::from_code(code) {
+            Some(language) => language.native_name(),
+            None => tr("language_system"),
         },
         |language| Message::Setting(SettingChange::Language(language.to_owned())),
     );
@@ -311,7 +311,7 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         vec![
             setting("theme", tr("theme").to_owned(), theme_choice, colors),
             setting("language", tr("language").to_owned(), language, colors),
-            setting("zoom", trf("zoom", &[&s.zoom_percent]), zoom, colors),
+            setting("zoom", trf("zoom", &[("percent", s.zoom_percent.into())]), zoom, colors),
             switch_setting("compact", s.compact, SettingChange::Compact, colors),
             setting(
                 "month_overflow",
@@ -344,7 +344,10 @@ fn notifications(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             switch_setting("notifications", s.notifications, SettingChange::Notifications, colors),
             setting(
                 "notification_threshold",
-                trf("notification_threshold", &[&s.notification_threshold_days]),
+                trf(
+                    "notification_threshold",
+                    &[("days", s.notification_threshold_days.into())],
+                ),
                 threshold,
                 colors,
             ),
@@ -379,7 +382,7 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         crate::logo::view(72.0),
         column![
             text("floetask").size(26),
-            text(trf("about_version", &[&env!("CARGO_PKG_VERSION")]))
+            text(trf("about_version", &[("version", env!("CARGO_PKG_VERSION").into())]))
                 .size(14)
                 .color(colors.muted),
             text(tr("about_tagline")).size(14),
@@ -415,7 +418,7 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             }
             UpdateState::Available(release) => {
                 let mut details = column![line(
-                    trf("update_available", &[&version_label(release)]),
+                    trf("update_available", &[("version", version_label(release).into())]),
                     colors.primary
                 )]
                 .spacing(6);
@@ -434,9 +437,13 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                 .align_y(Alignment::Center)
                 .into()
             }
-            UpdateState::Installing(version) => line(trf("update_installing", &[version]), colors.muted).into(),
+            UpdateState::Installing(version) => line(
+                trf("update_installing", &[("version", version.as_str().into())]),
+                colors.muted,
+            )
+            .into(),
             UpdateState::Failed(error) => row![
-                line(trf("update_failed", &[error]), colors.danger).width(Fill),
+                line(trf("update_failed", &[("error", error.as_str().into())]), colors.danger).width(Fill),
                 primary_button(tr("check_now"), Message::CheckForUpdates, colors),
             ]
             .spacing(16)
@@ -530,7 +537,10 @@ fn running_preview() -> bool {
 /// A version as offered: release candidates are marked as previews.
 fn version_label(release: &PublishedRelease) -> String {
     if release.prerelease {
-        trf("update_preview_version", &[&release.version])
+        trf(
+            "update_preview_version",
+            &[("version", release.version.as_str().into())],
+        )
     } else {
         release.version.clone()
     }

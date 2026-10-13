@@ -163,7 +163,7 @@ impl Floetask {
             });
         let delete = self.change_active_file(move |service, path, options| service.delete(path, &target, options));
         match orphan {
-            Some(name) => Task::batch([delete, self.toast(trf("note_orphaned", &[&name]))]),
+            Some(name) => Task::batch([delete, self.toast(trf("note_orphaned", &[("note", name.into())]))]),
             None => delete,
         }
     }

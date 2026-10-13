@@ -13,14 +13,14 @@ use iced::{Alignment, Color, Element, Fill, Length, mouse};
 use floetask_application::{MonthOverflow, TodoRef};
 use floetask_domain::Date;
 use floetask_domain::calendar::{CalendarMode, CalendarSpan, todos_by_day, undated};
-use floetask_domain::date::{Datelike, first_of_month};
+use floetask_domain::date::Datelike;
 use floetask_domain::listing::ListedTodo;
 
 use super::icons::{Icon, icon};
 use super::list::{body, meta};
 use super::widgets::{icon_button, with_tooltip};
 use crate::app::{DateKey, Floetask, Message};
-use crate::i18n::{tr, trf};
+use crate::i18n::{self, tr, trf};
 use crate::theme::{self, Colors};
 
 const WEEKDAYS: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -85,7 +85,7 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
         button(
             row![
                 icon(Icon::Calendar, 14.0, colors.muted),
-                text(trf("calendar_undated", &[&undated])).size(12)
+                text(trf("calendar_undated", &[("count", undated.into())])).size(12)
             ]
             .spacing(6)
             .align_y(Alignment::Center),
@@ -121,15 +121,9 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
 /// "October 2026", "5 – 11 Oct 2026" or "Tuesday, 6 October 2026".
 fn period_title(mode: CalendarMode, anchor: Date, span: &CalendarSpan) -> String {
     match mode {
-        CalendarMode::Month => first_of_month(anchor).format("%B %Y").to_string(),
-        CalendarMode::Week if span.first.month() == span.last.month() => {
-            format!("{} – {}", span.first.format("%-d"), span.last.format("%-d %b %Y"))
-        }
-        CalendarMode::Week if span.first.year() == span.last.year() => {
-            format!("{} – {}", span.first.format("%-d %b"), span.last.format("%-d %b %Y"))
-        }
-        CalendarMode::Week => format!("{} – {}", span.first.format("%-d %b %Y"), span.last.format("%-d %b %Y")),
-        CalendarMode::Day => anchor.format("%A, %-d %B %Y").to_string(),
+        CalendarMode::Month => i18n::month_year(anchor),
+        CalendarMode::Week => i18n::date_range(span.first, span.last),
+        CalendarMode::Day => i18n::long_date(anchor),
     }
 }
 
@@ -229,7 +223,7 @@ fn month_cell_entries<'a>(
     }
     if todos.len() > shown {
         entries = entries.push(
-            button(text(trf("calendar_more", &[&(todos.len() - shown)])).size(11))
+            button(text(trf("calendar_more", &[("count", (todos.len() - shown).into())])).size(11))
                 .padding([1, 6])
                 .style(theme::ghost(colors, false))
                 .on_press(Message::CalendarOpenDay(date)),
@@ -325,7 +319,7 @@ fn week_row<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>, width: 
         let today = date == app.today;
         let title = button(
             row![
-                text(date.format("%a").to_string()).size(12).color(colors.muted),
+                text(i18n::weekday_abbr(date)).size(12).color(colors.muted),
                 text(date.day().to_string())
                     .size(15)
                     .color(if today { colors.primary } else { colors.text }),

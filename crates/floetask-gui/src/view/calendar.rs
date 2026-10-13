@@ -9,7 +9,7 @@ use floetask_domain::{Date, WeekStart};
 use super::icons::Icon;
 use super::widgets::{icon_button, secondary_button};
 use crate::app::{Calendar, Message};
-use crate::i18n::tr;
+use crate::i18n::{self, tr};
 use crate::theme::{self, Colors};
 
 const CELL: f32 = 38.0;
@@ -25,7 +25,7 @@ pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart, colors: Col
             colors,
             false
         ),
-        text(month.format("%B %Y").to_string())
+        text(i18n::month_year(month))
             .size(15)
             .width(Length::Fill)
             .align_x(Alignment::Center),

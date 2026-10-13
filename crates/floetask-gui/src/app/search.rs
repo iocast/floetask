@@ -52,7 +52,7 @@ impl Floetask {
             Message::AskDeleteSavedFilter(index) => {
                 if let Some(filter) = self.saved_filters.get(index) {
                     self.dialog = Some(Dialog::Confirm {
-                        message: trf("delete_filter_confirm", &[&filter.name]),
+                        message: trf("delete_filter_confirm", &[("name", filter.name.as_str().into())]),
                         detail: Some(filter.query.clone()),
                         pending: Pending::DeleteSavedFilter(index),
                     });

@@ -37,7 +37,7 @@ All settings:
 
 Config-file-only settings: `exclude_lines_with_prefix` (list), watcher options ([§2.1](02-files.md#21-file-watching)).
 
-Persisted UI state (not in the dialog): registered files and active file, sorting, drawer/navigation/search open state, accordion states, file tabs visibility, window size/position/maximised, view toggles from [§6.2](06-drawer.md#62-filters-tab-view-toggles).
+Persisted UI state (not in the dialog): registered files and active file, sorting, drawer/navigation/search open state, accordion states, file tabs visibility, window size/position/maximised, note window size/position, view toggles from [§6.2](06-drawer.md#62-filters-tab-view-toggles).
 
 **Rust notes:** config as TOML or JSON via `serde` in the platform config dir (`directories` crate), e.g. `~/.config/floetask/`. Files: `config`, `colors`, `filters`, `notified`. Versioned with a schema number and migrations.
 

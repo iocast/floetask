@@ -43,7 +43,7 @@ floetask follows the [XDG Base Directory Specification](https://specifications.f
 | `~/.config/floetask/config.toml`        | Settings (written with defaults on first start; `--config` overrides)            | settings reset                      |
 | `~/.config/floetask/colors.toml`        | Optional colour overrides                                                        | default colours                     |
 | `~/.config/floetask/filters.toml`       | Saved search filters (moved here from `~/.local/share/floetask/` on first start) | your saved searches are gone        |
-| `~/.local/state/floetask/state.toml`    | Open files, layout, sorting, view toggles, window size                           | floetask forgets where you left off |
+| `~/.local/state/floetask/state.toml`    | Open files, layout, sorting, view toggles, main and note window size             | floetask forgets where you left off |
 | `~/.local/state/floetask/notified.toml` | Notifications already shown today                                                | you may see a notification twice    |
 
 Safe writes create `todo.txt.tmp` and `todo.txt.bak` next to your file for a moment and remove them on success.
@@ -61,9 +61,9 @@ notifications = true
 notification_threshold_days = 2 # 0-10
 zoom_percent = 100              # 50-150
 theme = "system"                # system, light, dark
-week_start = "monday"           # monday, saturday, sunday
+week_start = "monday"           # monday, saturday, sunday (first start: from your region)
 month_overflow = "more"         # full calendar month cells: more (+N more), scroll
-language = "system"
+language = "system"             # system, en, de, fr, es, it
 exclude_lines_with_prefix = ["##"]
 
 [statuses]                      # the status: extension
@@ -102,7 +102,10 @@ The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New tod
 
 The theme follows the system until you pick light or dark in Settings (or press `Ctrl+Alt+D`).
 
+The interface speaks English, German, French, Spanish and Italian. It follows the operating system's language until you pick one in Settings → Appearance → Language; the change applies at once. Files, the search language and `due:tomorrow` stay English, so todo files and saved filters work in every language ([13-i18n.md](features/todo-notes/13-i18n.md)).
+
 - **Add** with `Ctrl+N`. Type plain todo.txt; `+` and `@` autocomplete known projects and contexts (`Up`/`Down`, `Enter` or `Tab`). Pickers set priority, due and threshold dates, recurrence and pomodoros. `Ctrl+Enter` saves.
+- **Notes** in the add/edit dialog's Markdown editor (toolbar, or Source for the raw text): saving creates the `note:` file in `<file>-notes/`. The notes header can link a Markdown file from disk instead (move it into the notes folder, or keep it where it is) and open the note in its own window. Clicking a todo's note chip opens that window too; it saves as you type and remembers where you left it ([note-extension.md](features/todo-notes/note-extension.md)).
 - **Status** with `status:doing`, `status:waiting`, `status:someday` or your own value ([status-extension.md](features/todo-notes/status-extension.md)); the dialog has a status picker. Manage the global statuses (order, hidden, your own) in Settings → Statuses. The list groups by status (doing, to do, waiting), hides `someday` until you turn it on in the Filters tab, filter on it or search for `status:someday`, and completing a todo removes its status.
 - **Board** with the title-bar button or `Ctrl+Alt+B`: one column per status, plus Done. Drag a card to another column to change its status, or to Done to complete it. **Columns** on the board sets the columns for that file. When the list is grouped (for example by priority, after moving Priority to the top of the Sorting tab), each group gets its own board; the "Group by" switch next to Columns turns that off while keeping the sort order.
 - **Calendar** with the title-bar button or `Ctrl+Alt+C`: todos by due date in a day, week or month view, filtered like the list. Drag a todo to another day to change its due date; click it to edit. Details in [features/todo-notes/18-calendar.md](features/todo-notes/18-calendar.md).
@@ -128,19 +131,20 @@ The theme follows the system until you pick light or dark in Settings (or press 
 | `Ctrl+Alt+C`                              | Switch between list and calendar                         |
 | `Ctrl+Alt+D`                              | Toggle light/dark                                        |
 | `Ctrl+W` / `Ctrl+Q`                       | Quit                                                     |
+| `Ctrl+S`                                  | Save the note (note window)                              |
 | `Up` / `Down`, `Enter`, `Space`, `Delete` | Select, open, complete, delete                           |
 | `Escape`                                  | Close dialog, menu, filter drawer, then clear the search |
 
 ## Status against [FEATURES.md](features/FEATURES.md)
 
-Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files in a file drawer with per-file menus, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, `note:` links to notes files (see [note-extension.md](features/todo-notes/note-extension.md)), empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and i18n-ready strings.
+Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files in a file drawer with per-file menus, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, `note:` links to notes files (see [note-extension.md](features/todo-notes/note-extension.md)), empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and the interface in English, German, French, Spanish and Italian (Fluent files, localised calendar dates).
 
 Not done yet:
 
 - System tray, dock badge, start minimised (P2).
 - The status board has no keyboard navigation and no reordering inside a column; cards follow the sort order.
 - Native or in-app menu bar (P2); every action is reachable by shortcut or UI.
-- Translations other than English; the language setting only offers English.
+- Languages beyond wave 2 (§13.2), the fallback font for CJK and Devanagari, localised search keywords and natural-language dates (P2).
 - Packaging (P2).
 - App-level undo (P2), an archive viewer, single-instance mode.
 - Drag-and-drop reordering of sort criteria: up/down buttons instead (the spec's P1 fallback).
