@@ -180,7 +180,7 @@ fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool, width: Le
     let colors = app.colors();
     let title = match &lane.column {
         Some(BoardColumn::Done) => tr("status_done").to_owned(),
-        Some(BoardColumn::Status(status)) => status_label(status),
+        Some(BoardColumn::Status(status)) => status_label(app, status),
         None => tr("board_other").to_owned(),
     };
     let header = row![

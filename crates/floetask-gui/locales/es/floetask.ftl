@@ -134,7 +134,7 @@ board_group_hint = Un tablero por grupo. Desactivado mantiene el orden en un sol
 board_other = Otros estados
 board_columns_title = Columnas del tablero de { $file }
 board_columns_hint = Cada columna es un estado; Hecho contiene las tareas completadas. Arrastra una tarjeta a otra columna para cambiar su estado.
-column_placeholder = Estado, p. ej. in-review
+status_placeholder = Nombre, p. ej. En revisión
 remove_column = Quitar columna
 reset_columns = Restablecer
 

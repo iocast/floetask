@@ -10,9 +10,11 @@ use iced::widget::{
 use iced::{Alignment, Color, Element, Fill};
 
 use floetask_application::{NoteStatus, TodoRef};
+use floetask_domain::board::BoardColumns;
 use floetask_domain::date::format_iso;
 use floetask_domain::human_date::display_bucket;
 use floetask_domain::listing::{Attribute, ListedTodo};
+use floetask_domain::status::{StatusSet, label_from_key};
 use floetask_domain::todo::TextSegment;
 use floetask_domain::{Date, NoteLink, Todo};
 
@@ -81,7 +83,7 @@ pub(crate) fn group_header<'a>(
         label = label.push(group_title(&empty_label, colors));
     }
     for value in values {
-        let shown = group_title(&attribute_label(attribute, value), colors);
+        let shown = group_title(&attribute_label(app, attribute, value), colors);
         label = label.push(if attribute.is_renamable() {
             mouse_area(shown)
                 .on_right_press(Message::AskRename(attribute, value.clone()))
@@ -274,7 +276,7 @@ pub(crate) fn meta<'a>(
             Attribute::Status,
             status.to_owned(),
             Some(glyph),
-            status_label(status),
+            status_label(app, status),
             color,
         ));
         empty = false;
@@ -474,12 +476,12 @@ pub(crate) fn date_label(app: &Floetask, date: Date, is_due: bool) -> String {
 }
 
 /// How an attribute value is shown in headers and the drawer.
-pub(crate) fn attribute_label(attribute: Attribute, value: &str) -> String {
+pub(crate) fn attribute_label(app: &Floetask, attribute: Attribute, value: &str) -> String {
     match attribute {
         // Shown without `+` and `@`: the colour already says which it is.
         Attribute::Projects | Attribute::Contexts => value.to_owned(),
         Attribute::Priority => format!("({value})"),
-        Attribute::Status => status_label(value),
+        Attribute::Status => status_label(app, value),
         // Date groups are named by their bucket, such as `next week`.
         _ => bucket_label(value).unwrap_or(value).to_owned(),
     }
@@ -490,10 +492,26 @@ fn bucket_label(key: &str) -> Option<&'static str> {
     i18n::tr_known(&format!("bucket_{}", key.replace(' ', "_")))
 }
 
-/// A status name for display: built-in statuses are translated, custom
-/// ones are shown as written.
-pub(crate) fn status_label(status: &str) -> String {
-    i18n::tr_known(&format!("status_{status}")).unwrap_or(status).to_owned()
+/// A status name for display, with the active file's board labels.
+pub(crate) fn status_label(app: &Floetask, status: &str) -> String {
+    let board = app
+        .state
+        .active_entry()
+        .and_then(|entry| app.settings.boards.get(&entry.path));
+    status_name(&app.settings.statuses, board, status)
+}
+
+/// A status name for display: the label from settings, else the one a
+/// board gives a status only it knows, else the translation of a built-in
+/// status, else a name read from the key (`in-review` is "In review").
+pub(crate) fn status_name(statuses: &StatusSet, board: Option<&BoardColumns>, status: &str) -> String {
+    if let Some(label) = statuses.label(status).or_else(|| board.and_then(|b| b.label(status))) {
+        return label.to_owned();
+    }
+    match i18n::tr_known(&format!("status_{status}")) {
+        Some(translated) => translated.to_owned(),
+        None => label_from_key(status),
+    }
 }
 
 /// Icon and colour of a status chip. `waiting` stands out, since the todo

@@ -134,7 +134,7 @@ board_group_hint = Un tableau par groupe. Désactivé, l’ordre de tri est cons
 board_other = Autres statuts
 board_columns_title = Colonnes du tableau pour { $file }
 board_columns_hint = Chaque colonne est un statut ; Terminé contient les tâches terminées. Faites glisser une carte vers une autre colonne pour changer son statut.
-column_placeholder = Statut, p. ex. in-review
+status_placeholder = Nom, p. ex. En revue
 remove_column = Retirer la colonne
 reset_columns = Réinitialiser
 

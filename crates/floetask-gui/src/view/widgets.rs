@@ -1,7 +1,7 @@
 //! Small building blocks shared by the views.
 
-use iced::widget::{button, center, container, mouse_area, opaque, row, text, toggler, tooltip};
-use iced::{Element, Fill, alignment};
+use iced::widget::{button, center, column, container, mouse_area, opaque, row, text, text_input, toggler, tooltip};
+use iced::{Alignment, Element, Fill, alignment};
 
 use super::icons::{Icon, icon};
 use crate::app::Message;
@@ -143,4 +143,45 @@ pub fn caption<'a>(label: &str, colors: Colors) -> Element<'a, Message> {
             ..iced::Font::default()
         })
         .into()
+}
+
+/// A field for naming a new status: the user types the display name, and
+/// the key written to todos (`status:in-review`) shows read-only below it,
+/// since it cannot change once todos use it. Enter and the button send
+/// `submit`; without it, both are disabled.
+pub fn status_name_field<'a>(
+    placeholder: &'a str,
+    name: &'a str,
+    key: &str,
+    on_input: fn(String) -> Message,
+    submit: Option<Message>,
+    action: &'a str,
+    colors: Colors,
+) -> Element<'a, Message> {
+    let field = row![
+        text_input(placeholder, name)
+            .on_input(on_input)
+            .on_submit_maybe(submit.clone())
+            .padding(8)
+            .size(13)
+            .style(theme::input(colors)),
+        button(text(action).size(14))
+            .padding([8, 14])
+            .style(theme::secondary(colors))
+            .on_press_maybe(submit),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    // Empty until something is typed, so the dialog does not jump.
+    let hint = if key.is_empty() {
+        String::new()
+    } else {
+        format!("status:{key}")
+    };
+    column![
+        field,
+        container(text(hint).size(12).color(colors.muted).font(iced::Font::MONOSPACE)).padding([0, 9]),
+    ]
+    .spacing(4)
+    .into()
 }

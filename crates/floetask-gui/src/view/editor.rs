@@ -143,9 +143,10 @@ fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
         popover(anchor, calendar, Message::EditorCloseCalendar).align_left()
     };
     let current_status = todo.status_tag().unwrap_or(DEFAULT_STATUS);
-    let mut statuses: Vec<StatusChoice> = app.status_options().into_iter().map(StatusChoice).collect();
-    if !statuses.iter().any(|choice| choice.0 == current_status) {
-        statuses.push(StatusChoice(current_status.to_owned()));
+    let choice = |key: String| StatusChoice(status_label(app, &key), key);
+    let mut statuses: Vec<StatusChoice> = app.status_options().into_iter().map(choice).collect();
+    if !statuses.iter().any(|choice| choice.1 == current_status) {
+        statuses.push(choice(current_status.to_owned()));
     }
     column![
         caption(tr("details"), colors),
@@ -156,8 +157,8 @@ fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
             })
             .text_size(13),
             text(tr("status")).size(13).color(colors.muted),
-            pick_list(statuses, Some(StatusChoice(current_status.to_owned())), |choice| {
-                Message::EditorStatus(choice.0)
+            pick_list(statuses, Some(choice(current_status.to_owned())), |choice| {
+                Message::EditorStatus(choice.1)
             })
             .text_size(13),
             date_button(DateKey::Due, todo.due()),
@@ -371,13 +372,13 @@ impl std::fmt::Display for PriorityChoice {
     }
 }
 
-/// Status option for the pick list, shown with its display name.
+/// Status option for the pick list: its display name and its key.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct StatusChoice(String);
+struct StatusChoice(String, String);
 
 impl std::fmt::Display for StatusChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", status_label(&self.0))
+        write!(f, "{}", self.0)
     }
 }
 

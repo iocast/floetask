@@ -5,6 +5,8 @@
 //! a status, and values a user invents are kept and treated as open. See
 //! features/todo-notes/status-extension.md for the full rules.
 
+use std::collections::BTreeMap;
+
 /// The status of an open todo without a `status:` tag.
 pub const DEFAULT_STATUS: &str = "todo";
 
@@ -22,13 +24,64 @@ pub fn is_valid_status(value: &str) -> bool {
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
 }
 
+/// The status key for a name a user types, such as `in-review` for
+/// "In review": lowercase, words joined with `-`, accented letters spelled
+/// in ASCII (`Prüfung` is `pruefung`), other characters dropped. Empty when
+/// nothing usable is left.
+pub fn key_from_label(label: &str) -> String {
+    let mut key = String::new();
+    for c in label.trim().to_lowercase().chars() {
+        if c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' {
+            key.push(c);
+        } else if let Some(ascii) = ascii_spelling(c) {
+            key.push_str(ascii);
+        } else if (c == '-' || c.is_whitespace()) && !key.is_empty() && !key.ends_with('-') {
+            key.push('-');
+        }
+    }
+    key.trim_end_matches('-').to_owned()
+}
+
+/// The ASCII spelling of an accented lowercase letter from the languages
+/// floetask is translated into.
+fn ascii_spelling(c: char) -> Option<&'static str> {
+    Some(match c {
+        'ä' => "ae",
+        'ö' => "oe",
+        'ü' => "ue",
+        'ß' => "ss",
+        'à' | 'á' | 'â' => "a",
+        'ç' => "c",
+        'è' | 'é' | 'ê' | 'ë' => "e",
+        'ì' | 'í' | 'î' | 'ï' => "i",
+        'ñ' => "n",
+        'ò' | 'ó' | 'ô' => "o",
+        'ù' | 'ú' | 'û' => "u",
+        'œ' => "oe",
+        _ => return None,
+    })
+}
+
+/// A readable name for a key without a label: `in-review` becomes
+/// "In review", so custom statuses look fine without configuration.
+pub fn label_from_key(key: &str) -> String {
+    let words = key.replace(['-', '_'], " ");
+    let mut chars = words.trim().chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
+}
+
 /// The statuses a user works with: their display and sort order, and which
 /// ones the default list hides. Statuses found in a file but missing here
-/// still work; they sort after the known ones and are always shown.
+/// still work; they sort after the known ones and are always shown. A
+/// status may carry a display name; the todo line only ever holds the key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusSet {
     order: Vec<String>,
     hidden: Vec<String>,
+    labels: BTreeMap<String, String>,
 }
 
 impl Default for StatusSet {
@@ -56,7 +109,11 @@ impl StatusSet {
             .into_iter()
             .filter(|name| is_valid_status(name) && name != DEFAULT_STATUS)
             .collect();
-        Self { order: names, hidden }
+        Self {
+            order: names,
+            hidden,
+            labels: BTreeMap::new(),
+        }
     }
 
     /// Whether a status is one of the four with a defined meaning. These can
@@ -80,7 +137,24 @@ impl StatusSet {
         if !Self::is_built_in(status) {
             self.order.retain(|name| name != status);
             self.hidden.retain(|name| name != status);
+            self.labels.remove(status);
         }
+    }
+
+    /// Sets the display name of a known status. A blank name, or the key
+    /// itself, removes the label so the default name applies.
+    pub fn set_label(&mut self, status: &str, label: &str) {
+        let label = label.trim();
+        if label.is_empty() || label == status {
+            self.labels.remove(status);
+        } else if self.order.iter().any(|name| name == status) {
+            self.labels.insert(status.to_owned(), label.to_owned());
+        }
+    }
+
+    /// The user's display name for a status, if they gave one.
+    pub fn label(&self, status: &str) -> Option<&str> {
+        self.labels.get(status).map(String::as_str)
     }
 
     /// Moves the status at `index` one step up (`-1`) or down (`1`).
@@ -140,6 +214,34 @@ mod tests {
         assert!(!is_valid_status("Doing"));
         assert!(!is_valid_status(""));
         assert!(!is_valid_status("a b"));
+    }
+
+    #[test]
+    fn keys_and_labels_convert() {
+        assert_eq!(key_from_label("In review"), "in-review");
+        assert_eq!(key_from_label("  Waiting -- on  Bob! "), "waiting-on-bob");
+        assert_eq!(key_from_label("stage_2"), "stage_2");
+        assert_eq!(key_from_label("?!"), "");
+        assert_eq!(key_from_label("In Prüfung"), "in-pruefung");
+        assert_eq!(key_from_label("En révision"), "en-revision");
+        assert_eq!(label_from_key("in-review"), "In review");
+        assert_eq!(label_from_key("stage_2"), "Stage 2");
+    }
+
+    #[test]
+    fn labels_belong_to_known_statuses() {
+        let mut set = StatusSet::default();
+        set.add("in-review");
+        set.set_label("in-review", " In Review ");
+        set.set_label("unknown", "Unknown");
+        assert_eq!(set.label("in-review"), Some("In Review"));
+        assert_eq!(set.label("unknown"), None);
+        set.set_label("in-review", "in-review");
+        assert_eq!(set.label("in-review"), None, "the key is no label");
+        set.set_label("in-review", "Peer review");
+        set.remove("in-review");
+        set.add("in-review");
+        assert_eq!(set.label("in-review"), None, "removing drops the label");
     }
 
     #[test]

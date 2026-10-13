@@ -4,8 +4,9 @@
 use iced::Task;
 
 use floetask_application::{MainView, TodoRef};
-use floetask_domain::board::{BoardColumns, Column};
+use floetask_domain::board::BoardColumns;
 use floetask_domain::listing::LaneId;
+use floetask_domain::status::key_from_label;
 
 use super::{Dialog, Floetask, Message};
 
@@ -68,7 +69,7 @@ impl Floetask {
             }
             Message::BoardRelease => self.drop_card(),
             Message::OpenBoardColumns => {
-                let columns = self.active_board_columns().keys();
+                let columns = self.active_board_columns();
                 self.dialog = Some(Dialog::BoardColumns {
                     columns,
                     input: String::new(),
@@ -80,26 +81,24 @@ impl Floetask {
                     return Task::none();
                 };
                 match other {
-                    Message::BoardColumnInput(text) => *input = text.to_lowercase().replace(' ', "-"),
-                    Message::BoardColumnAdd(key) => {
-                        let key = key.unwrap_or_else(|| std::mem::take(input));
-                        if Column::parse(&key).is_some() && !columns.contains(&key) {
-                            columns.push(key);
+                    Message::BoardColumnInput(text) => *input = text,
+                    Message::BoardColumnAdd(Some(key)) => {
+                        columns.add(&key);
+                    }
+                    // A typed name: the key is derived from it, and the name
+                    // labels the column unless settings already name it.
+                    Message::BoardColumnAdd(None) => {
+                        let key = key_from_label(input);
+                        if columns.add(&key) {
+                            if !self.settings.statuses.names().contains(&key) {
+                                columns.set_label(&key, input);
+                            }
+                            input.clear();
                         }
                     }
-                    Message::BoardColumnMove(index, step) => {
-                        let target = index as isize + step;
-                        if target >= 0 && (target as usize) < columns.len() {
-                            columns.swap(index, target as usize);
-                        }
-                    }
-                    Message::BoardColumnRemove(index) => {
-                        // A board keeps at least one column.
-                        if columns.len() > 1 && index < columns.len() {
-                            columns.remove(index);
-                        }
-                    }
-                    Message::BoardColumnsReset => *columns = BoardColumns::default().keys(),
+                    Message::BoardColumnMove(index, step) => columns.move_column(index, step),
+                    Message::BoardColumnRemove(index) => columns.remove(index),
+                    Message::BoardColumnsReset => *columns = BoardColumns::default(),
                     _ => {}
                 }
                 Task::none()
@@ -127,11 +126,11 @@ impl Floetask {
     }
 
     /// Saves the columns from the dialog for the active file.
-    pub(super) fn save_board_columns(&mut self, columns: Vec<String>) -> Task<Message> {
+    pub(super) fn save_board_columns(&mut self, columns: BoardColumns) -> Task<Message> {
         let Some(path) = self.active_path() else {
             return Task::none();
         };
-        self.settings.set_board_columns(&path, BoardColumns::from_keys(columns));
+        self.settings.set_board_columns(&path, columns);
         self.refresh();
         let store = self.services.ports.settings.clone();
         let settings = self.settings.clone();

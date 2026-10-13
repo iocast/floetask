@@ -131,7 +131,7 @@ board_group_hint = One board per group. Off keeps the sort order on a single boa
 board_other = Other statuses
 board_columns_title = Board columns for { $file }
 board_columns_hint = Each column is a status; Done holds completed todos. Drag a card to another column to change its status.
-column_placeholder = Status, e.g. in-review
+status_placeholder = Name, e.g. In review
 remove_column = Remove column
 reset_columns = Reset
 

@@ -4,6 +4,8 @@
 //! which holds completed todos, since done is not a status. Moving a todo to
 //! a column sets its status, or completes it for `done`.
 
+use std::collections::BTreeMap;
+
 use crate::date::Date;
 use crate::status::{DEFAULT_STATUS, is_valid_status};
 use crate::todo::Todo;
@@ -52,9 +54,13 @@ impl Column {
 }
 
 /// The ordered columns of one file's board. Never empty and without
-/// duplicates.
+/// duplicates. A status column may carry a display name, for statuses that
+/// only this board knows; global statuses are named in settings.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BoardColumns(Vec<Column>);
+pub struct BoardColumns {
+    columns: Vec<Column>,
+    labels: BTreeMap<String, String>,
+}
 
 impl Default for BoardColumns {
     fn default() -> Self {
@@ -66,30 +72,31 @@ impl BoardColumns {
     /// Builds columns from configured keys, dropping invalid and duplicate
     /// ones. An empty result falls back to the default columns.
     pub fn from_keys<S: AsRef<str>>(keys: impl IntoIterator<Item = S>) -> Self {
-        let mut columns: Vec<Column> = Vec::new();
-        for column in keys.into_iter().filter_map(|key| Column::parse(key.as_ref())) {
-            if !columns.contains(&column) {
-                columns.push(column);
-            }
+        let mut board = Self {
+            columns: Vec::new(),
+            labels: BTreeMap::new(),
+        };
+        for key in keys {
+            board.add(key.as_ref());
         }
-        if columns.is_empty() {
+        if board.columns.is_empty() {
             Self::default()
         } else {
-            Self(columns)
+            board
         }
     }
 
     pub fn columns(&self) -> &[Column] {
-        &self.0
+        &self.columns
     }
 
     pub fn keys(&self) -> Vec<String> {
-        self.0.iter().map(|column| column.key().to_owned()).collect()
+        self.columns.iter().map(|column| column.key().to_owned()).collect()
     }
 
     /// The statuses that have a column, in column order.
     pub fn statuses(&self) -> impl Iterator<Item = &str> {
-        self.0.iter().filter_map(|column| match column {
+        self.columns.iter().filter_map(|column| match column {
             Column::Status(status) => Some(status.as_str()),
             Column::Done => None,
         })
@@ -97,9 +104,52 @@ impl BoardColumns {
 
     /// Whether some column shows open todos with `status`.
     pub fn has_status(&self, status: &str) -> bool {
-        self.0
+        self.columns
             .iter()
             .any(|column| matches!(column, Column::Status(s) if s == status))
+    }
+
+    /// Adds a column at the right end. Returns `false` for invalid keys and
+    /// columns the board already has.
+    pub fn add(&mut self, key: &str) -> bool {
+        let new = Column::parse(key).filter(|column| !self.columns.contains(column));
+        if let Some(column) = &new {
+            self.columns.push(column.clone());
+        }
+        new.is_some()
+    }
+
+    /// Moves the column at `index` one step left (`-1`) or right (`1`).
+    pub fn move_column(&mut self, index: usize, step: isize) {
+        let target = index as isize + step;
+        if index < self.columns.len() && target >= 0 && (target as usize) < self.columns.len() {
+            self.columns.swap(index, target as usize);
+        }
+    }
+
+    /// Removes the column at `index`, with its label. The last column stays,
+    /// since a board needs one.
+    pub fn remove(&mut self, index: usize) {
+        if self.columns.len() > 1 && index < self.columns.len() {
+            let column = self.columns.remove(index);
+            self.labels.remove(column.key());
+        }
+    }
+
+    /// Names a status column. A blank name, or the key itself, removes the
+    /// label; `done` is always named by the app.
+    pub fn set_label(&mut self, status: &str, label: &str) {
+        let label = label.trim();
+        if label.is_empty() || label == status {
+            self.labels.remove(status);
+        } else if self.has_status(status) {
+            self.labels.insert(status.to_owned(), label.to_owned());
+        }
+    }
+
+    /// The display name this board gives a status, if any.
+    pub fn label(&self, status: &str) -> Option<&str> {
+        self.labels.get(status).map(String::as_str)
     }
 }
 
@@ -143,6 +193,28 @@ mod tests {
         assert!(columns.has_status("in-review"));
         assert_eq!(BoardColumns::from_keys(["Nope"]), BoardColumns::default());
         assert_eq!(BoardColumns::default().keys(), ["todo", "doing", "waiting", "done"]);
+    }
+
+    #[test]
+    fn columns_are_edited_with_their_labels() {
+        let mut columns = BoardColumns::default();
+        assert!(columns.add("in-review"));
+        assert!(!columns.add("in-review"));
+        assert!(!columns.add("In review"));
+        columns.set_label("in-review", " In review ");
+        columns.set_label("done", "Finished");
+        columns.set_label("missing", "Missing");
+        assert_eq!(columns.label("in-review"), Some("In review"));
+        assert_eq!(columns.label("done"), None);
+        assert_eq!(columns.label("missing"), None);
+        columns.move_column(4, -1);
+        assert_eq!(columns.keys(), ["todo", "doing", "waiting", "in-review", "done"]);
+        columns.remove(3);
+        assert_eq!(columns.label("in-review"), None, "removing drops the label");
+        assert_eq!(columns, BoardColumns::default());
+        let mut single = BoardColumns::from_keys(["todo"]);
+        single.remove(0);
+        assert_eq!(single.keys(), ["todo"], "a board keeps one column");
     }
 
     #[test]

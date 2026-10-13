@@ -3,8 +3,7 @@
 //! description under its name.
 
 use iced::widget::{
-    Column, button, checkbox, column, container, pick_list, row, rule, scrollable, slider, space, text, text_input,
-    toggler,
+    Column, button, checkbox, column, container, pick_list, row, rule, scrollable, slider, space, text, toggler,
 };
 use iced::{Alignment, Element, Fill};
 
@@ -12,11 +11,11 @@ use floetask_application::ports::PublishedRelease;
 use floetask_application::updates::rollback_targets;
 use floetask_application::{MonthOverflow, Settings, ThemePreference, UpdateChannel};
 use floetask_domain::WeekStart;
-use floetask_domain::status::{StatusSet, is_valid_status};
+use floetask_domain::status::{StatusSet, is_valid_status, key_from_label};
 
 use super::icons::Icon;
 use super::list::status_label;
-use super::widgets::{icon_button, primary_button, title};
+use super::widgets::{icon_button, primary_button, status_name_field, title};
 use crate::app::{Floetask, Message, SettingChange, SettingsDialog, SettingsSection, UpdateState};
 use crate::i18n::{self, Language, tr, trf};
 use crate::theme::{self, Colors};
@@ -196,7 +195,7 @@ fn statuses<'a>(app: &'a Floetask, input: &'a str, colors: Colors) -> Element<'a
         row![
             column![
                 row![
-                    text(status_label(status)).size(14),
+                    text(status_label(app, status)).size(14),
                     text(status.as_str())
                         .size(12)
                         .color(colors.muted)
@@ -237,28 +236,23 @@ fn statuses<'a>(app: &'a Floetask, input: &'a str, colors: Colors) -> Element<'a
         .align_y(Alignment::Center)
         .into()
     });
-    let valid = is_valid_status(input) && !set.names().iter().any(|name| name == input);
-    let add_message = Message::Setting(SettingChange::StatusAdd(input.to_owned()));
-    let add = row![
-        text_input(tr("column_placeholder"), input)
-            .on_input(Message::SettingsStatusInput)
-            .on_submit_maybe(valid.then(|| add_message.clone()))
-            .padding(8)
-            .size(13)
-            .style(theme::input(colors)),
-        button(text(tr("add_status")).size(14))
-            .padding([8, 14])
-            .style(theme::secondary(colors))
-            .on_press_maybe(valid.then_some(add_message)),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let key = key_from_label(input);
+    let valid = is_valid_status(&key) && !set.names().contains(&key);
+    let add = status_name_field(
+        tr("status_placeholder"),
+        input,
+        &key,
+        Message::SettingsStatusInput,
+        valid.then(|| Message::Setting(SettingChange::StatusAdd(input.to_owned()))),
+        tr("add_status"),
+        colors,
+    );
     page(
         "section_statuses",
         vec![
             text(tr("statuses_desc")).size(12).color(colors.muted).into(),
             Column::with_children(rows).spacing(14).into(),
-            add.into(),
+            add,
         ],
     )
 }

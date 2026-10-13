@@ -957,6 +957,7 @@ fn board_columns_are_set_per_file() {
     let _ = app.update(Message::OpenBoardColumns);
     let _ = app.update(Message::BoardColumnAdd(Some("someday".to_owned())));
     let _ = app.update(Message::BoardColumnInput("In Review".to_owned()));
+    assert!(simulator(app.view()).find("status:in-review").is_ok(), "key preview");
     let _ = app.update(Message::BoardColumnAdd(None));
     let _ = app.update(Message::BoardColumnRemove(2));
     let _ = app.update(Message::BoardColumnMove(4, -1));
@@ -972,6 +973,10 @@ fn board_columns_are_set_per_file() {
     assert!(!app.settings.statuses.names().contains(&"in-review".to_owned()));
     assert_eq!(app.status_options().last().map(String::as_str), Some("in-review"));
     assert_eq!(board_lane_bodies(&app)[5], vec!["Legal review"]);
+    // The typed name labels the column, and the lane is titled with it.
+    let columns = app.settings.board_columns(Path::new(TODO_PATH));
+    assert_eq!(columns.label("in-review"), Some("In Review"));
+    assert!(simulator(app.view()).find("IN REVIEW").is_ok());
 }
 
 #[test]
@@ -1007,7 +1012,8 @@ fn statuses_are_managed_in_settings() {
     let _ = app.update(Message::OpenSettings);
     let _ = app.update(Message::SettingsSection(crate::app::SettingsSection::Statuses));
     let _ = app.update(Message::SettingsStatusInput("In Review".to_owned()));
-    let _ = app.update(Message::Setting(SettingChange::StatusAdd("in-review".to_owned())));
+    assert!(simulator(app.view()).find("status:in-review").is_ok(), "key preview");
+    let _ = app.update(Message::Setting(SettingChange::StatusAdd("In Review".to_owned())));
     let _ = app.update(Message::Setting(SettingChange::StatusMove(4, -1)));
     let _ = app.update(Message::Setting(SettingChange::StatusHidden(
         "waiting".to_owned(),
@@ -1020,6 +1026,8 @@ fn statuses_are_managed_in_settings() {
     );
     assert!(app.listing.todos().all(|t| t.todo.status() != Some("waiting")));
     assert!(app.status_options().contains(&"in-review".to_owned()));
+    assert_eq!(app.settings.statuses.label("in-review"), Some("In Review"));
+    assert!(simulator(app.view()).find("In Review").is_ok());
     let Some(Dialog::Settings(dialog)) = &app.dialog else {
         panic!("settings closed")
     };

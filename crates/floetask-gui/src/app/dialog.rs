@@ -7,6 +7,7 @@ use iced::widget::text_editor;
 use iced_markdown_editor::{Action, EditorState, EditorStyle, Event, Output, Paper, ZoomSettings};
 
 use floetask_application::TodoRef;
+use floetask_domain::board::BoardColumns;
 use floetask_domain::date::first_of_month;
 use floetask_domain::listing::Attribute;
 use floetask_domain::note::default_name;
@@ -311,7 +312,7 @@ impl SettingsSection {
 #[derive(Debug, Default)]
 pub struct SettingsDialog {
     pub section: SettingsSection,
-    /// A new status being typed on the Statuses page.
+    /// The display name of a new status being typed on the Statuses page.
     pub status_input: String,
 }
 
@@ -336,9 +337,9 @@ pub enum Dialog {
     SaveFilter {
         name: String,
     },
-    /// The active file's board columns, as keys, while being edited.
+    /// The active file's board columns while being edited.
     BoardColumns {
-        columns: Vec<String>,
+        columns: BoardColumns,
         input: String,
     },
 }

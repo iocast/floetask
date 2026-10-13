@@ -85,11 +85,20 @@ This is not part of the official todo.txt spec. Tools must explicitly support it
 
   ```toml
   [statuses]
-  order = ["doing", "todo", "waiting", "someday"]  # display and sort order; add custom ones here
+  order = [                                        # display and sort order; add custom ones here
+    "doing",
+    "todo",
+    { key = "in-review", label = "In review" },    # optional display name
+    "waiting",
+    "someday",
+  ]
   hidden = ["someday"]                             # hidden from the default list
   ```
 
   Built-in statuses missing from `order` are appended, invalid names are dropped, and `todo` can never be hidden. Statuses found in a file but not in `order` sort after the known ones and are always shown.
+- **Display names:** the todo line only ever holds the key (`status:in-review`); the label is for display. A status is shown with its `label` if it has one, else with its translation for the four built-in statuses, else with a name read from the key (`in-review` is "In review"). Entries are a list rather than a table, because TOML does not keep the order of table keys. Plain strings keep older config files valid and leave built-in statuses translated.
+- **Adding a status** in settings or as a board column: the user types the display name ("In review"); the key is derived from it (lowercase, words joined with `-`, accented letters spelled in ASCII, so "In Prüfung" is `in-pruefung`) and shown read-only below the field. The key cannot be renamed later, since todos already use it.
+- **Board-only statuses:** a column whose status is not in `[statuses]` keeps its display name on the board, in the same mixed form: `[[boards]] columns = ["todo", { key = "in-review", label = "In review" }, "done"]`. A label from `[statuses]` wins over a board's label.
 - **Listing:** the default sort groups by status in the configured order (`doing`, `todo`, `waiting`, then custom statuses), with completed todos last under "Done". Status is a normal sort criterion, so it can be moved down or inverted in the Sorting tab. A sort list saved by an older version gets status inserted at the top.
 - **Hidden statuses** (`someday` by default) are shown when the Filters tab toggle is on, when the drawer's Status section includes that value, or when the search contains `status:<value>`.
 - **GUI:** the add/edit dialog has a status picker next to the priority. Cards show a chip for every status except `todo`: `doing` in the accent colour with a play icon, `waiting` in amber with an hourglass, others muted. Clicking a chip filters by that status like any other chip.

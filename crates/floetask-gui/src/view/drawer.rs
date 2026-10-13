@@ -153,7 +153,7 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
         let count_color = if state.is_some() { colors.surface } else { colors.muted };
         let chip = button(
             row![
-                text(attribute_label(attribute, &value.value)).size(12),
+                text(attribute_label(app, attribute, &value.value)).size(12),
                 text(value.count.to_string()).size(11).color(count_color),
             ]
             .spacing(6)
@@ -180,7 +180,13 @@ fn filters(app: &Floetask) -> Element<'_, Message> {
     let toggle = |label: &'static str, value: bool, which: ViewToggle| {
         switch(tr(label), value, move |on| Message::ViewToggle(which, on))
     };
-    let hidden_statuses: Vec<String> = app.settings.statuses.hidden().iter().map(|s| status_label(s)).collect();
+    let hidden_statuses: Vec<String> = app
+        .settings
+        .statuses
+        .hidden()
+        .iter()
+        .map(|s| status_label(app, s))
+        .collect();
     let mut toggles = column![];
     if !hidden_statuses.is_empty() {
         let label = trf(

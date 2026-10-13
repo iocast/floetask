@@ -3,13 +3,14 @@
 use iced::widget::{button, column, container, row, space, text, text_input};
 use iced::{Alignment, Element, Fill};
 
-use floetask_domain::board::{Column, DONE_COLUMN};
+use floetask_domain::board::{BoardColumns, Column, DONE_COLUMN};
 use floetask_domain::listing::Attribute;
+use floetask_domain::status::key_from_label;
 
 use super::calendar;
 use super::icons::Icon;
-use super::list::{attribute_label, status_label};
-use super::widgets::{danger_button, icon_button, primary_button, secondary_button, title};
+use super::list::{attribute_label, status_name};
+use super::widgets::{danger_button, icon_button, primary_button, secondary_button, status_name_field, title};
 use crate::app::{Calendar, Floetask, Message};
 use crate::i18n::{tr, trf};
 use crate::theme::{self, Colors};
@@ -38,7 +39,7 @@ pub fn rename<'a>(app: &'a Floetask, attribute: Attribute, from: &'a str, input:
     column![
         title(trf(
             "rename_title",
-            &[("value", attribute_label(attribute, from).into())]
+            &[("value", attribute_label(app, attribute, from).into())]
         )),
         field,
         row![
@@ -88,24 +89,22 @@ pub fn save_filter<'a>(app: &'a Floetask, name: &'a str) -> Element<'a, Message>
 
 /// Edits the board columns of the active file: reorder, remove, add a
 /// known status or type a new one.
-pub fn board_columns<'a>(app: &'a Floetask, columns: &'a [String], input: &'a str) -> Element<'a, Message> {
+pub fn board_columns<'a>(app: &'a Floetask, board: &'a BoardColumns, input: &'a str) -> Element<'a, Message> {
     let colors = app.colors();
     let file = app
         .state
         .active_entry()
         .map(|entry| entry.file_name())
         .unwrap_or_default();
+    let columns = board.keys();
     let last = columns.len().saturating_sub(1);
-    let rows = column(columns.iter().enumerate().map(|(index, key)| {
+    let rows = column(columns.iter().cloned().enumerate().map(|(index, key)| {
         let step = |glyph: Icon, label: &'static str, message: Message, enabled: bool| {
             icon_button(glyph, tr(label), enabled.then_some(message), colors, false)
         };
         row![
-            text(column_label(key)).size(14).width(Fill),
-            text(key.as_str())
-                .size(12)
-                .color(colors.muted)
-                .font(iced::Font::MONOSPACE),
+            text(column_label(app, board, &key)).size(14).width(Fill),
+            text(key).size(12).color(colors.muted).font(iced::Font::MONOSPACE),
             step(Icon::ArrowUp, "move_up", Message::BoardColumnMove(index, -1), index > 0),
             step(
                 Icon::ArrowDown,
@@ -129,7 +128,7 @@ pub fn board_columns<'a>(app: &'a Floetask, columns: &'a [String], input: &'a st
     let mut known: Vec<String> = app.settings.statuses.names().to_vec();
     known.push(DONE_COLUMN.to_owned());
     let suggestions = row(known.into_iter().filter(|key| !columns.contains(key)).map(|key| {
-        button(text(column_label(&key)).size(12))
+        button(text(column_label(app, board, &key)).size(12))
             .padding([3, 10])
             .style(theme::chip(colors.primary, colors, false))
             .on_press(Message::BoardColumnAdd(Some(key)))
@@ -137,18 +136,17 @@ pub fn board_columns<'a>(app: &'a Floetask, columns: &'a [String], input: &'a st
     }))
     .spacing(6)
     .wrap();
-    let valid = Column::parse(input).is_some() && !columns.iter().any(|key| key == input);
-    let add = row![
-        text_input(tr("column_placeholder"), input)
-            .on_input(Message::BoardColumnInput)
-            .on_submit_maybe(valid.then_some(Message::BoardColumnAdd(None)))
-            .padding(8)
-            .size(13)
-            .style(theme::input(colors)),
-        secondary_button(tr("add"), Message::BoardColumnAdd(None), colors),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let key = key_from_label(input);
+    let valid = Column::parse(&key).is_some() && !columns.contains(&key);
+    let add = status_name_field(
+        tr("status_placeholder"),
+        input,
+        &key,
+        Message::BoardColumnInput,
+        valid.then_some(Message::BoardColumnAdd(None)),
+        tr("add"),
+        colors,
+    );
 
     column![
         title(trf("board_columns_title", &[("file", file.into())])),
@@ -170,11 +168,13 @@ pub fn board_columns<'a>(app: &'a Floetask, columns: &'a [String], input: &'a st
     .into()
 }
 
-fn column_label(key: &str) -> String {
+/// A column's name in the dialog, with the labels of the columns being
+/// edited rather than the saved ones.
+fn column_label(app: &Floetask, board: &BoardColumns, key: &str) -> String {
     if key == DONE_COLUMN {
         tr("status_done").to_owned()
     } else {
-        status_label(key)
+        status_name(&app.settings.statuses, Some(board), key)
     }
 }
 

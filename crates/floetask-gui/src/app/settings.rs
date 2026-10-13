@@ -3,6 +3,7 @@
 use iced::Task;
 
 use floetask_application::ThemePreference;
+use floetask_domain::status::key_from_label;
 
 use super::{Dialog, Floetask, Message, SettingChange, SettingsDialog};
 
@@ -21,7 +22,7 @@ impl Floetask {
             }
             Message::SettingsStatusInput(text) => {
                 if let Some(Dialog::Settings(dialog)) = &mut self.dialog {
-                    dialog.status_input = text.to_lowercase().replace(' ', "-");
+                    dialog.status_input = text;
                 }
                 Task::none()
             }
@@ -79,11 +80,13 @@ impl Floetask {
                 let system_locale = self.services.ports.locale.language();
                 crate::i18n::set_language(crate::i18n::resolve(&s.language, system_locale.as_deref()));
             }
-            SettingChange::StatusAdd(status) => {
-                if s.statuses.add(&status)
-                    && let Some(Dialog::Settings(dialog)) = &mut self.dialog
-                {
-                    dialog.status_input.clear();
+            SettingChange::StatusAdd(name) => {
+                let key = key_from_label(&name);
+                if s.statuses.add(&key) {
+                    s.statuses.set_label(&key, &name);
+                    if let Some(Dialog::Settings(dialog)) = &mut self.dialog {
+                        dialog.status_input.clear();
+                    }
                 }
                 affects_list = true;
             }

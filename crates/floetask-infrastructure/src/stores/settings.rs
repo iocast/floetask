@@ -1,6 +1,6 @@
 //! `config.toml`: user settings.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +73,31 @@ struct SettingsFile {
 #[derive(Debug, Serialize, Deserialize)]
 struct BoardFile {
     file: PathBuf,
-    columns: Vec<String>,
+    /// Column keys, with a display name for statuses only this board knows.
+    columns: Vec<StatusEntry>,
+}
+
+impl BoardFile {
+    fn new(file: &Path, columns: &BoardColumns) -> Self {
+        Self {
+            file: file.to_path_buf(),
+            columns: columns
+                .keys()
+                .into_iter()
+                .map(|key| StatusEntry::new(key.clone(), columns.label(&key)))
+                .collect(),
+        }
+    }
+
+    fn columns(&self) -> BoardColumns {
+        let mut columns = BoardColumns::from_keys(self.columns.iter().map(StatusEntry::key));
+        for entry in &self.columns {
+            if let StatusEntry::Labelled { key, label } = entry {
+                columns.set_label(key, label);
+            }
+        }
+        columns
+    }
 }
 
 /// `[statuses]`: the user's workflow statuses for the `status:` extension.
@@ -81,9 +105,50 @@ struct BoardFile {
 #[serde(default)]
 struct StatusesFile {
     /// Display and sort order; custom statuses go here too.
-    order: Vec<String>,
+    order: Vec<StatusEntry>,
     /// Statuses left out of the default list, like `someday`.
     hidden: Vec<String>,
+}
+
+/// One entry of `order`: a plain key such as `"doing"`, or a table with a
+/// display name, `{ key = "in-review", label = "In review" }`. Plain keys
+/// keep older files valid and leave built-in statuses translated.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum StatusEntry {
+    Key(String),
+    Labelled { key: String, label: String },
+}
+
+impl StatusEntry {
+    fn new(key: String, label: Option<&str>) -> Self {
+        match label {
+            Some(label) => Self::Labelled {
+                key,
+                label: label.to_owned(),
+            },
+            None => Self::Key(key),
+        }
+    }
+
+    fn key(&self) -> &str {
+        match self {
+            Self::Key(key) | Self::Labelled { key, .. } => key,
+        }
+    }
+}
+
+impl From<StatusesFile> for StatusSet {
+    fn from(file: StatusesFile) -> Self {
+        let keys = file.order.iter().map(|entry| entry.key().to_owned()).collect();
+        let mut set = StatusSet::new(keys, file.hidden);
+        for entry in &file.order {
+            if let StatusEntry::Labelled { key, label } = entry {
+                set.set_label(key, label);
+            }
+        }
+        set
+    }
 }
 
 impl Default for StatusesFile {
@@ -95,7 +160,11 @@ impl Default for StatusesFile {
 impl From<&StatusSet> for StatusesFile {
     fn from(statuses: &StatusSet) -> Self {
         Self {
-            order: statuses.names().to_vec(),
+            order: statuses
+                .names()
+                .iter()
+                .map(|key| StatusEntry::new(key.clone(), statuses.label(key)))
+                .collect(),
             hidden: statuses.hidden().to_vec(),
         }
     }
@@ -174,10 +243,7 @@ impl From<&Settings> for SettingsFile {
             boards: s
                 .boards
                 .iter()
-                .map(|(file, columns)| BoardFile {
-                    file: file.clone(),
-                    columns: columns.keys(),
-                })
+                .map(|(file, columns)| BoardFile::new(file, columns))
                 .collect(),
         }
     }
@@ -222,11 +288,14 @@ impl From<SettingsFile> for Settings {
                 polling: f.watcher.polling,
                 poll_interval_ms: f.watcher.poll_interval_ms,
             },
-            statuses: StatusSet::new(f.statuses.order, f.statuses.hidden),
+            statuses: StatusSet::from(f.statuses),
             boards: f
                 .boards
                 .into_iter()
-                .map(|board| (board.file, BoardColumns::from_keys(board.columns)))
+                .map(|board| {
+                    let columns = board.columns();
+                    (board.file, columns)
+                })
                 .collect(),
         }
     }
@@ -289,15 +358,51 @@ mod tests {
     }
 
     #[test]
+    fn statuses_mix_plain_keys_and_labels() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(
+            &path,
+            "[statuses]
+order = [
+  \"doing\",
+  { key = \"in-review\", label = \"In review\" },
+  \"todo\",
+]
+",
+        )
+        .unwrap();
+        let store = TomlSettingsStore::new(path.clone());
+        let settings = store.load().unwrap();
+        assert_eq!(
+            settings.statuses.names(),
+            ["doing", "in-review", "todo", "waiting", "someday"]
+        );
+        assert_eq!(settings.statuses.label("in-review"), Some("In review"));
+        assert_eq!(settings.statuses.label("doing"), None);
+        store.save(&settings).unwrap();
+        let written = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            written.contains("\"doing\""),
+            "plain keys stay plain:
+{written}"
+        );
+        assert_eq!(store.load().unwrap(), settings);
+    }
+
+    #[test]
     fn board_columns_round_trip_per_file() {
         let dir = tempfile::tempdir().unwrap();
         let store = TomlSettingsStore::new(dir.path().join("config.toml"));
         let mut settings = Settings::default();
         let file = dir.path().join("todo.txt");
-        settings.set_board_columns(&file, BoardColumns::from_keys(["doing", "in-review", "done"]));
+        let mut columns = BoardColumns::from_keys(["doing", "in-review", "done"]);
+        columns.set_label("in-review", "In review");
+        settings.set_board_columns(&file, columns);
         store.save(&settings).unwrap();
         let loaded = store.load().unwrap();
         assert_eq!(loaded.board_columns(&file).keys(), ["doing", "in-review", "done"]);
+        assert_eq!(loaded.board_columns(&file).label("in-review"), Some("In review"));
         assert_eq!(
             loaded.board_columns(&dir.path().join("other.txt")),
             BoardColumns::default()

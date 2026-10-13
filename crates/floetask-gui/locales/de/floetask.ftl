@@ -131,7 +131,7 @@ board_group_hint = Ein Board pro Gruppe. Aus behält die Sortierung auf einem ei
 board_other = Andere Status
 board_columns_title = Board-Spalten für { $file }
 board_columns_hint = Jede Spalte ist ein Status; Erledigt enthält abgeschlossene Aufgaben. Zieh eine Karte in eine andere Spalte, um ihren Status zu ändern.
-column_placeholder = Status, z. B. in-review
+status_placeholder = Name, z. B. In Prüfung
 remove_column = Spalte entfernen
 reset_columns = Zurücksetzen
 

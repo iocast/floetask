@@ -131,7 +131,7 @@ board_group_hint = Una bacheca per gruppo. Disattivato mantiene l’ordinamento 
 board_other = Altri stati
 board_columns_title = Colonne della bacheca per { $file }
 board_columns_hint = Ogni colonna è uno stato; Fatto contiene le attività completate. Trascina una scheda in un’altra colonna per cambiarne lo stato.
-column_placeholder = Stato, ad es. in-review
+status_placeholder = Nome, ad es. In revisione
 remove_column = Rimuovi colonna
 reset_columns = Reimposta
 

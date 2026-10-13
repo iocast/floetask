@@ -244,6 +244,8 @@ pub enum SettingChange {
     Theme(floetask_application::ThemePreference),
     WeekStart(floetask_domain::WeekStart),
     MonthOverflow(floetask_application::MonthOverflow),
+    /// Adds a custom status from the name the user typed, such as
+    /// "In review"; the key (`in-review`) is derived from it.
     StatusAdd(String),
     StatusRemove(String),
     StatusMove(usize, isize),
