@@ -6,6 +6,13 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.4.0-rc.3] - 2026-10-13
+
+### Added
+- The interface is translated into German, French, Spanish and Italian; pick the language in Settings → Appearance → Language, it applies without a restart, and *System* follows the OS language (e.g. `de-CH` uses German, unknown languages fall back to English); error messages are translated too, details reported by the OS stay as they are
+- Calendar titles, month and weekday names follow the chosen language; on first start the week begins on the OS region's first day of the week
+- Custom statuses have display names: type "In review" in settings or when adding a board column and floetask derives the key (`status:in-review`); in `config.toml`, `[statuses] order` and `[[boards]] columns` accept `{ key = "in-review", label = "In review" }` next to plain keys, which keep working
+
 ## [0.4.0-rc.2] - 2026-10-12
 
 ### Added
@@ -75,7 +82,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0-rc.2...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0-rc.3...HEAD
+[0.4.0-rc.3]: https://github.com/iocast/floetask/compare/v0.4.0-rc.2...v0.4.0-rc.3
 [0.4.0-rc.2]: https://github.com/iocast/floetask/compare/v0.4.0-rc.1...v0.4.0-rc.2
 [0.4.0-rc.1]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0-rc.1
 [0.3.1]: https://github.com/iocast/floetask/compare/v0.3.0...v0.3.1
