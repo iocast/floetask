@@ -6,11 +6,12 @@ use iced_markdown_editor::markdown_editor;
 
 use floetask_domain::NoteLink;
 
-use super::icons::{Icon, icon};
-use super::widgets::with_tooltip;
-use crate::app::{Floetask, Message, NoteWindow};
+use super::NoteWindow;
+use crate::app::{Floetask, Message};
 use crate::i18n::tr;
-use crate::theme;
+use crate::view::icons::{Icon, icon};
+use crate::view::widgets::with_tooltip;
+use crate::{note_window, theme};
 
 pub fn view<'a>(app: &Floetask, window: &'a NoteWindow) -> Element<'a, Message> {
     let colors = app.colors();
@@ -27,7 +28,7 @@ pub fn view<'a>(app: &Floetask, window: &'a NoteWindow) -> Element<'a, Message> 
     let open_externally = button(icon(Icon::Link, 16.0, colors.text))
         .padding(6)
         .style(theme::ghost(colors, false))
-        .on_press(Message::NoteWindowOpenExternally);
+        .on_press(Message::NoteWindow(note_window::Message::OpenExternally));
     let header = row![
         icon(Icon::Note, 16.0, colors.muted),
         name,
@@ -39,7 +40,7 @@ pub fn view<'a>(app: &Floetask, window: &'a NoteWindow) -> Element<'a, Message> 
     .align_y(Alignment::Center);
     let editor = markdown_editor(window.note.state())
         .view()
-        .map(Message::NoteWindowAction);
+        .map(|action| Message::NoteWindow(note_window::Message::Action(action)));
     column![
         container(header)
             .padding([10, 16])

@@ -1,4 +1,4 @@
-//! The add/edit dialog and the date pickers.
+//! Editing a todo in the dialog, its note, and picking dates.
 
 use iced::Task;
 use iced::widget::operation;
@@ -11,24 +11,25 @@ use floetask_domain::todo::Todo;
 use floetask_domain::{NoteError, NoteLink, NoteName, Recurrence};
 use iced_markdown_editor::Event;
 
-use super::{Calendar, DateKey, Dialog, Editor, Floetask, Message};
+use super::{DateKey, DatePicker, Editor};
+use crate::app::{Dialog, Floetask, Message};
 use crate::compose::edit_text;
 use crate::i18n::{self, tr};
-use crate::view;
+use crate::{editor, files, view};
 
 impl Floetask {
-    pub(super) fn update_editing(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_editor(&mut self, message: editor::Message) -> Task<Message> {
         match message {
-            Message::NewTodo => self.open_new_editor(""),
-            Message::CalendarMonth(months) => {
+            editor::Message::New => self.open_new_editor(""),
+            editor::Message::PickerMonth(months) => {
                 if let Some(calendar) = self.active_calendar() {
                     calendar.shift_month(months);
                 }
                 Task::none()
             }
-            Message::CalendarPick(date) => self.pick_date(date),
-            Message::SaveEditor => self.save_editor(),
-            Message::NoteLoaded(target, result) => match result {
+            editor::Message::PickDate(date) => self.pick_date(date),
+            editor::Message::Save => self.save_editor(),
+            editor::Message::NoteLoaded(target, result) => match result {
                 Ok(Some(text)) => {
                     if let Some(Dialog::Editor(editor)) = &mut self.dialog
                         && editor.target.as_ref() == Some(&target)
@@ -40,13 +41,15 @@ impl Floetask {
                 Ok(None) => Task::none(),
                 Err(error) => self.report(&error),
             },
-            Message::EditorPickNoteFile => {
+            editor::Message::PickNoteFile => {
                 let folder = self
                     .active_path()
                     .map(|path| path.with_file_name(NoteService::folder_name(&path)));
-                Task::perform(pick_note_file(folder), Message::NoteFilePicked)
+                Task::perform(pick_note_file(folder), |path| {
+                    Message::Editor(editor::Message::NoteFilePicked(path))
+                })
             }
-            Message::NoteFilePicked(picked) => {
+            editor::Message::NoteFilePicked(picked) => {
                 let (Some(picked), Some(todo_file)) = (picked, self.active_path()) else {
                     return Task::none();
                 };
@@ -62,17 +65,16 @@ impl Floetask {
                     }
                 }
             }
-            Message::EditorMovePickedNote => {
+            editor::Message::MovePickedNote => {
                 let (Some(picked), Some(todo_file)) = (self.take_pending_link(), self.active_path()) else {
                     return Task::none();
                 };
                 let notes = self.services.notes.clone();
-                Task::perform(
-                    async move { notes.move_into_folder(&todo_file, &picked) },
-                    Message::NoteFileMoved,
-                )
+                Task::perform(async move { notes.move_into_folder(&todo_file, &picked) }, |result| {
+                    Message::Editor(editor::Message::NoteFileMoved(result))
+                })
             }
-            Message::EditorKeepPickedNote => match self
+            editor::Message::KeepPickedNote => match self
                 .take_pending_link()
                 .map(|picked| NoteService::external_link(&picked))
             {
@@ -80,15 +82,15 @@ impl Floetask {
                 Some(Err(error)) => self.report(&error),
                 None => Task::none(),
             },
-            Message::EditorCancelPickedNote => {
+            editor::Message::CancelPickedNote => {
                 self.take_pending_link();
                 Task::none()
             }
-            Message::NoteFileMoved(result) => match result {
+            editor::Message::NoteFileMoved(result) => match result {
                 Ok(link) => self.link_note(link),
                 Err(error) => self.report(&error),
             },
-            Message::NoteLinked(link, result) => {
+            editor::Message::NoteLinked(link, result) => {
                 let text = match result {
                     Ok(text) => text.unwrap_or_default(),
                     Err(error) => return self.report(&error),
@@ -101,8 +103,8 @@ impl Floetask {
                 }
                 Task::none()
             }
-            Message::EditorOpenNoteWindow => self.hand_note_to_window(),
-            Message::NoteHandedOver(result) => match result {
+            editor::Message::OpenNoteWindow => self.hand_note_to_window(),
+            editor::Message::NoteHandedOver(result) => match result {
                 Ok((link, text)) => self.note_handed_over(link, text),
                 Err(error) => self.report(&error),
             },
@@ -113,38 +115,38 @@ impl Floetask {
                     return Task::none();
                 };
                 match other {
-                    Message::EditorAction(action) => {
+                    editor::Message::Action(action) => {
                         editor.content.perform(action);
                         editor.refresh_suggestions(&projects, &contexts);
                         Task::none()
                     }
-                    Message::EditorSuggestion(index) => {
+                    editor::Message::Suggestion(index) => {
                         editor.accept_suggestion(index);
                         operation::focus(view::EDITOR_ID)
                     }
-                    Message::EditorSuggestionMove(step) => {
+                    editor::Message::SuggestionMove(step) => {
                         let count = editor.suggestions.len().max(1) as isize;
                         editor.selected_suggestion =
                             (editor.selected_suggestion as isize + step).rem_euclid(count) as usize;
                         Task::none()
                     }
-                    Message::EditorDismissSuggestions => {
+                    editor::Message::DismissSuggestions => {
                         editor.suggestions.clear();
                         Task::none()
                     }
-                    Message::EditorAccept => {
+                    editor::Message::Accept => {
                         editor.accept_suggestion(editor.selected_suggestion);
                         Task::none()
                     }
-                    Message::EditorPriority(priority) => {
+                    editor::Message::Priority(priority) => {
                         rewrite(editor, |todo| todo.with_priority(priority));
                         Task::none()
                     }
-                    Message::EditorStatus(status) => {
+                    editor::Message::Status(status) => {
                         rewrite(editor, |todo| todo.with_status(Some(&status)));
                         Task::none()
                     }
-                    Message::EditorOpenCalendar(key) => {
+                    editor::Message::OpenDatePicker(key) => {
                         editor.calendar = match &editor.calendar {
                             Some(calendar) if calendar.key == key => None,
                             _ => {
@@ -153,44 +155,48 @@ impl Floetask {
                                     DateKey::Due => todo.due(),
                                     DateKey::Threshold => todo.threshold(),
                                 };
-                                Some(Calendar::new(key, current, today))
+                                Some(DatePicker::new(key, current, today))
                             }
                         };
                         Task::none()
                     }
-                    Message::EditorCloseCalendar => {
+                    editor::Message::CloseDatePicker => {
                         editor.calendar = None;
                         operation::focus(view::EDITOR_ID)
                     }
-                    Message::EditorNoteAction(action) => {
+                    editor::Message::NoteAction(action) => {
                         let output = editor.note.update(action);
                         // Ctrl-clicked links open like the links on todo cards.
                         let links = output.events.into_iter().filter_map(|event| match event {
                             Event::LinkClicked(url) => Some(Task::done(Message::OpenLink(url))),
                             _ => None,
                         });
-                        Task::batch(links.chain([output.task.map(Message::EditorNoteAction)]))
+                        Task::batch(
+                            links.chain([output
+                                .task
+                                .map(|action| Message::Editor(editor::Message::NoteAction(action)))]),
+                        )
                     }
-                    Message::EditorUnlinkNote => {
+                    editor::Message::UnlinkNote => {
                         rewrite(editor, |todo| todo.with_note_link(None));
                         editor.note.show("");
                         Task::none()
                     }
-                    Message::EditorRecurrenceCount(count) => {
+                    editor::Message::RecurrenceCount(count) => {
                         if count.chars().all(|c| c.is_ascii_digit()) && count.len() <= 3 {
                             editor.recurrence_count = count;
                         }
                         Task::none()
                     }
-                    Message::EditorRecurrenceUnit(unit) => {
+                    editor::Message::RecurrenceUnit(unit) => {
                         editor.recurrence_unit = unit;
                         Task::none()
                     }
-                    Message::EditorRecurrenceStrict(strict) => {
+                    editor::Message::RecurrenceStrict(strict) => {
                         editor.recurrence_strict = strict;
                         Task::none()
                     }
-                    Message::EditorApplyRecurrence(set) => {
+                    editor::Message::ApplyRecurrence(set) => {
                         let value = set.then(|| Recurrence {
                             strict: editor.recurrence_strict,
                             count: editor.recurrence_count.parse().unwrap_or(1).max(1),
@@ -201,13 +207,13 @@ impl Floetask {
                         });
                         Task::none()
                     }
-                    Message::EditorPomodoros(count) => {
+                    editor::Message::Pomodoros(count) => {
                         if count.chars().all(|c| c.is_ascii_digit()) && count.len() <= 3 {
                             editor.pomodoros = count;
                         }
                         Task::none()
                     }
-                    Message::EditorApplyPomodoros(set) => {
+                    editor::Message::ApplyPomodoros(set) => {
                         let value = editor.pomodoros.parse::<u32>().ok().filter(|_| set);
                         rewrite(editor, |todo| {
                             todo.with_extension("pm", value.map(|n| n.to_string()).as_deref())
@@ -247,7 +253,7 @@ impl Floetask {
                 let text = notes.read(&path, &link);
                 (link, text)
             },
-            |(link, text)| Message::NoteLinked(link, text),
+            |(link, text)| Message::Editor(editor::Message::NoteLinked(link, text)),
         )
     }
 
@@ -277,7 +283,7 @@ impl Floetask {
                 let text = notes.read(&todo_file, &link)?;
                 Ok((link, text))
             },
-            Message::NoteHandedOver,
+            |result| Message::Editor(editor::Message::NoteHandedOver(result)),
         )
     }
 
@@ -337,11 +343,11 @@ impl Floetask {
                     None => todo_files.add(&path, &text, &input, &options),
                 }
             },
-            move |result| Message::Saved(saved.clone(), result),
+            move |result| Message::Files(files::Message::Saved(saved.clone(), result)),
         )
     }
 
-    fn active_calendar(&mut self) -> Option<&mut Calendar> {
+    fn active_calendar(&mut self) -> Option<&mut DatePicker> {
         match &mut self.dialog {
             Some(Dialog::RowDate { calendar, .. }) => Some(calendar),
             Some(Dialog::Editor(editor)) => editor.calendar.as_mut(),

@@ -4,12 +4,13 @@
 use iced::widget::{Column, button, column, container, row, rule, scrollable, text};
 use iced::{Alignment, Element, Fill};
 
-use super::icons::{Icon, icon};
-use super::popover::popover;
-use super::widgets::{caption, icon_button};
 use crate::app::{Floetask, Message};
 use crate::i18n::tr;
 use crate::theme::{self, Colors};
+use crate::view::icons::{Icon, icon};
+use crate::view::popover::popover;
+use crate::view::widgets::{caption, icon_button};
+use crate::{editor, files};
 
 const WIDTH: f32 = crate::layout::FILES_DRAWER_WIDTH;
 
@@ -30,7 +31,7 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
     .width(Fill)
     .padding([9, 12])
     .style(theme::primary(colors))
-    .on_press_maybe(has_file.then_some(Message::NewTodo));
+    .on_press_maybe(has_file.then_some(Message::Editor(editor::Message::New)));
 
     let mut files = Column::new().spacing(2);
     for index in 0..app.state.files.len() {
@@ -44,8 +45,18 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
     }
 
     let footer = column![
-        wide_button(Icon::Folder, tr("open_file"), Message::OpenFileDialog, colors),
-        wide_button(Icon::FilePlus, tr("create_file"), Message::CreateFileDialog, colors),
+        wide_button(
+            Icon::Folder,
+            tr("open_file"),
+            Message::Files(files::Message::OpenDialog),
+            colors
+        ),
+        wide_button(
+            Icon::FilePlus,
+            tr("create_file"),
+            Message::Files(files::Message::CreateDialog),
+            colors
+        ),
     ]
     .spacing(2);
 
@@ -94,17 +105,21 @@ fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messa
     .width(Fill)
     .padding([6, 8])
     .style(theme::ghost(colors, active))
-    .on_press(Message::SelectFile(index));
+    .on_press(Message::Files(files::Message::Select(index)));
     let menu = popover(
         icon_button(
             Icon::DotsVertical,
             tr("file_actions"),
-            Some(Message::FileMenu(if open { None } else { Some(index) })),
+            Some(Message::Files(files::Message::Menu(if open {
+                None
+            } else {
+                Some(index)
+            }))),
             colors,
             open,
         ),
         open.then(|| file_menu(app, index, colors)),
-        Message::FileMenu(None),
+        Message::Files(files::Message::Menu(None)),
     );
     row![label, menu].spacing(2).align_y(Alignment::Center).into()
 }
@@ -136,29 +151,34 @@ fn file_menu(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messag
             item(
                 Icon::Archive,
                 "set_archive_file",
-                Some(Message::ChangeDoneFile(index)),
+                Some(Message::Files(files::Message::ChangeDoneFile(index))),
                 false
             ),
             item(
                 Icon::File,
                 "open_archive_file",
-                has_done.then_some(Message::OpenDoneFile(index)),
+                has_done.then_some(Message::Files(files::Message::OpenDoneFile(index))),
                 false
             ),
             item(
                 Icon::Archive,
                 "archive",
-                can_archive.then_some(Message::ArchiveCompleted),
+                can_archive.then_some(Message::Files(files::Message::ArchiveCompleted)),
                 false
             ),
             item(
                 Icon::Folder,
                 "reveal_todo_file",
-                Some(Message::RevealTodoFile(index)),
+                Some(Message::Files(files::Message::Reveal(index))),
                 false
             ),
             rule::horizontal(1),
-            item(Icon::Close, "close_file", Some(Message::AskRemoveFile(index)), true),
+            item(
+                Icon::Close,
+                "close_file",
+                Some(Message::Files(files::Message::AskRemove(index))),
+                true
+            ),
         ]
         .spacing(2),
     )
@@ -178,8 +198,8 @@ fn archive_entry(app: &Floetask, index: usize, colors: Colors) -> Option<Element
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     let open = match registered {
-        Some(position) => Message::SelectFile(position),
-        None => Message::OpenDoneFile(index),
+        Some(position) => Message::Files(files::Message::Select(position)),
+        None => Message::Files(files::Message::OpenDoneFile(index)),
     };
     Some(
         button(

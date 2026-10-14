@@ -6,6 +6,7 @@ use iced::{Alignment, Element};
 use super::widgets::{primary_button, secondary_button};
 use crate::app::{Floetask, Message};
 use crate::i18n::tr;
+use crate::{drawer, editor, files};
 
 pub fn no_file(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
@@ -15,8 +16,8 @@ pub fn no_file(app: &Floetask) -> Element<'_, Message> {
         tr("no_file_title"),
         Some(tr("no_file_body")),
         row![
-            primary_button(tr("open_file"), Message::OpenFileDialog, colors),
-            secondary_button(tr("create_file"), Message::CreateFileDialog, colors),
+            primary_button(tr("open_file"), Message::Files(files::Message::OpenDialog), colors),
+            secondary_button(tr("create_file"), Message::Files(files::Message::CreateDialog), colors),
         ]
         .spacing(8)
         .into(),
@@ -30,7 +31,7 @@ pub fn no_todos(app: &Floetask) -> Element<'_, Message> {
         None,
         tr("no_todos_title"),
         Some(tr("no_todos_body")),
-        primary_button(tr("add_todo"), Message::NewTodo, colors),
+        primary_button(tr("add_todo"), Message::Editor(editor::Message::New), colors),
     )
 }
 
@@ -41,7 +42,11 @@ pub fn nothing_visible(app: &Floetask) -> Element<'_, Message> {
         None,
         tr("no_visible_title"),
         None,
-        secondary_button(tr("reset_filters"), Message::ResetFilters, colors),
+        secondary_button(
+            tr("reset_filters"),
+            Message::Drawer(drawer::Message::ResetFilters),
+            colors,
+        ),
     )
 }
 

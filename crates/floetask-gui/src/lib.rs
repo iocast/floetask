@@ -3,6 +3,11 @@
 //! The GUI depends on the application layer (use cases and port traits) and
 //! on domain types for display, never on infrastructure. The composition
 //! root hands it ready-made [`floetask_application::Services`].
+//!
+//! `app` holds the state, the top-level message and the loop around them;
+//! `view` the root layout and shared widgets. Every feature is a module of
+//! its own with its message type, its `update` and its views, so a change
+//! to the board mostly stays in `board/`.
 
 mod app;
 mod compose;
@@ -11,6 +16,16 @@ mod layout;
 mod logo;
 mod theme;
 mod view;
+
+mod board;
+mod calendar;
+mod drawer;
+mod editor;
+mod files;
+mod list;
+mod note_window;
+mod search;
+mod settings;
 
 #[cfg(test)]
 mod tests;

@@ -1,22 +1,14 @@
 //! The application state and the Elm-style loop around it.
 //!
-//! `update` is split by concern into the sibling modules; each handler only
-//! calls application services and changes presentation state.
+//! `dispatch` hands each feature message to the feature's own `update`
+//! (`crate::board`, `crate::files`, ...); each handler only calls
+//! application services and changes presentation state. What every view
+//! shares, the window, dialogs, keys and toasts, is handled here.
 
-mod board;
-mod calendar;
 mod dialog;
-mod drawer;
-mod editing;
-mod files;
-mod list;
 mod message;
-mod note_window;
-mod search;
-mod settings;
 mod shortcuts;
 mod subscriptions;
-mod updates;
 mod window_frame;
 
 use std::collections::{BTreeSet, HashMap};
@@ -28,26 +20,25 @@ use iced::{Element, Task, Theme, window};
 
 use floetask_application::TodoRef;
 use floetask_application::{
-    AppError, AppState, ColorOverrides, FileOptions, InputOptions, NoteStatus, SavedFilter, Services, Settings,
-    ThemePreference,
+    AppError, AppState, ColorOverrides, FileOptions, InputOptions, MainView, NoteStatus, SavedFilter, Services,
+    Settings, ThemePreference,
 };
 use floetask_domain::listing::{
     AttributeSummary, Board, BoardLayout, DateContext, LaneId, TodoListing, build_board, build_listing, known_names,
     summarize_attributes,
 };
-use floetask_domain::search::Query;
 use floetask_domain::{Date, TodoDocument, WeekStart};
 
+use crate::board::BoardDrag;
 use crate::i18n::{self, tr};
+use crate::note_window::NoteWindow;
+use crate::search;
+use crate::search::SearchState;
+use crate::settings::UpdateState;
 use crate::theme::Colors;
 
-pub use board::BoardDrag;
-pub use dialog::{Calendar, DateKey, Dialog, Editor, Pending, SettingsDialog, SettingsSection};
-#[cfg(test)]
-pub(crate) use editing::NoteSave;
-pub use message::{Message, SettingChange, ViewToggle};
-pub use note_window::NoteWindow;
-pub use updates::UpdateState;
+pub use dialog::{Dialog, Pending};
+pub use message::Message;
 
 /// What the composition root hands to the GUI.
 pub struct Startup {
@@ -62,24 +53,6 @@ pub struct Toast {
     pub id: u64,
     pub text: String,
     pub error: bool,
-}
-
-#[derive(Debug)]
-pub struct SearchState {
-    pub input: String,
-    /// The last query that parsed, shown while an expression is incomplete.
-    pub query: Query,
-    pub saved_open: bool,
-}
-
-impl Default for SearchState {
-    fn default() -> Self {
-        Self {
-            input: String::new(),
-            query: Query::Empty,
-            saved_open: false,
-        }
-    }
 }
 
 pub struct Floetask {
@@ -223,7 +196,9 @@ impl Floetask {
         let load_files = Task::batch([app.load_all_files(), app.persist_state()]);
         let saved_filters = {
             let store = app.services.ports.saved_filters.clone();
-            Task::perform(async move { store.load() }, Message::SavedFiltersLoaded)
+            Task::perform(async move { store.load() }, |result| {
+                Message::Search(search::Message::SavedFiltersLoaded(result))
+            })
         };
         let updates = if app.settings.check_for_updates {
             app.check_for_updates(false)
@@ -252,7 +227,7 @@ impl Floetask {
     /// Draws either window: the note window, or the main one.
     pub fn view_window(&self, id: window::Id) -> Element<'_, Message> {
         match &self.note_window {
-            Some(window) if window.id == id => crate::view::note_window(self, window),
+            Some(window) if window.id == id => crate::note_window::view(self, window),
             _ => self.view(),
         }
     }
@@ -340,173 +315,75 @@ impl Floetask {
     }
 
     fn dispatch(&mut self, message: Message) -> Task<Message> {
-        use Message as M;
         match message {
-            M::SystemDark(dark) => {
+            Message::SystemDark(dark) => {
                 self.system_dark = dark;
                 Task::none()
             }
-            M::Tick => self.tick(),
-            M::KeyPressed(id, key, modifiers) => self.on_key(id, key, modifiers),
-            M::ModifiersChanged(modifiers) => {
+            Message::Tick => self.tick(),
+            Message::KeyPressed(id, key, modifiers) => self.on_key(id, key, modifiers),
+            Message::ModifiersChanged(modifiers) => {
                 self.modifiers = modifiers;
                 Task::none()
             }
-            M::Quit => self.quit(),
-            M::WindowReady(..)
-            | M::WindowDrag
-            | M::WindowResize(_)
-            | M::WindowMinimize
-            | M::WindowToggleMaximize
-            | M::RowHover(_) => self.update_window_frame(message),
-            M::Window(id, event) => self.on_window_event(id, event),
-            M::DismissToast(id) => {
-                self.toasts.retain(|toast| toast.id != id);
-                Task::none()
-            }
-            M::Noop => Task::none(),
-            M::Failed(error) => self.report(&error),
-
-            M::FileLoaded(..)
-            | M::FileChanged(_)
-            | M::Saved(..)
-            | M::SavedCount(..)
-            | M::OpenFileDialog
-            | M::CreateFileDialog
-            | M::FilePicked(_)
-            | M::FileCreated(_)
-            | M::SelectFile(_)
-            | M::FileMenu(_)
-            | M::OpenDoneFile(_)
-            | M::ToggleFilesDrawer
-            | M::ChangeDoneFile(_)
-            | M::DoneFilePicked(..)
-            | M::RevealTodoFile(_)
-            | M::AskRemoveFile(_)
-            | M::ArchiveCompleted
-            | M::SavedFiltersLoaded(_) => self.update_files(message),
-
-            M::OpenTodo(_)
-            | M::ToggleComplete(_)
-            | M::RowMenu(_)
-            | M::CopyTodo(_)
-            | M::ArchiveOne(_)
-            | M::AskDelete(_)
-            | M::ChipFilter(..)
-            | M::ToggleListGroup(_)
-            | M::OpenLink(_)
-            | M::OpenRowDatePicker(..)
-            | M::OpenNote(_)
-            | M::NoteOpened(_) => self.update_list(message),
-
-            M::NewTodo
-            | M::EditorAction(_)
-            | M::EditorSuggestion(_)
-            | M::EditorSuggestionMove(_)
-            | M::EditorAccept
-            | M::EditorDismissSuggestions
-            | M::EditorPriority(_)
-            | M::EditorStatus(_)
-            | M::EditorOpenCalendar(_)
-            | M::EditorCloseCalendar
-            | M::EditorRecurrenceCount(_)
-            | M::EditorRecurrenceUnit(_)
-            | M::EditorRecurrenceStrict(_)
-            | M::EditorApplyRecurrence(_)
-            | M::EditorPomodoros(_)
-            | M::EditorApplyPomodoros(_)
-            | M::EditorNoteAction(_)
-            | M::NoteLoaded(..)
-            | M::EditorPickNoteFile
-            | M::NoteFilePicked(_)
-            | M::EditorMovePickedNote
-            | M::EditorKeepPickedNote
-            | M::EditorCancelPickedNote
-            | M::NoteFileMoved(_)
-            | M::EditorUnlinkNote
-            | M::NoteLinked(..)
-            | M::EditorOpenNoteWindow
-            | M::NoteHandedOver(_)
-            | M::SaveEditor
-            | M::CalendarMonth(_)
-            | M::CalendarPick(_) => self.update_editing(message),
-
-            M::NoteWindowLoaded(..)
-            | M::NoteWindowAction(_)
-            | M::NoteWindowAutosave(_)
-            | M::NoteWindowSave
-            | M::NoteWindowSaved(..)
-            | M::NoteWindowOpenExternally => self.update_note_window(message),
+            Message::Quit => self.quit(),
+            Message::WindowReady(..)
+            | Message::WindowDrag
+            | Message::WindowResize(_)
+            | Message::WindowMinimize
+            | Message::WindowToggleMaximize => self.update_window_frame(message),
+            Message::Window(id, event) => self.on_window_event(id, event),
             // A focused notes editor takes `Escape`; in the dialog it still
             // closes the dialog, in the note window it does nothing.
-            M::NoteEditorEscape(id) => match &self.note_window {
+            Message::NoteEditorEscape(id) => match &self.note_window {
                 Some(window) if window.id == id => Task::none(),
                 _ => self.close_dialog(),
             },
-
-            M::ToggleDrawer
-            | M::DrawerTab(_)
-            | M::ToggleSection(_)
-            | M::FilterValue(..)
-            | M::ToggleCategory(_)
-            | M::ViewToggle(..)
-            | M::MoveSort(..)
-            | M::InvertSort(_)
-            | M::FileOrder(_)
-            | M::CompletedLast(_)
-            | M::AskRename(..)
-            | M::RenameInput(_)
-            | M::AskRemoveValue(..)
-            | M::ResetFilters => self.update_drawer(message),
-
-            M::FocusSearch
-            | M::SearchInput(_)
-            | M::SearchSubmitAsTodo
-            | M::ToggleSavedFilters
-            | M::AskSaveFilter
-            | M::SaveFilterName(_)
-            | M::ApplySavedFilter(_)
-            | M::AskDeleteSavedFilter(_)
-            | M::ToggleSuppress(_) => self.update_search(message),
-
-            M::CheckForUpdates
-            | M::UpdateChecked(..)
-            | M::InstallRelease(_)
-            | M::RollbackChoice(_)
-            | M::UpdateInstalled(_) => self.update_updates(message),
-            M::OpenSettings | M::Setting(_) | M::ToggleTheme | M::SettingsSection(_) | M::SettingsStatusInput(_) => {
-                self.update_settings(message)
+            Message::DismissToast(id) => {
+                self.toasts.retain(|toast| toast.id != id);
+                Task::none()
             }
+            Message::Noop => Task::none(),
+            Message::Failed(error) => self.report(&error),
 
-            M::ShowMainView(_)
-            | M::CalendarMode(_)
-            | M::CalendarStep(_)
-            | M::CalendarToday
-            | M::CalendarOpenDay(_)
-            | M::CalendarPress(..)
-            | M::CalendarToggleUndated
-            | M::ClosePanelOverlay
-            | M::CalendarHoverUndated(_)
-            | M::CalendarHover(..)
-            | M::CalendarCardLeft
-            | M::CalendarRelease => self.update_calendar(message),
-            M::ToggleMainView
-            | M::BoardGrouped(_)
-            | M::ToggleBoardGroup(_)
-            | M::BoardPress(..)
-            | M::BoardHover(..)
-            | M::BoardCardLeft
-            | M::BoardRelease
-            | M::OpenBoardColumns
-            | M::BoardColumnInput(_)
-            | M::BoardColumnAdd(_)
-            | M::BoardColumnMove(..)
-            | M::BoardColumnRemove(_)
-            | M::BoardColumnsReset => self.update_board(message),
+            Message::ToggleMainView => self.show_main_view(match self.state.main_view {
+                MainView::List | MainView::Calendar => MainView::Board,
+                MainView::Board => MainView::List,
+            }),
+            Message::ShowMainView(view) => self.show_main_view(view),
+            Message::ClosePanelOverlay => {
+                self.panel_overlay = None;
+                Task::none()
+            }
+            Message::OpenLink(uri) => {
+                let desktop = self.services.ports.desktop.clone();
+                Task::perform(async move { desktop.open_uri(&uri) }, Message::from_result)
+            }
+            Message::ConfirmDialog => self.confirm_dialog(),
+            Message::CloseDialog => self.close_dialog(),
 
-            M::ConfirmDialog => self.confirm_dialog(),
-            M::CloseDialog => self.close_dialog(),
+            Message::Files(message) => self.update_files(message),
+            Message::List(message) => self.update_list(message),
+            Message::Editor(message) => self.update_editor(message),
+            Message::NoteWindow(message) => self.update_note_window(message),
+            Message::Drawer(message) => self.update_drawer(message),
+            Message::Search(message) => self.update_search(message),
+            Message::Settings(message) => self.update_settings(message),
+            Message::Board(message) => self.update_board(message),
+            Message::Calendar(message) => self.update_calendar(message),
         }
+    }
+
+    /// Switches between the list, the board and the calendar. The calendar
+    /// always opens on today.
+    fn show_main_view(&mut self, view: MainView) -> Task<Message> {
+        if view == MainView::Calendar && self.state.main_view != MainView::Calendar {
+            self.calendar_anchor = self.today;
+        }
+        self.state.main_view = view;
+        self.drag = None;
+        self.calendar_drag = None;
+        self.persist_state()
     }
 
     // Shared helpers used by the handlers.
@@ -595,7 +472,7 @@ impl Floetask {
         let bodies: BTreeSet<String> = self.listing.todos().map(|entry| entry.todo.display_text()).collect();
         self.markdown.retain(|body, _| bodies.contains(body));
         for body in bodies {
-            if crate::view::list::looks_like_markdown(&body) && !self.markdown.contains_key(&body) {
+            if crate::list::looks_like_markdown(&body) && !self.markdown.contains_key(&body) {
                 let content = markdown::Content::parse(&body);
                 self.markdown.insert(body, content);
             }
@@ -649,7 +526,7 @@ impl Floetask {
             Some(Dialog::BoardColumns { columns, .. }) => self.save_board_columns(columns),
             Some(Dialog::Editor(editor)) => {
                 self.dialog = Some(Dialog::Editor(editor));
-                self.update_editing(Message::SaveEditor)
+                self.update_editor(crate::editor::Message::Save)
             }
             other => {
                 self.dialog = other;
@@ -741,6 +618,6 @@ impl Floetask {
 }
 
 /// Makes a path absolute against the current directory, for CLI arguments.
-fn absolute(path: &Path) -> PathBuf {
+pub(crate) fn absolute(path: &Path) -> PathBuf {
     std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf())
 }

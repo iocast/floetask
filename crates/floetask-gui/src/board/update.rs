@@ -1,48 +1,28 @@
-//! The status board: switching views, dragging cards between columns and
-//! editing a file's columns.
+//! Dragging cards between columns and editing a file's columns.
 
 use iced::Task;
 
-use floetask_application::{MainView, TodoRef};
 use floetask_domain::board::BoardColumns;
-use floetask_domain::listing::LaneId;
 use floetask_domain::status::key_from_label;
 
-use super::{Dialog, Floetask, Message};
-
-/// A card being dragged on the board.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BoardDrag {
-    pub target: TodoRef,
-    /// Lane the card was picked up from.
-    pub from: LaneId,
-    /// The cursor left the card since the press, so releasing it is a drop,
-    /// never a click.
-    pub moved: bool,
-}
+use super::BoardDrag;
+use crate::app::{Dialog, Floetask, Message};
+use crate::{board, list};
 
 impl Floetask {
-    pub(super) fn update_board(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_board(&mut self, message: board::Message) -> Task<Message> {
         match message {
-            Message::ToggleMainView => {
-                self.state.main_view = match self.state.main_view {
-                    MainView::List | MainView::Calendar => MainView::Board,
-                    MainView::Board => MainView::List,
-                };
-                self.drag = None;
-                self.persist_state()
-            }
-            Message::BoardGrouped(on) => {
+            board::Message::Grouped(on) => {
                 self.state.board_grouped = on;
                 self.drag = None;
                 self.refresh();
                 self.persist_state()
             }
-            Message::ToggleBoardGroup(key) => {
+            board::Message::ToggleGroup(key) => {
                 self.state.toggle_board_group(&key);
                 self.persist_state()
             }
-            Message::BoardPress(target, lane) => {
+            board::Message::Press(target, lane) => {
                 self.drag = Some(BoardDrag {
                     target,
                     from: lane,
@@ -51,7 +31,7 @@ impl Floetask {
                 self.board_hover = Some(lane);
                 Task::none()
             }
-            Message::BoardHover(lane, entered) => {
+            board::Message::Hover(lane, entered) => {
                 if entered {
                     self.board_hover = Some(lane);
                 } else if self.board_hover == Some(lane) {
@@ -61,14 +41,14 @@ impl Floetask {
                 }
                 Task::none()
             }
-            Message::BoardCardLeft => {
+            board::Message::CardLeft => {
                 if let Some(drag) = &mut self.drag {
                     drag.moved = true;
                 }
                 Task::none()
             }
-            Message::BoardRelease => self.drop_card(),
-            Message::OpenBoardColumns => {
+            board::Message::Release => self.drop_card(),
+            board::Message::OpenColumns => {
                 let columns = self.active_board_columns();
                 self.dialog = Some(Dialog::BoardColumns {
                     columns,
@@ -81,13 +61,13 @@ impl Floetask {
                     return Task::none();
                 };
                 match other {
-                    Message::BoardColumnInput(text) => *input = text,
-                    Message::BoardColumnAdd(Some(key)) => {
+                    board::Message::ColumnInput(text) => *input = text,
+                    board::Message::ColumnAdd(Some(key)) => {
                         columns.add(&key);
                     }
                     // A typed name: the key is derived from it, and the name
                     // labels the column unless settings already name it.
-                    Message::BoardColumnAdd(None) => {
+                    board::Message::ColumnAdd(None) => {
                         let key = key_from_label(input);
                         if columns.add(&key) {
                             if !self.settings.statuses.names().contains(&key) {
@@ -96,9 +76,9 @@ impl Floetask {
                             input.clear();
                         }
                     }
-                    Message::BoardColumnMove(index, step) => columns.move_column(index, step),
-                    Message::BoardColumnRemove(index) => columns.remove(index),
-                    Message::BoardColumnsReset => *columns = BoardColumns::default(),
+                    board::Message::ColumnMove(index, step) => columns.move_column(index, step),
+                    board::Message::ColumnRemove(index) => columns.remove(index),
+                    board::Message::ColumnsReset => *columns = BoardColumns::default(),
                     _ => {}
                 }
                 Task::none()
@@ -126,7 +106,7 @@ impl Floetask {
     }
 
     /// Saves the columns from the dialog for the active file.
-    pub(super) fn save_board_columns(&mut self, columns: BoardColumns) -> Task<Message> {
+    pub(crate) fn save_board_columns(&mut self, columns: BoardColumns) -> Task<Message> {
         let Some(path) = self.active_path() else {
             return Task::none();
         };
@@ -152,7 +132,7 @@ impl Floetask {
             return if drag.moved {
                 Task::none()
             } else {
-                self.update(Message::OpenTodo(drag.target))
+                self.update(Message::List(list::Message::OpenTodo(drag.target)))
             };
         }
         let Some(column) = self.board.lane(lane).and_then(|lane| lane.column.clone()) else {

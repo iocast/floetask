@@ -2,24 +2,15 @@
 //!
 //! Layout: a custom title bar on top, then the list (with the search bar
 //! above it) and the drawer as a floating panel on the right. Dialogs are
-//! modal cards; toasts sit bottom-right.
+//! modal cards; toasts sit bottom-right. The features draw their own parts;
+//! this module puts them together and holds the widgets they share.
 
-mod board;
-mod calendar;
-mod calendar_page;
-mod dialogs;
-mod drawer;
-mod editor;
+pub(crate) mod dialogs;
 mod empty;
-mod files;
 pub mod icons;
-pub mod list;
-mod note_window;
-mod popover;
-mod search;
-mod settings;
+pub(crate) mod popover;
 mod title_bar;
-mod widgets;
+pub(crate) mod widgets;
 
 use iced::widget::{column, container, mouse_area, row, space, stack, text};
 use iced::{Element, Fill, Length, mouse, window};
@@ -27,9 +18,7 @@ use iced::{Element, Fill, Length, mouse, window};
 use floetask_application::MainView;
 
 use crate::app::{Dialog, Floetask, Message};
-use crate::theme;
-
-pub use note_window::view as note_window;
+use crate::{board, calendar, drawer, editor, files, list, search, settings, theme};
 
 pub const LIST_ID: &str = "todo-list";
 pub const SEARCH_ID: &str = "search";
@@ -94,10 +83,10 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
             Dialog::Editor(state) => editor::view(app, state),
             Dialog::Settings(dialog) => settings::view(app, dialog),
             Dialog::Confirm { message, detail, .. } => dialogs::confirm(app, message, detail.as_deref()),
-            Dialog::Rename { attribute, from, input } => dialogs::rename(app, *attribute, from, input),
-            Dialog::RowDate { calendar, .. } => dialogs::date(app, calendar),
-            Dialog::SaveFilter { name } => dialogs::save_filter(app, name),
-            Dialog::BoardColumns { columns, input } => dialogs::board_columns(app, columns, input),
+            Dialog::Rename { attribute, from, input } => drawer::rename_dialog(app, *attribute, from, input),
+            Dialog::RowDate { calendar, .. } => editor::row_dialog(app, calendar),
+            Dialog::SaveFilter { name } => search::save_filter_dialog(app, name),
+            Dialog::BoardColumns { columns, input } => board::columns_dialog(app, columns, input),
         };
         layers = layers.push(match dialog {
             Dialog::Settings(_) => widgets::full_modal(content, colors),
@@ -151,7 +140,7 @@ fn body(app: &Floetask) -> Element<'_, Message> {
         None => empty::no_file(app),
         Some(document) if document.todo_count() == 0 => empty::no_todos(app),
         Some(_) if app.state.main_view == MainView::Board => board::view(app),
-        Some(_) if app.state.main_view == MainView::Calendar => calendar_page::view(app),
+        Some(_) if app.state.main_view == MainView::Calendar => calendar::view(app),
         Some(_) if app.listing.counts.visible == 0 => empty::nothing_visible(app),
         Some(_) => list::view(app),
     }

@@ -5,28 +5,35 @@ use iced::Task;
 use floetask_application::ThemePreference;
 use floetask_domain::status::key_from_label;
 
-use super::{Dialog, Floetask, Message, SettingChange, SettingsDialog};
+use super::{SettingChange, SettingsDialog};
+use crate::app::{Dialog, Floetask, Message};
+use crate::settings;
 
 impl Floetask {
-    pub(super) fn update_settings(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_settings(&mut self, message: settings::Message) -> Task<Message> {
         match message {
-            Message::OpenSettings => {
+            settings::Message::CheckForUpdates
+            | settings::Message::UpdateChecked(..)
+            | settings::Message::InstallRelease(_)
+            | settings::Message::RollbackChoice(_)
+            | settings::Message::UpdateInstalled(_) => self.update_updates(message),
+            settings::Message::Open => {
                 self.dialog = Some(Dialog::Settings(SettingsDialog::default()));
                 Task::none()
             }
-            Message::SettingsSection(section) => {
+            settings::Message::Section(section) => {
                 if let Some(Dialog::Settings(dialog)) = &mut self.dialog {
                     dialog.section = section;
                 }
                 Task::none()
             }
-            Message::SettingsStatusInput(text) => {
+            settings::Message::StatusInput(text) => {
                 if let Some(Dialog::Settings(dialog)) = &mut self.dialog {
                     dialog.status_input = text;
                 }
                 Task::none()
             }
-            Message::Setting(change) => {
+            settings::Message::Change(change) => {
                 // Another channel offers other releases: look again.
                 let recheck = matches!(change, SettingChange::UpdateChannel(_));
                 self.apply_setting(change);
@@ -37,7 +44,7 @@ impl Floetask {
                     save
                 }
             }
-            Message::ToggleTheme => {
+            settings::Message::ToggleTheme => {
                 let dark = self.colors().dark;
                 self.settings.theme = if dark {
                     ThemePreference::Light
@@ -46,7 +53,6 @@ impl Floetask {
                 };
                 self.save_settings()
             }
-            _ => Task::none(),
         }
     }
 

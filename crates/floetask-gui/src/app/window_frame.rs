@@ -11,10 +11,6 @@ impl Floetask {
             self.window = id;
             return Task::none();
         }
-        if let Message::RowHover(line) = message {
-            self.hovered = line;
-            return Task::none();
-        }
         let Some(id) = self.window else {
             return Task::none();
         };

@@ -9,11 +9,11 @@ use iced::{Alignment, Element, Fill};
 use floetask_application::MainView;
 
 use super::icons::{Icon, icon};
-use super::search;
 use super::widgets::icon_button;
 use crate::app::{Floetask, Message};
 use crate::i18n::tr;
 use crate::theme::{self, Colors};
+use crate::{drawer, files, search, settings};
 
 pub const HEIGHT: f32 = 48.0;
 const SEARCH_WIDTH: f32 = 520.0;
@@ -35,7 +35,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         icon_button(
             Icon::Sidebar,
             tr("toggle_files"),
-            Some(Message::ToggleFilesDrawer),
+            Some(Message::Files(files::Message::ToggleDrawer)),
             colors,
             app.shown_panels().files || app.panel_overlay == Some(crate::layout::Panel::Files),
         ),
@@ -52,7 +52,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         icon_button(
             Icon::Filter,
             tr("toggle_drawer"),
-            has_file.then_some(Message::ToggleDrawer),
+            has_file.then_some(Message::Drawer(drawer::Message::Toggle)),
             colors,
             app.shown_panels().filters
                 || app.panel_overlay == Some(crate::layout::Panel::Filters)
@@ -61,7 +61,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         icon_button(
             Icon::Settings,
             tr("settings"),
-            Some(Message::OpenSettings),
+            Some(Message::Settings(settings::Message::Open)),
             colors,
             false
         ),

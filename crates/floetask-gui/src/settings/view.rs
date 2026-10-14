@@ -13,12 +13,14 @@ use floetask_application::{MonthOverflow, Settings, ThemePreference, UpdateChann
 use floetask_domain::WeekStart;
 use floetask_domain::status::{StatusSet, is_valid_status, key_from_label};
 
-use super::icons::Icon;
-use super::list::status_label;
-use super::widgets::{icon_button, primary_button, status_name_field, title};
-use crate::app::{Floetask, Message, SettingChange, SettingsDialog, SettingsSection, UpdateState};
+use super::{SettingChange, SettingsDialog, SettingsSection, UpdateState};
+use crate::app::{Floetask, Message};
 use crate::i18n::{self, Language, tr, trf};
+use crate::list::status_label;
+use crate::settings;
 use crate::theme::{self, Colors};
+use crate::view::icons::Icon;
+use crate::view::widgets::{icon_button, primary_button, status_name_field, title};
 
 const SIDEBAR_WIDTH: f32 = 180.0;
 const CONTROL_WIDTH: f32 = 180.0;
@@ -68,7 +70,7 @@ fn sidebar(current: SettingsSection, colors: Colors) -> Element<'static, Message
             .width(Fill)
             .padding([8, 12])
             .style(theme::ghost(colors, section == current))
-            .on_press(Message::SettingsSection(section))
+            .on_press(Message::Settings(settings::Message::Section(section)))
             .into()
     }))
     .spacing(2)
@@ -99,7 +101,9 @@ fn switch_setting<'a>(
     change: fn(bool) -> SettingChange,
     colors: Colors,
 ) -> Element<'a, Message> {
-    let control = toggler(value).on_toggle(move |on| Message::Setting(change(on))).into();
+    let control = toggler(value)
+        .on_toggle(move |on| Message::Settings(settings::Message::Change(change(on))))
+        .into();
     setting(key, tr(key).to_owned(), control, colors)
 }
 
@@ -138,7 +142,7 @@ fn dates(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                 WeekStart::Sunday => "sunday",
             })
         },
-        |day| Message::Setting(SettingChange::WeekStart(day)),
+        |day| Message::Settings(settings::Message::Change(SettingChange::WeekStart(day))),
     );
     page(
         "section_dates",
@@ -175,7 +179,7 @@ fn statuses<'a>(app: &'a Floetask, input: &'a str, colors: Colors) -> Element<'a
             icon_button(
                 glyph,
                 tr(label),
-                enabled.then_some(Message::Setting(change)),
+                enabled.then_some(Message::Settings(settings::Message::Change(change))),
                 colors,
                 false,
             )
@@ -187,7 +191,9 @@ fn statuses<'a>(app: &'a Floetask, input: &'a str, colors: Colors) -> Element<'a
             let name = status.clone();
             checkbox(set.is_hidden(status))
                 .label(tr("status_hidden"))
-                .on_toggle(move |on| Message::Setting(SettingChange::StatusHidden(name.clone(), on)))
+                .on_toggle(move |on| {
+                    Message::Settings(settings::Message::Change(SettingChange::StatusHidden(name.clone(), on)))
+                })
                 .text_size(13)
                 .width(84)
                 .into()
@@ -242,8 +248,8 @@ fn statuses<'a>(app: &'a Floetask, input: &'a str, colors: Colors) -> Element<'a
         tr("status_placeholder"),
         input,
         &key,
-        Message::SettingsStatusInput,
-        valid.then(|| Message::Setting(SettingChange::StatusAdd(input.to_owned()))),
+        |text| Message::Settings(settings::Message::StatusInput(text)),
+        valid.then(|| Message::Settings(settings::Message::Change(SettingChange::StatusAdd(input.to_owned())))),
         tr("add_status"),
         colors,
     );
@@ -269,7 +275,7 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                 ThemePreference::Dark => "theme_dark",
             })
         },
-        |theme| Message::Setting(SettingChange::Theme(theme)),
+        |theme| Message::Settings(settings::Message::Change(SettingChange::Theme(theme))),
     );
     let languages = i18n::language_choices();
     let language = choice(
@@ -281,7 +287,7 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             Some(language) => language.native_name(),
             None => tr("language_system"),
         },
-        |language| Message::Setting(SettingChange::Language(language.to_owned())),
+        |language| Message::Settings(settings::Message::Change(SettingChange::Language(language.to_owned()))),
     );
     let month_overflow = choice(
         &[MonthOverflow::More, MonthOverflow::Scroll],
@@ -292,10 +298,10 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                 MonthOverflow::Scroll => "month_overflow_scroll",
             })
         },
-        |overflow| Message::Setting(SettingChange::MonthOverflow(overflow)),
+        |overflow| Message::Settings(settings::Message::Change(SettingChange::MonthOverflow(overflow))),
     );
     let zoom = slider(Settings::ZOOM_RANGE, s.zoom_percent, |percent| {
-        Message::Setting(SettingChange::Zoom(percent))
+        Message::Settings(settings::Message::Change(SettingChange::Zoom(percent)))
     })
     .step(10u16)
     .width(CONTROL_WIDTH)
@@ -328,7 +334,7 @@ fn notifications(app: &Floetask, colors: Colors) -> Element<'_, Message> {
     let threshold = slider(
         0..=Settings::NOTIFICATION_THRESHOLD_MAX,
         s.notification_threshold_days,
-        |days| Message::Setting(SettingChange::NotificationThreshold(days)),
+        |days| Message::Settings(settings::Message::Change(SettingChange::NotificationThreshold(days))),
     )
     .width(CONTROL_WIDTH)
     .into();
@@ -392,7 +398,12 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
     } else {
         let line = |label: String, color| text(label).size(13).color(color);
         match &app.update {
-            UpdateState::Idle => row![primary_button(tr("check_now"), Message::CheckForUpdates, colors)].into(),
+            UpdateState::Idle => row![primary_button(
+                tr("check_now"),
+                Message::Settings(settings::Message::CheckForUpdates),
+                colors
+            )]
+            .into(),
             UpdateState::Checking => line(tr("update_checking").to_owned(), colors.muted).into(),
             UpdateState::UpToDate => {
                 // A preview build on the stable channel waits for the next
@@ -404,7 +415,11 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                 };
                 row![
                     line(message.to_owned(), color).width(Fill),
-                    primary_button(tr("check_now"), Message::CheckForUpdates, colors),
+                    primary_button(
+                        tr("check_now"),
+                        Message::Settings(settings::Message::CheckForUpdates),
+                        colors
+                    ),
                 ]
                 .spacing(16)
                 .align_y(Alignment::Center)
@@ -423,7 +438,7 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                     details.width(Fill),
                     primary_button(
                         tr("update_install"),
-                        Message::InstallRelease(release.version.clone()),
+                        Message::Settings(settings::Message::InstallRelease(release.version.clone())),
                         colors
                     )
                 ]
@@ -438,7 +453,11 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             .into(),
             UpdateState::Failed(error) => row![
                 line(trf("update_failed", &[("error", error.as_str().into())]), colors.danger).width(Fill),
-                primary_button(tr("check_now"), Message::CheckForUpdates, colors),
+                primary_button(
+                    tr("check_now"),
+                    Message::Settings(settings::Message::CheckForUpdates),
+                    colors
+                ),
             ]
             .spacing(16)
             .align_y(Alignment::Center)
@@ -463,7 +482,7 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                     UpdateChannel::Preview => "update_channel_preview",
                 })
             },
-            |channel| Message::Setting(SettingChange::UpdateChannel(channel)),
+            |channel| Message::Settings(settings::Message::Change(SettingChange::UpdateChannel(channel))),
         );
         items.push(setting(
             "update_channel",
@@ -504,10 +523,10 @@ fn rollback(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         let install = selected
             .as_ref()
             .filter(|_| !busy)
-            .map(|choice| Message::InstallRelease(choice.version.clone()));
+            .map(|choice| Message::Settings(settings::Message::InstallRelease(choice.version.clone())));
         row![
-            pick_list(targets, selected, |choice: RollbackChoice| Message::RollbackChoice(
-                choice.version
+            pick_list(targets, selected, |choice: RollbackChoice| Message::Settings(
+                settings::Message::RollbackChoice(choice.version)
             ))
             .placeholder(tr("rollback_pick"))
             .width(CONTROL_WIDTH),

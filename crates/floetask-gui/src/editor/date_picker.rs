@@ -1,4 +1,5 @@
-//! A month calendar for picking dates.
+//! A month calendar for picking a date: in the add/edit dialog and in the
+//! list's date dialog.
 
 use iced::widget::{Column, Row, button, column, row, text};
 use iced::{Alignment, Element, Length};
@@ -6,22 +7,23 @@ use iced::{Alignment, Element, Length};
 use floetask_domain::date::{self, Datelike, first_of_month};
 use floetask_domain::{Date, WeekStart};
 
-use super::icons::Icon;
-use super::widgets::{icon_button, secondary_button};
-use crate::app::{Calendar, Message};
+use crate::app::{Floetask, Message};
+use crate::editor;
 use crate::i18n::{self, tr};
 use crate::theme::{self, Colors};
+use crate::view::icons::Icon;
+use crate::view::widgets::{icon_button, secondary_button, title};
 
 const CELL: f32 = 38.0;
 const WEEKDAYS: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
-pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart, colors: Colors) -> Element<'_, Message> {
+pub fn view(calendar: &DatePicker, today: Date, week_start: WeekStart, colors: Colors) -> Element<'_, Message> {
     let month = first_of_month(calendar.month);
     let header = row![
         icon_button(
             Icon::ChevronLeft,
             tr("previous_month"),
-            Some(Message::CalendarMonth(-1)),
+            Some(Message::Editor(editor::Message::PickerMonth(-1))),
             colors,
             false
         ),
@@ -32,7 +34,7 @@ pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart, colors: Col
         icon_button(
             Icon::ChevronRight,
             tr("next_month"),
-            Some(Message::CalendarMonth(1)),
+            Some(Message::Editor(editor::Message::PickerMonth(1))),
             colors,
             false
         ),
@@ -75,7 +77,7 @@ pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart, colors: Col
             let button = button(label)
                 .width(CELL)
                 .padding(6)
-                .on_press(Message::CalendarPick(Some(day)));
+                .on_press(Message::Editor(editor::Message::PickDate(Some(day))));
             if selected {
                 button.style(theme::primary(colors)).into()
             } else {
@@ -86,10 +88,71 @@ pub fn view(calendar: &Calendar, today: Date, week_start: WeekStart, colors: Col
     }
 
     let footer = row![
-        secondary_button(tr("today"), Message::CalendarPick(Some(today)), colors),
-        secondary_button(tr("clear"), Message::CalendarPick(None), colors),
+        secondary_button(
+            tr("today"),
+            Message::Editor(editor::Message::PickDate(Some(today))),
+            colors
+        ),
+        secondary_button(tr("clear"), Message::Editor(editor::Message::PickDate(None)), colors),
     ]
     .spacing(8);
 
     column![header, names, weeks, footer].spacing(8).into()
+}
+
+pub fn row_dialog<'a>(app: &'a Floetask, calendar: &'a DatePicker) -> Element<'a, Message> {
+    let colors = app.colors();
+    column![
+        title(tr(calendar.key.key())),
+        view(calendar, app.today, app.settings.week_start, colors),
+    ]
+    .spacing(16)
+    .into()
+}
+
+/// The date extensions that have a picker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DateKey {
+    Due,
+    Threshold,
+}
+
+impl DateKey {
+    pub fn key(self) -> &'static str {
+        match self {
+            DateKey::Due => "due",
+            DateKey::Threshold => "t",
+        }
+    }
+
+    /// Translation key of the short label on a todo card's date pill.
+    pub fn label_key(self) -> &'static str {
+        match self {
+            DateKey::Due => "due_label",
+            DateKey::Threshold => "threshold_label",
+        }
+    }
+}
+
+/// A month calendar for picking a date.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatePicker {
+    pub key: DateKey,
+    /// First day of the month on display.
+    pub month: Date,
+    pub selected: Option<Date>,
+}
+
+impl DatePicker {
+    pub fn new(key: DateKey, selected: Option<Date>, today: Date) -> Self {
+        Self {
+            key,
+            month: first_of_month(selected.unwrap_or(today)),
+            selected,
+        }
+    }
+
+    pub fn shift_month(&mut self, months: i32) {
+        self.month = floetask_domain::date::add_months(self.month, i64::from(months));
+    }
 }

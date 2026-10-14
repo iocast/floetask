@@ -13,15 +13,19 @@ use iced::widget::{
 use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
 use floetask_application::TodoRef;
-use floetask_domain::board::Column as BoardColumn;
+use floetask_domain::board::{BoardColumns, Column as BoardColumn, DONE_COLUMN};
 use floetask_domain::listing::{BoardGroup, Lane, LaneId, ListedTodo, board_grouping};
+use floetask_domain::status::key_from_label;
 
-use super::icons::{Icon, icon};
-use super::list::{body, collapsible, group_header, meta, status_label};
-use super::widgets::{caption, with_tooltip};
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
+use crate::list::{body, collapsible, group_header, meta, status_label, status_name};
 use crate::theme::{self, Colors};
+use crate::view::icons::{Icon, icon};
+use crate::view::widgets::{
+    caption, icon_button, primary_button, secondary_button, status_name_field, title, with_tooltip,
+};
+use crate::{board, list};
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
@@ -38,7 +42,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     let group_switch: iced::widget::Row<'_, Message> = row![
         text(group_label).size(13),
         toggler(app.state.board_grouped && grouping.is_some())
-            .on_toggle_maybe(grouping.map(|_| Message::BoardGrouped as fn(bool) -> Message))
+            .on_toggle_maybe(grouping.map(|_| |on| Message::Board(board::Message::Grouped(on))))
             .size(18),
     ]
     .spacing(8)
@@ -54,7 +58,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         )
         .padding([6, 10])
         .style(theme::ghost(colors, false))
-        .on_press(Message::OpenBoardColumns),
+        .on_press(Message::Board(board::Message::OpenColumns)),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
@@ -62,7 +66,8 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     // narrows them. Below a readable width they keep that width and the
     // board scrolls sideways instead.
     let boards = responsive(move |size| boards(app, size.width));
-    let mut board = mouse_area(column![toolbar, boards].spacing(8).height(Fill)).on_release(Message::BoardRelease);
+    let mut board = mouse_area(column![toolbar, boards].spacing(8).height(Fill))
+        .on_release(Message::Board(board::Message::Release));
     if app.drag.is_some() {
         board = board.interaction(mouse::Interaction::Grabbing);
     }
@@ -139,7 +144,12 @@ fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup, width: L
     let collapsed = app.state.collapsed_board_groups.contains(&key);
     let mut content = column![].spacing(8);
     if let Some(header) = group_header(app, group.attribute, &group.values, count) {
-        content = content.push(collapsible(header, collapsed, Message::ToggleBoardGroup(key), colors));
+        content = content.push(collapsible(
+            header,
+            collapsed,
+            Message::Board(board::Message::ToggleGroup(key)),
+            colors,
+        ));
     }
     if !collapsed {
         content = content.push(lanes(app, index, group, false, width));
@@ -217,8 +227,8 @@ fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool, width: Le
         frame = frame.height(Fill);
     }
     mouse_area(frame)
-        .on_enter(Message::BoardHover(id, true))
-        .on_exit(Message::BoardHover(id, false))
+        .on_enter(Message::Board(board::Message::Hover(id, true)))
+        .on_exit(Message::Board(board::Message::Hover(id, false)))
         .into()
 }
 
@@ -237,7 +247,7 @@ fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colo
         .style(theme::accent(accent_color));
     let toggle_target = target.clone();
     let done = checkbox(todo.is_complete())
-        .on_toggle(move |_| Message::ToggleComplete(toggle_target.clone()))
+        .on_toggle(move |_| Message::List(list::Message::ToggleComplete(toggle_target.clone())))
         .size(16)
         .style(theme::round_checkbox(colors));
 
@@ -262,8 +272,108 @@ fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colo
             .style(theme::board_card(colors, dragged))
             .clip(true),
     )
-    .on_press(Message::BoardPress(target, lane))
-    .on_exit(Message::BoardCardLeft)
+    .on_press(Message::Board(board::Message::Press(target, lane)))
+    .on_exit(Message::Board(board::Message::CardLeft))
     .interaction(mouse::Interaction::Grab)
     .into()
+}
+
+/// Edits the board columns of the active file: reorder, remove, add a
+/// known status or type a new one.
+pub fn columns_dialog<'a>(app: &'a Floetask, board: &'a BoardColumns, input: &'a str) -> Element<'a, Message> {
+    let colors = app.colors();
+    let file = app
+        .state
+        .active_entry()
+        .map(|entry| entry.file_name())
+        .unwrap_or_default();
+    let columns = board.keys();
+    let last = columns.len().saturating_sub(1);
+    let rows = column(columns.iter().cloned().enumerate().map(|(index, key)| {
+        let step = |glyph: Icon, label: &'static str, message: Message, enabled: bool| {
+            icon_button(glyph, tr(label), enabled.then_some(message), colors, false)
+        };
+        row![
+            text(column_label(app, board, &key)).size(14).width(Fill),
+            text(key).size(12).color(colors.muted).font(iced::Font::MONOSPACE),
+            step(
+                Icon::ArrowUp,
+                "move_up",
+                Message::Board(board::Message::ColumnMove(index, -1)),
+                index > 0
+            ),
+            step(
+                Icon::ArrowDown,
+                "move_down",
+                Message::Board(board::Message::ColumnMove(index, 1)),
+                index < last
+            ),
+            step(
+                Icon::Trash,
+                "remove_column",
+                Message::Board(board::Message::ColumnRemove(index)),
+                last > 0
+            ),
+        ]
+        .spacing(4)
+        .align_y(Alignment::Center)
+        .into()
+    }))
+    .spacing(2);
+
+    let mut known: Vec<String> = app.settings.statuses.names().to_vec();
+    known.push(DONE_COLUMN.to_owned());
+    let suggestions = row(known.into_iter().filter(|key| !columns.contains(key)).map(|key| {
+        button(text(column_label(app, board, &key)).size(12))
+            .padding([3, 10])
+            .style(theme::chip(colors.primary, colors, false))
+            .on_press(Message::Board(board::Message::ColumnAdd(Some(key))))
+            .into()
+    }))
+    .spacing(6)
+    .wrap();
+    let key = key_from_label(input);
+    let valid = BoardColumn::parse(&key).is_some() && !columns.contains(&key);
+    let add = status_name_field(
+        tr("status_placeholder"),
+        input,
+        &key,
+        |text| Message::Board(board::Message::ColumnInput(text)),
+        valid.then_some(Message::Board(board::Message::ColumnAdd(None))),
+        tr("add"),
+        colors,
+    );
+
+    column![
+        title(trf("board_columns_title", &[("file", file.into())])),
+        text(tr("board_columns_hint")).size(13).color(colors.muted),
+        rows,
+        suggestions,
+        add,
+        row![
+            secondary_button(
+                tr("reset_columns"),
+                Message::Board(board::Message::ColumnsReset),
+                colors
+            ),
+            space().width(Fill),
+            secondary_button(tr("cancel"), Message::CloseDialog, colors),
+            primary_button(tr("save"), Message::ConfirmDialog, colors),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    ]
+    .spacing(16)
+    .width(480)
+    .into()
+}
+
+/// A column's name in the dialog, with the labels of the columns being
+/// edited rather than the saved ones.
+fn column_label(app: &Floetask, board: &BoardColumns, key: &str) -> String {
+    if key == DONE_COLUMN {
+        tr("status_done").to_owned()
+    } else {
+        status_name(&app.settings.statuses, Some(board), key)
+    }
 }

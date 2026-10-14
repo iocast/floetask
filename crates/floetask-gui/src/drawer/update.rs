@@ -1,25 +1,27 @@
-//! The drawer: attribute filters, view toggles and sorting.
+//! Filters, view toggles, sorting, and renaming or removing a value.
 
 use iced::Task;
 
 use floetask_domain::listing::Attribute;
 
-use super::{Dialog, Floetask, Message, Pending, ViewToggle};
+use super::ViewToggle;
+use crate::app::{Dialog, Floetask, Message, Pending};
 use crate::i18n::trf;
+use crate::{drawer, files};
 
 impl Floetask {
-    pub(super) fn update_drawer(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_drawer(&mut self, message: drawer::Message) -> Task<Message> {
         match message {
-            Message::ToggleDrawer => return self.toggle_panel(crate::layout::Panel::Filters),
-            Message::DrawerTab(tab) => {
+            drawer::Message::Toggle => return self.toggle_panel(crate::layout::Panel::Filters),
+            drawer::Message::Tab(tab) => {
                 self.state.drawer_tab = tab;
                 return self.persist_state();
             }
-            Message::ToggleSection(attribute) => {
+            drawer::Message::ToggleSection(attribute) => {
                 self.state.toggle_section(attribute);
                 return self.persist_state();
             }
-            Message::AskRename(attribute, value) => {
+            drawer::Message::AskRename(attribute, value) => {
                 self.dialog = Some(Dialog::Rename {
                     attribute,
                     input: value.clone(),
@@ -27,13 +29,13 @@ impl Floetask {
                 });
                 return Task::none();
             }
-            Message::RenameInput(text) => {
+            drawer::Message::RenameInput(text) => {
                 if let Some(Dialog::Rename { input, .. }) = &mut self.dialog {
                     *input = text;
                 }
                 return Task::none();
             }
-            Message::AskRemoveValue(attribute, value) => {
+            drawer::Message::AskRemoveValue(attribute, value) => {
                 self.dialog = Some(Dialog::Confirm {
                     message: trf("remove_value_confirm", &[("value", tag(attribute, &value).into())]),
                     detail: None,
@@ -48,9 +50,9 @@ impl Floetask {
         let view = &mut self.state.view;
         let sorting = &mut self.state.sorting;
         match message {
-            Message::FilterValue(attribute, value, exclude) => view.toggle_filter(attribute, &value, exclude),
-            Message::ToggleCategory(attribute) => view.toggle_hidden_category(attribute),
-            Message::ViewToggle(toggle, on) => match toggle {
+            drawer::Message::FilterValue(attribute, value, exclude) => view.toggle_filter(attribute, &value, exclude),
+            drawer::Message::ToggleCategory(attribute) => view.toggle_hidden_category(attribute),
+            drawer::Message::ViewToggle(toggle, on) => match toggle {
                 ViewToggle::Completed => view.show_completed = on,
                 ViewToggle::Hidden => view.show_hidden = on,
                 ViewToggle::HiddenAttributes => view.show_hidden_attributes = on,
@@ -58,11 +60,11 @@ impl Floetask {
                 ViewToggle::FutureThreshold => view.show_future_threshold = on,
                 ViewToggle::FutureDue => view.show_future_due = on,
             },
-            Message::MoveSort(index, step) => sorting.move_criterion(index, step),
-            Message::InvertSort(index) => sorting.toggle_direction(index),
-            Message::FileOrder(on) => sorting.file_order = on,
-            Message::CompletedLast(on) => sorting.completed_last = on,
-            Message::ResetFilters => {
+            drawer::Message::MoveSort(index, step) => sorting.move_criterion(index, step),
+            drawer::Message::InvertSort(index) => sorting.toggle_direction(index),
+            drawer::Message::FileOrder(on) => sorting.file_order = on,
+            drawer::Message::CompletedLast(on) => sorting.completed_last = on,
+            drawer::Message::ResetFilters => {
                 view.clear_filters();
                 self.search.input.clear();
                 self.search.query = floetask_domain::search::Query::Empty;
@@ -73,7 +75,7 @@ impl Floetask {
         self.persist_state()
     }
 
-    pub(super) fn rename_value(&mut self, attribute: Attribute, from: String, to: String) -> Task<Message> {
+    pub(crate) fn rename_value(&mut self, attribute: Attribute, from: String, to: String) -> Task<Message> {
         let Some(path) = self.active_path() else {
             return Task::none();
         };
@@ -87,13 +89,13 @@ impl Floetask {
                     .map(|r| (path, r))
             },
             |result| match result {
-                Ok((path, outcome)) => Message::SavedCount(path, Ok(outcome), "renamed"),
+                Ok((path, outcome)) => Message::Files(files::Message::SavedCount(path, Ok(outcome), "renamed")),
                 Err(error) => Message::Failed(error),
             },
         )
     }
 
-    pub(super) fn remove_value(&mut self, attribute: Attribute, value: String) -> Task<Message> {
+    pub(crate) fn remove_value(&mut self, attribute: Attribute, value: String) -> Task<Message> {
         let Some(path) = self.active_path() else {
             return Task::none();
         };
@@ -107,7 +109,7 @@ impl Floetask {
                     .map(|r| (path, r))
             },
             |result| match result {
-                Ok((path, outcome)) => Message::SavedCount(path, Ok(outcome), "renamed"),
+                Ok((path, outcome)) => Message::Files(files::Message::SavedCount(path, Ok(outcome), "renamed")),
                 Err(error) => Message::Failed(error),
             },
         )
@@ -127,7 +129,7 @@ impl Floetask {
 }
 
 /// `+name` or `@name`, as the user writes it.
-pub(crate) fn tag(attribute: Attribute, value: &str) -> String {
+fn tag(attribute: Attribute, value: &str) -> String {
     match attribute {
         Attribute::Projects => format!("+{value}"),
         Attribute::Contexts => format!("@{value}"),

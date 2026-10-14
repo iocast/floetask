@@ -188,15 +188,38 @@ fn every_language_uses_the_english_placeholders() {
     }
 }
 
+/// Every source file that draws widgets: the shared `view` module and each
+/// feature's views. The tests and this module are left out.
+fn view_sources() -> Vec<std::path::PathBuf> {
+    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut pending = vec![src.clone()];
+    let mut files = Vec::new();
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                if path != src.join("i18n") {
+                    pending.push(path);
+                }
+            } else if path.extension().is_some_and(|ext| ext == "rs") && path != src.join("tests.rs") {
+                files.push(path);
+            }
+        }
+    }
+    files
+}
+
 #[test]
 fn views_pass_no_literal_text_to_widgets() {
-    let views = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/view");
     let mut literals = Vec::new();
-    for entry in std::fs::read_dir(views).unwrap() {
-        let path = entry.unwrap().path();
+    for path in view_sources() {
         let source = std::fs::read_to_string(&path).unwrap();
         for call in ["text(\"", "button(\""] {
             for (start, _) in source.match_indices(call) {
+                // The widget function itself, not a call such as `edit_text("…")`.
+                if source[..start].ends_with(|c: char| c.is_alphanumeric() || c == '_') {
+                    continue;
+                }
                 let rest = &source[start + call.len()..];
                 let literal = &rest[..rest.find('"').unwrap_or(rest.len())];
                 // The product name is the same in every language.

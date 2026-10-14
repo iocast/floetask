@@ -6,19 +6,19 @@ use iced::widget::operation;
 use floetask_application::SavedFilter;
 use floetask_domain::search::{Interpretation, Query};
 
-use super::{Dialog, Floetask, Message, Pending};
+use crate::app::{Dialog, Floetask, Message, Pending};
 use crate::i18n::trf;
-use crate::view;
+use crate::{search, view};
 
 impl Floetask {
-    pub(super) fn update_search(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_search(&mut self, message: search::Message) -> Task<Message> {
         match message {
-            Message::FocusSearch => operation::focus(view::SEARCH_ID),
-            Message::SearchInput(input) => {
+            search::Message::Focus => operation::focus(view::SEARCH_ID),
+            search::Message::Input(input) => {
                 self.set_search(input);
                 Task::none()
             }
-            Message::SearchSubmitAsTodo => {
+            search::Message::SubmitAsTodo => {
                 let text = self.search.input.trim().to_owned();
                 if text.is_empty() {
                     return Task::none();
@@ -27,21 +27,21 @@ impl Floetask {
                 let input = self.input_options();
                 self.change_active_file(move |service, path, options| service.add(path, &text, &input, options))
             }
-            Message::ToggleSavedFilters => {
+            search::Message::ToggleSaved => {
                 self.search.saved_open = !self.search.saved_open;
                 Task::none()
             }
-            Message::AskSaveFilter => {
+            search::Message::AskSaveFilter => {
                 self.dialog = Some(Dialog::SaveFilter { name: String::new() });
                 Task::none()
             }
-            Message::SaveFilterName(text) => {
+            search::Message::SaveFilterName(text) => {
                 if let Some(Dialog::SaveFilter { name }) = &mut self.dialog {
                     *name = text;
                 }
                 Task::none()
             }
-            Message::ApplySavedFilter(index) => {
+            search::Message::ApplySaved(index) => {
                 if let Some(filter) = self.saved_filters.get(index) {
                     let query = filter.query.clone();
                     self.search.saved_open = false;
@@ -49,7 +49,7 @@ impl Floetask {
                 }
                 Task::none()
             }
-            Message::AskDeleteSavedFilter(index) => {
+            search::Message::AskDeleteSaved(index) => {
                 if let Some(filter) = self.saved_filters.get(index) {
                     self.dialog = Some(Dialog::Confirm {
                         message: trf("delete_filter_confirm", &[("name", filter.name.as_str().into())]),
@@ -59,13 +59,19 @@ impl Floetask {
                 }
                 Task::none()
             }
-            Message::ToggleSuppress(index) => {
+            search::Message::ToggleSuppress(index) => {
                 if let Some(filter) = self.saved_filters.get_mut(index) {
                     filter.suppress_notifications = !filter.suppress_notifications;
                 }
                 self.store_saved_filters()
             }
-            _ => Task::none(),
+            search::Message::SavedFiltersLoaded(result) => match result {
+                Ok(filters) => {
+                    self.saved_filters = filters;
+                    Task::none()
+                }
+                Err(error) => self.report(&error),
+            },
         }
     }
 
@@ -87,7 +93,7 @@ impl Floetask {
         Task::none()
     }
 
-    pub(super) fn save_filter(&mut self, name: String) -> Task<Message> {
+    pub(crate) fn save_filter(&mut self, name: String) -> Task<Message> {
         let name = name.trim().to_owned();
         if name.is_empty() || self.search.input.trim().is_empty() {
             return Task::none();
@@ -108,7 +114,7 @@ impl Floetask {
         self.store_saved_filters()
     }
 
-    pub(super) fn delete_saved_filter(&mut self, index: usize) -> Task<Message> {
+    pub(crate) fn delete_saved_filter(&mut self, index: usize) -> Task<Message> {
         if index < self.saved_filters.len() {
             self.saved_filters.remove(index);
         }

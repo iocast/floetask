@@ -6,37 +6,28 @@ use floetask_application::AppError;
 use floetask_application::ports::PublishedRelease;
 use floetask_application::updates::offered;
 
-use super::{Floetask, Message};
+use super::UpdateState;
+use crate::app::{Floetask, Message};
 use crate::i18n::trf;
-
-/// Where the update check stands, shown on the About page.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub enum UpdateState {
-    #[default]
-    Idle,
-    Checking,
-    UpToDate,
-    Available(PublishedRelease),
-    /// Downloading and installing this version.
-    Installing(String),
-    Failed(String),
-}
+use crate::settings;
 
 impl Floetask {
-    pub(super) fn update_updates(&mut self, message: Message) -> Task<Message> {
+    pub(super) fn update_updates(&mut self, message: settings::Message) -> Task<Message> {
         match message {
-            Message::CheckForUpdates => self.check_for_updates(true),
-            Message::UpdateChecked(manual, result) => self.update_checked(manual, result),
-            Message::RollbackChoice(version) => {
+            settings::Message::CheckForUpdates => self.check_for_updates(true),
+            settings::Message::UpdateChecked(manual, result) => self.update_checked(manual, result),
+            settings::Message::RollbackChoice(version) => {
                 self.rollback_to = Some(version);
                 Task::none()
             }
-            Message::InstallRelease(version) => {
+            settings::Message::InstallRelease(version) => {
                 self.update = UpdateState::Installing(version.clone());
                 let updater = self.services.ports.updater.clone();
-                Task::perform(async move { updater.install(&version) }, Message::UpdateInstalled)
+                Task::perform(async move { updater.install(&version) }, |result| {
+                    Message::Settings(settings::Message::UpdateInstalled(result))
+                })
             }
-            Message::UpdateInstalled(result) => {
+            settings::Message::UpdateInstalled(result) => {
                 // On success the installer takes over and the app usually has
                 // exited already; on macOS and Linux it is replaced in place.
                 self.update = match result {
@@ -51,7 +42,7 @@ impl Floetask {
 
     /// Lists the published releases. The automatic check on start stays
     /// silent unless it finds an update.
-    pub(super) fn check_for_updates(&mut self, manual: bool) -> Task<Message> {
+    pub(crate) fn check_for_updates(&mut self, manual: bool) -> Task<Message> {
         let updater = self.services.ports.updater.clone();
         if !updater.is_configured() {
             return Task::none();
@@ -60,7 +51,7 @@ impl Floetask {
             self.update = UpdateState::Checking;
         }
         Task::perform(async move { updater.releases() }, move |result| {
-            Message::UpdateChecked(manual, result)
+            Message::Settings(settings::Message::UpdateChecked(manual, result))
         })
     }
 

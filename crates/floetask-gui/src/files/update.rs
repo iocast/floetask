@@ -7,62 +7,69 @@ use iced::Task;
 use floetask_application::{AppError, FileOptions, TodoFileService};
 use floetask_domain::TodoDocument;
 
-use super::{Dialog, Floetask, Message, Pending, absolute};
+use crate::app::{Dialog, Floetask, Message, Pending, absolute};
 use crate::i18n::{self, tr, trf};
+use crate::{files, search};
 
 impl Floetask {
-    pub(super) fn update_files(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_files(&mut self, message: files::Message) -> Task<Message> {
         match message {
-            Message::FileLoaded(path, result) => self.file_loaded(path, result),
-            Message::FileChanged(path) => self.file_changed(path),
-            Message::Saved(path, result) => match result {
+            files::Message::Loaded(path, result) => self.file_loaded(path, result),
+            files::Message::Changed(path) => self.file_changed(path),
+            files::Message::Saved(path, result) => match result {
                 Ok(document) => self.document_saved(path, document),
                 Err(error) => self.save_failed(path, &error),
             },
-            Message::SavedCount(path, result, key) => match result {
+            files::Message::SavedCount(path, result, key) => match result {
                 Ok((document, count)) => {
                     let reload = self.document_saved(path, document);
                     Task::batch([reload, self.toast(trf(key, &[("count", count.into())]))])
                 }
                 Err(error) => self.save_failed(path, &error),
             },
-            Message::OpenFileDialog => Task::perform(pick_file(), Message::FilePicked),
-            Message::CreateFileDialog => Task::perform(save_file("todo.txt"), Message::FileCreated),
-            Message::FilePicked(Some(path)) => self.open_path(path),
-            Message::FileCreated(Some(path)) => self.create_file(path),
-            Message::FilePicked(None) | Message::FileCreated(None) => Task::none(),
-            Message::SelectFile(index) => self.select_file(index),
-            Message::ToggleFilesDrawer => {
+            files::Message::OpenDialog => {
+                Task::perform(pick_file(), |path| Message::Files(files::Message::Picked(path)))
+            }
+            files::Message::CreateDialog => Task::perform(save_file("todo.txt"), |path| {
+                Message::Files(files::Message::Created(path))
+            }),
+            files::Message::Picked(Some(path)) => self.open_path(path),
+            files::Message::Created(Some(path)) => self.create_file(path),
+            files::Message::Picked(None) | files::Message::Created(None) => Task::none(),
+            files::Message::Select(index) => self.select_file(index),
+            files::Message::ToggleDrawer => {
                 self.file_menu = None;
                 self.toggle_panel(crate::layout::Panel::Files)
             }
-            Message::OpenDoneFile(index) => {
+            files::Message::OpenDoneFile(index) => {
                 self.file_menu = None;
                 match self.state.files.get(index).and_then(|entry| entry.done_path.clone()) {
                     Some(done) => self.open_path(done),
                     None => self.toast(tr("done_file_needed")),
                 }
             }
-            Message::FileMenu(index) => {
+            files::Message::Menu(index) => {
                 self.file_menu = index;
                 Task::none()
             }
-            Message::ChangeDoneFile(index) => {
+            files::Message::ChangeDoneFile(index) => {
                 self.file_menu = None;
-                Task::perform(save_file("done.txt"), move |path| Message::DoneFilePicked(index, path))
+                Task::perform(save_file("done.txt"), move |path| {
+                    Message::Files(files::Message::DoneFilePicked(index, path))
+                })
             }
-            Message::DoneFilePicked(index, Some(path)) => {
+            files::Message::DoneFilePicked(index, Some(path)) => {
                 if let Some(entry) = self.state.files.get_mut(index) {
                     entry.done_path = Some(path);
                 }
                 self.persist_state()
             }
-            Message::DoneFilePicked(_, None) => Task::none(),
-            Message::RevealTodoFile(index) => {
+            files::Message::DoneFilePicked(_, None) => Task::none(),
+            files::Message::Reveal(index) => {
                 let path = self.state.files.get(index).map(|entry| entry.path.clone());
                 self.reveal(path)
             }
-            Message::AskRemoveFile(index) => {
+            files::Message::AskRemove(index) => {
                 self.file_menu = None;
                 if let Some(entry) = self.state.files.get(index) {
                     self.dialog = Some(Dialog::Confirm {
@@ -73,20 +80,12 @@ impl Floetask {
                 }
                 Task::none()
             }
-            Message::ArchiveCompleted => self.archive_completed(),
-            Message::SavedFiltersLoaded(result) => match result {
-                Ok(filters) => {
-                    self.saved_filters = filters;
-                    Task::none()
-                }
-                Err(error) => self.report(&error),
-            },
-            _ => Task::none(),
+            files::Message::ArchiveCompleted => self.archive_completed(),
         }
     }
 
     /// Loads every registered file, for the tabs and for notifications.
-    pub(super) fn load_all_files(&self) -> Task<Message> {
+    pub(crate) fn load_all_files(&self) -> Task<Message> {
         Task::batch(self.state.files.iter().map(|entry| self.load(entry.path.clone())))
     }
 
@@ -96,13 +95,13 @@ impl Floetask {
         Task::perform(
             async move { service.load(&path, &options).map(|doc| (path, doc)) },
             |result| match result {
-                Ok((path, document)) => Message::FileLoaded(path, Ok(document)),
+                Ok((path, document)) => Message::Files(files::Message::Loaded(path, Ok(document))),
                 Err(error) => {
                     let path = match &error {
                         AppError::Io { path, .. } => path.clone(),
                         _ => PathBuf::new(),
                     };
-                    Message::FileLoaded(path, Err(error))
+                    Message::Files(files::Message::Loaded(path, Err(error)))
                 }
             },
         )
@@ -135,7 +134,9 @@ impl Floetask {
     fn file_changed(&mut self, path: PathBuf) -> Task<Message> {
         if path == self.services.ports.saved_filters.location() {
             let store = self.services.ports.saved_filters.clone();
-            return Task::perform(async move { store.load() }, Message::SavedFiltersLoaded);
+            return Task::perform(async move { store.load() }, |result| {
+                Message::Search(search::Message::SavedFiltersLoaded(result))
+            });
         }
         if self.state.files.iter().any(|entry| entry.path == path) {
             self.load(path)
@@ -179,7 +180,7 @@ impl Floetask {
             async move { service.open_or_create(&created, &options).map(drop) },
             Message::from_result,
         )
-        .chain(Task::done(Message::FilePicked(Some(path))))
+        .chain(Task::done(Message::Files(files::Message::Picked(Some(path)))))
     }
 
     fn select_file(&mut self, index: usize) -> Task<Message> {
@@ -192,7 +193,7 @@ impl Floetask {
         self.persist_state()
     }
 
-    pub(super) fn remove_file(&mut self, index: usize) -> Task<Message> {
+    pub(crate) fn remove_file(&mut self, index: usize) -> Task<Message> {
         if let Some(entry) = self.state.files.get(index) {
             self.documents.remove(&entry.path.clone());
         }
@@ -215,14 +216,17 @@ impl Floetask {
         let Some(done_path) = entry.done_path.clone() else {
             let index = self.state.active_file;
             let notice = self.toast(tr("done_file_needed"));
-            return Task::batch([notice, Task::done(Message::ChangeDoneFile(index))]);
+            return Task::batch([
+                notice,
+                Task::done(Message::Files(files::Message::ChangeDoneFile(index))),
+            ]);
         };
         let service = self.services.todo_files.clone();
         let options = self.file_options();
         let path = entry.path.clone();
         Task::perform(
             async move { service.archive_completed(&entry.path, &done_path, &options) },
-            move |result| Message::SavedCount(path.clone(), result, "archived"),
+            move |result| Message::Files(files::Message::SavedCount(path.clone(), result, "archived")),
         )
     }
 
@@ -248,7 +252,7 @@ impl Floetask {
         let options = self.file_options();
         let target = path.clone();
         Task::perform(async move { change(&service, &target, &options) }, move |result| {
-            Message::Saved(path.clone(), result)
+            Message::Files(files::Message::Saved(path.clone(), result))
         })
     }
 }

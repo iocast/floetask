@@ -4,12 +4,14 @@
 use iced::widget::{Column, button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Fill};
 
-use super::SEARCH_ID;
-use super::icons::{Icon, icon};
-use super::widgets::{icon_button, with_tooltip};
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
+use crate::search;
 use crate::theme::{self, Colors};
+use crate::view::SEARCH_ID;
+use crate::view::dialogs::{buttons, raw_text};
+use crate::view::icons::{Icon, icon};
+use crate::view::widgets::{icon_button, primary_button, title, with_tooltip};
 
 /// The search field, or `None` when no file is open.
 pub fn field(app: &Floetask) -> Option<Element<'_, Message>> {
@@ -17,13 +19,13 @@ pub fn field(app: &Floetask) -> Option<Element<'_, Message>> {
     let colors = app.colors();
     // Ctrl+Enter turns the search text into a new todo.
     let submit = if app.modifiers.command() {
-        Message::SearchSubmitAsTodo
+        Message::Search(search::Message::SubmitAsTodo)
     } else {
         Message::Noop
     };
     let input = text_input(tr("search_placeholder"), &app.search.input)
         .id(SEARCH_ID)
-        .on_input(Message::SearchInput)
+        .on_input(|text| Message::Search(search::Message::Input(text)))
         .on_submit(submit)
         .padding([6, 0])
         .size(13)
@@ -40,14 +42,14 @@ pub fn field(app: &Floetask) -> Option<Element<'_, Message>> {
         bar = bar.push(small(
             Icon::Close,
             tr("clear"),
-            Message::SearchInput(String::new()),
+            Message::Search(search::Message::Input(String::new())),
             colors,
             false,
         ));
         bar = bar.push(small(
             Icon::Star,
             tr("save_filter"),
-            Message::AskSaveFilter,
+            Message::Search(search::Message::AskSaveFilter),
             colors,
             false,
         ));
@@ -55,7 +57,7 @@ pub fn field(app: &Floetask) -> Option<Element<'_, Message>> {
     bar = bar.push(small(
         Icon::ChevronDown,
         tr("saved_filters"),
-        Message::ToggleSavedFilters,
+        Message::Search(search::Message::ToggleSaved),
         colors,
         app.search.saved_open,
     ));
@@ -131,18 +133,18 @@ pub fn saved_panel(app: &Floetask) -> Option<Element<'_, Message>> {
                 .padding([6, 8])
                 .style(theme::ghost(colors, false))
                 .width(Fill)
-                .on_press(Message::ApplySavedFilter(index)),
+                .on_press(Message::Search(search::Message::ApplySaved(index))),
                 icon_button(
                     bell,
                     tr("suppress_notifications"),
-                    Some(Message::ToggleSuppress(index)),
+                    Some(Message::Search(search::Message::ToggleSuppress(index))),
                     colors,
                     false
                 ),
                 icon_button(
                     Icon::Trash,
                     tr("delete"),
-                    Some(Message::AskDeleteSavedFilter(index)),
+                    Some(Message::Search(search::Message::AskDeleteSaved(index))),
                     colors,
                     false
                 ),
@@ -154,10 +156,27 @@ pub fn saved_panel(app: &Floetask) -> Option<Element<'_, Message>> {
         .into()
     };
     Some(
-        container(column![super::widgets::caption(tr("saved_filters"), colors), content].spacing(8))
+        container(column![crate::view::widgets::caption(tr("saved_filters"), colors), content].spacing(8))
             .padding(12)
             .width(520)
             .style(theme::card(colors))
             .into(),
     )
+}
+
+pub fn save_filter_dialog<'a>(app: &'a Floetask, name: &'a str) -> Element<'a, Message> {
+    let colors = app.colors();
+    column![
+        title(tr("save_filter")),
+        raw_text(&app.search.input, colors),
+        text_input(tr("filter_name"), name)
+            .on_input(|name| Message::Search(search::Message::SaveFilterName(name)))
+            .on_submit(Message::ConfirmDialog)
+            .padding(10)
+            .style(theme::input(colors)),
+        buttons(primary_button(tr("save"), Message::ConfirmDialog, colors), colors),
+    ]
+    .spacing(16)
+    .width(460)
+    .into()
 }

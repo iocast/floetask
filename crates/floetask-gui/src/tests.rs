@@ -16,8 +16,13 @@ use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
 use floetask_domain::{Date, TodoDocument};
 
-use crate::app::{Dialog, Floetask, Message, NoteSave, SettingChange, Startup, ViewToggle};
 use iced::widget::text_editor;
+
+use crate::app::{Dialog, Floetask, Message, Startup};
+use crate::drawer::ViewToggle;
+use crate::editor::NoteSave;
+use crate::settings::SettingChange;
+use crate::{board, calendar, drawer, editor, files, list, search, settings};
 
 const TODO_PATH: &str = "/test/todo.txt";
 const SAMPLE: &str = "\
@@ -214,10 +219,10 @@ fn app() -> Floetask {
         services: Services::new(ports),
         open: None,
     });
-    let _ = app.update(Message::FileLoaded(
+    let _ = app.update(Message::Files(files::Message::Loaded(
         PathBuf::from(TODO_PATH),
         Ok(TodoDocument::parse(SAMPLE, &[])),
-    ));
+    )));
     // Wide enough for the main view and every side panel.
     app.state.window.width = 1800.0;
     app
@@ -288,7 +293,10 @@ fn list_shows_grouped_todos() {
 #[test]
 fn someday_todos_show_on_request() {
     let mut app = app();
-    let _ = app.update(Message::ViewToggle(ViewToggle::HiddenStatuses, true));
+    let _ = app.update(Message::Drawer(drawer::Message::ViewToggle(
+        ViewToggle::HiddenStatuses,
+        true,
+    )));
     let mut ui = simulator(app.view());
     assert!(ui.find("Learn Rust").is_ok());
     assert!(ui.find("Someday").is_ok());
@@ -297,12 +305,12 @@ fn someday_todos_show_on_request() {
 #[test]
 fn editor_status_picker_rewrites_the_status_token() {
     let mut app = app();
-    let _ = app.update(Message::NewTodo);
-    let _ = app.update(Message::EditorAction(text_editor::Action::Edit(
+    let _ = app.update(Message::Editor(editor::Message::New));
+    let _ = app.update(Message::Editor(editor::Message::Action(text_editor::Action::Edit(
         text_editor::Edit::Paste(std::sync::Arc::new("Ask legal +work".to_owned())),
-    )));
-    let _ = app.update(Message::EditorStatus("waiting".to_owned()));
-    let _ = app.update(Message::EditorStatus("doing".to_owned()));
+    ))));
+    let _ = app.update(Message::Editor(editor::Message::Status("waiting".to_owned())));
+    let _ = app.update(Message::Editor(editor::Message::Status("doing".to_owned())));
     let Some(Dialog::Editor(editor)) = &app.dialog else {
         panic!("editor closed")
     };
@@ -310,7 +318,7 @@ fn editor_status_picker_rewrites_the_status_token() {
     assert!(simulator(app.view()).find("Doing").is_ok());
     snapshot(&app, "editor-status");
 
-    let _ = app.update(Message::EditorStatus("todo".to_owned()));
+    let _ = app.update(Message::Editor(editor::Message::Status("todo".to_owned())));
     let Some(Dialog::Editor(editor)) = &app.dialog else {
         panic!("editor closed")
     };
@@ -321,7 +329,9 @@ fn editor_status_picker_rewrites_the_status_token() {
 fn clicking_a_chip_filters_the_list() {
     let mut app = app();
     let messages = click(&app, "family");
-    assert!(matches!(&messages[..], [Message::ChipFilter(Attribute::Projects, value)] if value == "family"));
+    assert!(
+        matches!(&messages[..], [Message::List(list::Message::ChipFilter(Attribute::Projects, value))] if value == "family")
+    );
     for message in messages {
         let _ = app.update(message);
     }
@@ -331,7 +341,7 @@ fn clicking_a_chip_filters_the_list() {
 #[test]
 fn new_todo_dialog_autocompletes_projects() {
     let mut app = app();
-    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::Editor(editor::Message::New));
     assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
 
     let mut ui = simulator(app.view());
@@ -349,7 +359,7 @@ fn new_todo_dialog_autocompletes_projects() {
     assert_eq!(editor.suggestions, vec!["work".to_owned()]);
     snapshot(&app, "editor");
 
-    let _ = app.update(Message::EditorAccept);
+    let _ = app.update(Message::Editor(editor::Message::Accept));
     let Some(Dialog::Editor(editor)) = &app.dialog else {
         panic!("editor closed")
     };
@@ -359,8 +369,8 @@ fn new_todo_dialog_autocompletes_projects() {
 #[test]
 fn escape_closes_dialog_then_drawer() {
     let mut app = app();
-    let _ = app.update(Message::ToggleDrawer);
-    let _ = app.update(Message::OpenSettings);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
+    let _ = app.update(Message::Settings(settings::Message::Open));
     snapshot(&app, "settings");
     let escape = || {
         Message::KeyPressed(
@@ -380,12 +390,12 @@ fn escape_closes_dialog_then_drawer() {
 #[test]
 fn search_expressions_filter_and_keep_last_valid_result() {
     let mut app = app();
-    let _ = app.update(Message::SearchInput("+work and due:".into()));
+    let _ = app.update(Message::Search(search::Message::Input("+work and due:".into())));
     assert_eq!(app.listing.counts.visible, 1);
     // Unfinished expression: keep the previous result.
-    let _ = app.update(Message::SearchInput("+work and due: <".into()));
+    let _ = app.update(Message::Search(search::Message::Input("+work and due: <".into())));
     assert_eq!(app.listing.counts.visible, 1);
-    let _ = app.update(Message::SearchInput("milk".into()));
+    let _ = app.update(Message::Search(search::Message::Input("milk".into())));
     assert_eq!(app.listing.counts.visible, 1);
 }
 
@@ -408,7 +418,9 @@ fn keyboard_moves_selection() {
 #[test]
 fn switching_the_language_changes_every_screen_at_once() {
     let mut app = app();
-    let _ = app.update(Message::Setting(SettingChange::Language("de".to_owned())));
+    let _ = app.update(Message::Settings(settings::Message::Change(SettingChange::Language(
+        "de".to_owned(),
+    ))));
     assert_eq!(app.settings.language, "de");
     let mut ui = simulator(app.view());
     for text in ["In Arbeit", "Offen", "Wartet", "Erledigt", "Prepare slides"] {
@@ -418,8 +430,8 @@ fn switching_the_language_changes_every_screen_at_once() {
     drop(ui);
     snapshot(&app, "de-list");
 
-    let _ = app.update(Message::ToggleDrawer);
-    let _ = app.update(Message::OpenSettings);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
+    let _ = app.update(Message::Settings(settings::Message::Open));
     assert!(simulator(app.view()).find("Einstellungen").is_ok());
     snapshot(&app, "de-settings");
     let _ = app.update(Message::CloseDialog);
@@ -429,14 +441,16 @@ fn switching_the_language_changes_every_screen_at_once() {
     assert!(simulator(app.view()).find("Oktober 2026").is_ok());
     snapshot(&app, "de-calendar");
 
-    let _ = app.update(Message::Setting(SettingChange::Language("system".to_owned())));
+    let _ = app.update(Message::Settings(settings::Message::Change(SettingChange::Language(
+        "system".to_owned(),
+    ))));
     assert!(simulator(app.view()).find("October 2026").is_ok());
 }
 
 #[test]
 fn renders_both_themes() {
     let mut app = app();
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     snapshot(&app, "light");
     app.settings.theme = floetask_application::ThemePreference::Dark;
     assert!(app.colors().dark);
@@ -448,27 +462,31 @@ fn renders_both_themes() {
             "/test/work.txt",
         )));
     snapshot(&app, "dark-files");
-    let _ = app.update(Message::FileMenu(Some(0)));
+    let _ = app.update(Message::Files(files::Message::Menu(Some(0))));
     snapshot(&app, "dark-file-menu");
-    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::Editor(editor::Message::New));
     snapshot(&app, "dark-editor");
 }
 
 #[test]
 fn file_menu_floats_and_closes_on_outside_click() {
     let mut app = app();
-    let _ = app.update(Message::FileMenu(Some(0)));
+    let _ = app.update(Message::Files(files::Message::Menu(Some(0))));
     let mut ui = simulator(app.view());
     // A click on the list, outside the menu, dismisses it.
     ui.click("Buy milk").unwrap();
     let messages: Vec<Message> = ui.into_messages().collect();
-    assert!(messages.iter().any(|m| matches!(m, Message::FileMenu(None))));
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::Files(files::Message::Menu(None))))
+    );
 }
 
 #[test]
 fn editor_date_picker_floats_over_the_dialog() {
     let mut app = app();
-    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::Editor(editor::Message::New));
     for message in click(&app, "Due") {
         let _ = app.update(message);
     }
@@ -476,7 +494,7 @@ fn editor_date_picker_floats_over_the_dialog() {
         Some(Dialog::Editor(editor)) => editor.calendar.as_ref().map(|calendar| calendar.key),
         _ => panic!("editor closed"),
     };
-    assert_eq!(editor_calendar(&app), Some(crate::app::DateKey::Due));
+    assert_eq!(editor_calendar(&app), Some(crate::editor::DateKey::Due));
     // The repeat row stays where it was, under the floating calendar.
     assert!(simulator(app.view()).find("Repeat").is_ok());
     snapshot(&app, "editor-date-picker");
@@ -488,7 +506,9 @@ fn editor_date_picker_floats_over_the_dialog() {
     assert_eq!(editor_calendar(&app), None);
 
     // Escape closes the calendar first, then the dialog.
-    let _ = app.update(Message::EditorOpenCalendar(crate::app::DateKey::Threshold));
+    let _ = app.update(Message::Editor(editor::Message::OpenDatePicker(
+        crate::editor::DateKey::Threshold,
+    )));
     let escape = Message::KeyPressed(
         iced::window::Id::unique(),
         iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
@@ -559,11 +579,15 @@ fn notes_link_open_and_warn_when_orphaned() {
 
     // A broken link still opens: the note is created, then shown as present.
     let messages = click(&app, "shopping");
-    let [Message::OpenNote(target)] = &messages[..] else {
+    let [Message::List(list::Message::OpenNote(target))] = &messages[..] else {
         panic!("expected OpenNote, got {messages:?}")
     };
     let todo = floetask_domain::Todo::parse(&target.raw);
-    drive(&runtime, &mut app, Message::OpenNote(target.clone()));
+    drive(
+        &runtime,
+        &mut app,
+        Message::List(list::Message::OpenNote(target.clone())),
+    );
     assert_eq!(
         app.services.ports.files.read(&note_path("shopping.md")).unwrap(),
         "# Buy milk\n"
@@ -571,7 +595,7 @@ fn notes_link_open_and_warn_when_orphaned() {
     assert_eq!(app.note_statuses["shopping"], NoteStatus::Present);
 
     // Deleting the only todo linking a note warns and keeps the file.
-    let _ = app.update(Message::AskDelete(TodoRef::new(2, &todo)));
+    let _ = app.update(Message::List(list::Message::AskDelete(TodoRef::new(2, &todo))));
     let _ = app.update(Message::ConfirmDialog);
     assert!(
         app.toasts
@@ -600,7 +624,7 @@ fn save_notes(app: &Floetask) -> Result<String, AppError> {
 #[test]
 fn notes_typed_in_a_new_todo_create_the_file_and_tag() {
     let mut app = app();
-    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::Editor(editor::Message::New));
     if let Some(Dialog::Editor(editor)) = &mut app.dialog {
         editor.set_text("(A) Write report +work");
     }
@@ -634,8 +658,11 @@ fn editing_a_todo_loads_and_saves_its_note() {
         .find(|entry| entry.todo.note() == Some("slides"))
         .unwrap();
     let target = TodoRef::new(slides.line, &slides.todo);
-    let _ = app.update(Message::OpenTodo(target.clone()));
-    let _ = app.update(Message::NoteLoaded(target, Ok(Some("# Slides\n".to_owned()))));
+    let _ = app.update(Message::List(list::Message::OpenTodo(target.clone())));
+    let _ = app.update(Message::Editor(editor::Message::NoteLoaded(
+        target,
+        Ok(Some("# Slides\n".to_owned())),
+    )));
     let Some(Dialog::Editor(editor)) = &app.dialog else {
         panic!("editor closed")
     };
@@ -653,7 +680,7 @@ fn editing_a_todo_loads_and_saves_its_note() {
 }
 
 /// The open dialog's editor.
-fn editor(app: &Floetask) -> &crate::app::Editor {
+fn editor(app: &Floetask) -> &crate::editor::Editor {
     match &app.dialog {
         Some(Dialog::Editor(editor)) => editor,
         _ => panic!("editor closed"),
@@ -666,7 +693,7 @@ fn picked_files_are_moved_into_the_notes_folder_or_linked_in_place() {
     let _tokio = runtime.enter();
     let mut app = app();
     let files = app.services.ports.files.clone();
-    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::Editor(editor::Message::New));
     if let Some(Dialog::Editor(editor)) = &mut app.dialog {
         editor.set_text("Plan the offsite");
     }
@@ -674,12 +701,12 @@ fn picked_files_are_moved_into_the_notes_folder_or_linked_in_place() {
     // A file outside the notes folder asks before it is linked.
     let plan = PathBuf::from("/elsewhere/My Plan.md");
     files.write(&plan, "# Agenda\n\n- budget\n", false).unwrap();
-    let _ = app.update(Message::NoteFilePicked(Some(plan.clone())));
+    let _ = app.update(Message::Editor(editor::Message::NoteFilePicked(Some(plan.clone()))));
     assert_eq!(editor(&app).pending_link, Some(plan.clone()));
     snapshot(&app, "editor-link-question");
 
     // Moving it gives it a valid name in the notes folder.
-    drive(&runtime, &mut app, Message::EditorMovePickedNote);
+    drive(&runtime, &mut app, Message::Editor(editor::Message::MovePickedNote));
     assert_eq!(editor(&app).text(), "Plan the offsite note:my-plan.md");
     assert_eq!(editor(&app).note_text(), "# Agenda\n\n- budget");
     assert_eq!(editor(&app).pending_link, None);
@@ -691,8 +718,8 @@ fn picked_files_are_moved_into_the_notes_folder_or_linked_in_place() {
     // Keeping it links the file where it is, by its path.
     let kept = PathBuf::from("/elsewhere/Keep Me.md");
     files.write(&kept, "# Kept\n", false).unwrap();
-    let _ = app.update(Message::NoteFilePicked(Some(kept.clone())));
-    drive(&runtime, &mut app, Message::EditorKeepPickedNote);
+    let _ = app.update(Message::Editor(editor::Message::NoteFilePicked(Some(kept.clone()))));
+    drive(&runtime, &mut app, Message::Editor(editor::Message::KeepPickedNote));
     assert_eq!(editor(&app).text(), "Plan the offsite note:/elsewhere/Keep%20Me.md");
     assert_eq!(editor(&app).note_text(), "# Kept");
     assert!(files.exists(&kept));
@@ -701,13 +728,13 @@ fn picked_files_are_moved_into_the_notes_folder_or_linked_in_place() {
     drive(
         &runtime,
         &mut app,
-        Message::NoteFilePicked(Some(note_path("slides.md"))),
+        Message::Editor(editor::Message::NoteFilePicked(Some(note_path("slides.md")))),
     );
     assert_eq!(editor(&app).text(), "Plan the offsite note:slides.md");
     assert_eq!(editor(&app).pending_link, None);
 
     // Unlinking removes the tag and keeps the file.
-    let _ = app.update(Message::EditorUnlinkNote);
+    let _ = app.update(Message::Editor(editor::Message::UnlinkNote));
     assert_eq!(editor(&app).text(), "Plan the offsite");
     assert_eq!(editor(&app).note_text(), "");
     assert_eq!(save_notes(&app), Ok("Plan the offsite".to_owned()));
@@ -729,16 +756,16 @@ fn the_note_window_saves_edits_and_is_reused() {
         TodoRef::new(entry.line, &entry.todo)
     };
 
-    let open = Message::OpenNote(target(&app, "slides"));
+    let open = Message::List(list::Message::OpenNote(target(&app, "slides")));
     drive(&runtime, &mut app, open);
     let id = app.note_window.as_ref().unwrap().id;
     assert_eq!(app.window_title(id), "todo-notes/slides.md - floetask");
     assert_eq!(note_window_text(&app), "# Slides");
     if let Some(window) = &app.note_window {
-        let mut ui = simulator(crate::view::note_window(&app, window));
+        let mut ui = simulator(crate::note_window::view(&app, window));
         assert!(ui.find("todo-notes/slides.md").is_ok());
         assert!(ui.find("Saved").is_ok());
-        snapshot_view(&app, crate::view::note_window(&app, window), "note-window");
+        snapshot_view(&app, crate::note_window::view(&app, window), "note-window");
     }
 
     // Edits are written on Ctrl+S (and once typing pauses).
@@ -761,7 +788,7 @@ fn the_note_window_saves_edits_and_is_reused() {
     if let Some(window) = &mut app.note_window {
         window.note.replace("# Slides\n\nAgenda last");
     }
-    let open = Message::OpenNote(target(&app, "shopping"));
+    let open = Message::List(list::Message::OpenNote(target(&app, "shopping")));
     drive(&runtime, &mut app, open);
     assert_eq!(app.note_window.as_ref().unwrap().id, id);
     assert_eq!(note_window_text(&app), "# Buy milk");
@@ -808,7 +835,7 @@ fn the_dialog_hands_its_note_to_the_note_window() {
     let _tokio = runtime.enter();
     let mut app = app();
     let files = app.services.ports.files.clone();
-    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::Editor(editor::Message::New));
     if let Some(Dialog::Editor(editor)) = &mut app.dialog {
         editor.set_text("Plan the offsite");
     }
@@ -816,7 +843,7 @@ fn the_dialog_hands_its_note_to_the_note_window() {
 
     // The note gets its file and tag, and what was typed goes along and is
     // saved from the window once typing pauses.
-    drive(&runtime, &mut app, Message::EditorOpenNoteWindow);
+    drive(&runtime, &mut app, Message::Editor(editor::Message::OpenNoteWindow));
     assert_eq!(editor(&app).text(), "Plan the offsite note:plan-the-offsite.md");
     assert_eq!(note_window_text(&app), "# Agenda");
     assert_eq!(files.read(&note_path("plan-the-offsite.md")).unwrap(), "# Agenda\n");
@@ -846,7 +873,7 @@ fn the_dialog_hands_its_note_to_the_note_window() {
 #[test]
 fn notes_are_not_saved_under_an_invalid_name() {
     let mut app = app();
-    let _ = app.update(Message::NewTodo);
+    let _ = app.update(Message::Editor(editor::Message::New));
     if let Some(Dialog::Editor(editor)) = &mut app.dialog {
         editor.set_text("Task note:Bad");
     }
@@ -894,23 +921,24 @@ fn dragging_a_card_moves_it_to_another_column() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
     let messages = click(&app, "Buy milk");
-    assert!(
-        messages
-            .iter()
-            .any(|m| matches!(m, Message::BoardPress(target, id) if target.line == 2 && *id == lane(0, 0)))
-    );
+    assert!(messages.iter().any(
+        |m| matches!(m, Message::Board(board::Message::Press(target, id)) if target.line == 2 && *id == lane(0, 0))
+    ));
     // Keep the button held: drop the release the click also produced.
-    for message in messages.into_iter().filter(|m| !matches!(m, Message::BoardRelease)) {
+    for message in messages
+        .into_iter()
+        .filter(|m| !matches!(m, Message::Board(board::Message::Release)))
+    {
         let _ = app.update(message);
     }
     // Entering the next column can arrive before leaving the first.
-    let _ = app.update(Message::BoardHover(lane(0, 1), true));
-    let _ = app.update(Message::BoardHover(lane(0, 0), false));
+    let _ = app.update(Message::Board(board::Message::Hover(lane(0, 1), true)));
+    let _ = app.update(Message::Board(board::Message::Hover(lane(0, 0), false)));
     assert_eq!(app.board_hover, Some(lane(0, 1)));
     snapshot(&app, "board-drag");
 
     let target = app.drag.as_ref().unwrap().target.clone();
-    let _ = app.update(Message::BoardRelease);
+    let _ = app.update(Message::Board(board::Message::Release));
     assert!(app.drag.is_none());
     // The drop runs the move in the background; run it here and feed the result back.
     let moved = app.services.todo_files.move_to_column(
@@ -919,7 +947,7 @@ fn dragging_a_card_moves_it_to_another_column() {
         &floetask_domain::board::Column::Status("doing".to_owned()),
         &app.file_options(),
     );
-    let _ = app.update(Message::Saved(PathBuf::from(TODO_PATH), moved));
+    let _ = app.update(Message::Files(files::Message::Saved(PathBuf::from(TODO_PATH), moved)));
     assert_eq!(board_lane_bodies(&app)[1], vec!["Prepare slides", "Buy milk"]);
 }
 
@@ -928,7 +956,7 @@ fn pressing_and_releasing_in_place_opens_the_todo() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
     let messages = click(&app, "Legal review");
-    assert!(matches!(messages.last(), Some(Message::BoardRelease)));
+    assert!(matches!(messages.last(), Some(Message::Board(board::Message::Release))));
     for message in messages {
         let _ = app.update(message);
     }
@@ -940,12 +968,15 @@ fn dropping_a_card_back_in_its_column_does_not_open_it() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
     let messages = click(&app, "Legal review");
-    for message in messages.into_iter().filter(|m| !matches!(m, Message::BoardRelease)) {
+    for message in messages
+        .into_iter()
+        .filter(|m| !matches!(m, Message::Board(board::Message::Release)))
+    {
         let _ = app.update(message);
     }
     // The cursor leaves the card and comes back to its column.
-    let _ = app.update(Message::BoardCardLeft);
-    let _ = app.update(Message::BoardRelease);
+    let _ = app.update(Message::Board(board::Message::CardLeft));
+    let _ = app.update(Message::Board(board::Message::Release));
     assert!(app.drag.is_none());
     assert!(app.dialog.is_none());
 }
@@ -954,13 +985,13 @@ fn dropping_a_card_back_in_its_column_does_not_open_it() {
 fn board_columns_are_set_per_file() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
-    let _ = app.update(Message::OpenBoardColumns);
-    let _ = app.update(Message::BoardColumnAdd(Some("someday".to_owned())));
-    let _ = app.update(Message::BoardColumnInput("In Review".to_owned()));
+    let _ = app.update(Message::Board(board::Message::OpenColumns));
+    let _ = app.update(Message::Board(board::Message::ColumnAdd(Some("someday".to_owned()))));
+    let _ = app.update(Message::Board(board::Message::ColumnInput("In Review".to_owned())));
     assert!(simulator(app.view()).find("status:in-review").is_ok(), "key preview");
-    let _ = app.update(Message::BoardColumnAdd(None));
-    let _ = app.update(Message::BoardColumnRemove(2));
-    let _ = app.update(Message::BoardColumnMove(4, -1));
+    let _ = app.update(Message::Board(board::Message::ColumnAdd(None)));
+    let _ = app.update(Message::Board(board::Message::ColumnRemove(2)));
+    let _ = app.update(Message::Board(board::Message::ColumnMove(4, -1)));
     snapshot(&app, "board-columns");
     let _ = app.update(Message::ConfirmDialog);
     assert!(app.dialog.is_none());
@@ -982,7 +1013,7 @@ fn board_columns_are_set_per_file() {
 #[test]
 fn settings_sidebar_switches_sections_and_describes_settings() {
     let mut app = app();
-    let _ = app.update(Message::OpenSettings);
+    let _ = app.update(Message::Settings(settings::Message::Open));
     let mut ui = simulator(app.view());
     for text in ["Todos", "Dates", "Statuses", "Appearance", "Notifications", "Files"] {
         assert!(ui.find(text).is_ok(), "missing section {text}");
@@ -990,11 +1021,10 @@ fn settings_sidebar_switches_sections_and_describes_settings() {
     assert!(ui.find("In the add dialog, every line becomes its own todo.").is_ok());
     drop(ui);
     let messages = click(&app, "Appearance");
-    assert!(
-        messages
-            .iter()
-            .any(|m| matches!(m, Message::SettingsSection(crate::app::SettingsSection::Appearance)))
-    );
+    assert!(messages.iter().any(|m| matches!(
+        m,
+        Message::Settings(settings::Message::Section(crate::settings::SettingsSection::Appearance))
+    )));
     for message in messages {
         let _ = app.update(message);
     }
@@ -1009,15 +1039,22 @@ fn settings_sidebar_switches_sections_and_describes_settings() {
 #[test]
 fn statuses_are_managed_in_settings() {
     let mut app = app();
-    let _ = app.update(Message::OpenSettings);
-    let _ = app.update(Message::SettingsSection(crate::app::SettingsSection::Statuses));
-    let _ = app.update(Message::SettingsStatusInput("In Review".to_owned()));
+    let _ = app.update(Message::Settings(settings::Message::Open));
+    let _ = app.update(Message::Settings(settings::Message::Section(
+        crate::settings::SettingsSection::Statuses,
+    )));
+    let _ = app.update(Message::Settings(settings::Message::StatusInput(
+        "In Review".to_owned(),
+    )));
     assert!(simulator(app.view()).find("status:in-review").is_ok(), "key preview");
-    let _ = app.update(Message::Setting(SettingChange::StatusAdd("In Review".to_owned())));
-    let _ = app.update(Message::Setting(SettingChange::StatusMove(4, -1)));
-    let _ = app.update(Message::Setting(SettingChange::StatusHidden(
-        "waiting".to_owned(),
-        true,
+    let _ = app.update(Message::Settings(settings::Message::Change(SettingChange::StatusAdd(
+        "In Review".to_owned(),
+    ))));
+    let _ = app.update(Message::Settings(settings::Message::Change(SettingChange::StatusMove(
+        4, -1,
+    ))));
+    let _ = app.update(Message::Settings(settings::Message::Change(
+        SettingChange::StatusHidden("waiting".to_owned(), true),
     )));
     snapshot(&app, "settings-statuses");
     assert_eq!(
@@ -1032,8 +1069,12 @@ fn statuses_are_managed_in_settings() {
         panic!("settings closed")
     };
     assert!(dialog.status_input.is_empty());
-    let _ = app.update(Message::Setting(SettingChange::StatusRemove("in-review".to_owned())));
-    let _ = app.update(Message::Setting(SettingChange::StatusRemove("doing".to_owned())));
+    let _ = app.update(Message::Settings(settings::Message::Change(
+        SettingChange::StatusRemove("in-review".to_owned()),
+    )));
+    let _ = app.update(Message::Settings(settings::Message::Change(
+        SettingChange::StatusRemove("doing".to_owned()),
+    )));
     assert_eq!(app.settings.statuses.names(), ["doing", "todo", "waiting", "someday"]);
 }
 
@@ -1043,7 +1084,7 @@ fn grouping_gives_each_group_its_own_board() {
     let _ = app.update(Message::ToggleMainView);
     assert!(!app.board.is_grouped());
     // Sort by priority first: the board splits into one board per priority.
-    let _ = app.update(Message::MoveSort(0, 1));
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(0, 1)));
     assert!(app.board.is_grouped());
     let groups: Vec<String> = app.board.groups.iter().map(|g| g.values.join(",")).collect();
     assert_eq!(groups, ["A", "B", ""]);
@@ -1054,9 +1095,9 @@ fn grouping_gives_each_group_its_own_board() {
     let call_mom = app.board.groups[0].lanes[0].todos[0].clone();
     assert_eq!(call_mom.todo.body(), "Call mom");
     let target = TodoRef::new(call_mom.line, &call_mom.todo);
-    let _ = app.update(Message::BoardPress(target, lane(0, 0)));
-    let _ = app.update(Message::BoardHover(lane(2, 0), true));
-    let _ = app.update(Message::BoardRelease);
+    let _ = app.update(Message::Board(board::Message::Press(target, lane(0, 0))));
+    let _ = app.update(Message::Board(board::Message::Hover(lane(2, 0), true)));
+    let _ = app.update(Message::Board(board::Message::Release));
     assert!(app.drag.is_none());
     assert!(app.dialog.is_none());
 }
@@ -1065,11 +1106,11 @@ fn grouping_gives_each_group_its_own_board() {
 fn grouping_switch_keeps_sorting_on_one_board() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
-    let _ = app.update(Message::MoveSort(0, 1));
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(0, 1)));
     assert!(app.board.is_grouped());
     assert!(simulator(app.view()).find("Group by priority").is_ok());
 
-    let _ = app.update(Message::BoardGrouped(false));
+    let _ = app.update(Message::Board(board::Message::Grouped(false)));
     assert!(!app.state.board_grouped);
     assert!(!app.board.is_grouped());
     // Still sorted by priority inside the column.
@@ -1081,7 +1122,11 @@ fn grouping_switch_keeps_sorting_on_one_board() {
 fn board_follows_filters_and_sorting() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
-    let _ = app.update(Message::FilterValue(Attribute::Projects, "work".to_owned(), false));
+    let _ = app.update(Message::Drawer(drawer::Message::FilterValue(
+        Attribute::Projects,
+        "work".to_owned(),
+        false,
+    )));
     assert_eq!(
         board_lane_bodies(&app),
         vec![
@@ -1091,12 +1136,18 @@ fn board_follows_filters_and_sorting() {
             vec!["Send invoice"]
         ]
     );
-    let _ = app.update(Message::ResetFilters);
-    let _ = app.update(Message::ViewToggle(ViewToggle::Completed, false));
+    let _ = app.update(Message::Drawer(drawer::Message::ResetFilters));
+    let _ = app.update(Message::Drawer(drawer::Message::ViewToggle(
+        ViewToggle::Completed,
+        false,
+    )));
     assert!(board_lane_bodies(&app)[3].is_empty());
     // Sorting changes reach the board too: sorted by project, +work first.
-    let _ = app.update(Message::ViewToggle(ViewToggle::Completed, true));
-    let _ = app.update(Message::MoveSort(2, -2));
+    let _ = app.update(Message::Drawer(drawer::Message::ViewToggle(
+        ViewToggle::Completed,
+        true,
+    )));
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(2, -2)));
     let groups: Vec<String> = app.board.groups.iter().map(|g| g.values.join(",")).collect();
     assert_eq!(groups, ["family", "work", ""]);
 }
@@ -1105,10 +1156,10 @@ fn board_follows_filters_and_sorting() {
 fn contexts_are_highlighted_inside_the_todo_text() {
     let mut app = app();
     let line = "2026-08-17 SAP Cloud Logging @ktbe mit @DanielWalther besprechen +pitch";
-    let _ = app.update(Message::FileLoaded(
+    let _ = app.update(Message::Files(files::Message::Loaded(
         PathBuf::from(TODO_PATH),
         Ok(TodoDocument::parse(&format!("{line}\n"), &[])),
-    ));
+    )));
     assert_eq!(app.listing.counts.visible, 1);
     // The simulator cannot click a single span, so the ovals are checked in
     // the snapshot; the segments themselves are tested in the domain.
@@ -1120,13 +1171,13 @@ fn board_groups_collapse_from_their_header() {
     // Call mom (A) is the only todo due 2026-10-04, Prepare slides (B) is due 2026-10-06.
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
-    let _ = app.update(Message::MoveSort(0, 1));
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(0, 1)));
     assert!(simulator(app.view()).find("2026-10-04").is_ok());
     let messages = click(&app, "(A)");
     assert!(
         messages
             .iter()
-            .any(|m| matches!(m, Message::ToggleBoardGroup(key) if key == "priority:A"))
+            .any(|m| matches!(m, Message::Board(board::Message::ToggleGroup(key)) if key == "priority:A"))
     );
     for message in messages {
         let _ = app.update(message);
@@ -1137,7 +1188,7 @@ fn board_groups_collapse_from_their_header() {
     assert!(ui.find("2026-10-06").is_ok());
     drop(ui);
     snapshot(&app, "board-collapsed");
-    let _ = app.update(Message::ToggleBoardGroup("priority:A".to_owned()));
+    let _ = app.update(Message::Board(board::Message::ToggleGroup("priority:A".to_owned())));
     assert!(simulator(app.view()).find("2026-10-04").is_ok());
 }
 
@@ -1152,7 +1203,7 @@ fn list_groups_collapse_from_their_header() {
     assert!(
         messages
             .iter()
-            .any(|m| matches!(m, Message::ToggleListGroup(k) if *k == key))
+            .any(|m| matches!(m, Message::List(list::Message::ToggleGroup(k)) if *k == key))
     );
     for message in messages {
         let _ = app.update(message);
@@ -1162,7 +1213,7 @@ fn list_groups_collapse_from_their_header() {
     // Keyboard selection skips the hidden rows.
     assert_eq!(app.selectable_todos().count(), app.listing.counts.visible - 2);
     snapshot(&app, "list-collapsed");
-    let _ = app.update(Message::ToggleListGroup(key));
+    let _ = app.update(Message::List(list::Message::ToggleGroup(key)));
     assert!(simulator(app.view()).find("2026-10-04").is_ok());
 }
 
@@ -1170,7 +1221,7 @@ fn list_groups_collapse_from_their_header() {
 fn board_makes_room_for_the_drawer() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     snapshot(&app, "board-drawer");
 }
 
@@ -1178,8 +1229,8 @@ fn board_makes_room_for_the_drawer() {
 fn grouped_board_makes_room_for_the_drawer() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
-    let _ = app.update(Message::MoveSort(2, -2));
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(2, -2)));
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     snapshot(&app, "board-grouped-drawer");
 }
 
@@ -1187,8 +1238,8 @@ fn grouped_board_makes_room_for_the_drawer() {
 fn wide_grouped_board_stays_left_of_the_drawer() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
-    let _ = app.update(Message::MoveSort(2, -2));
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(2, -2)));
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") else {
         return;
     };
@@ -1205,9 +1256,9 @@ fn dark_board_snapshots_for_the_readme() {
     let mut app = app();
     let _ = app.update(Message::ToggleMainView);
     // Sort by project first: the board splits into one board per project.
-    let _ = app.update(Message::MoveSort(2, -2));
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(2, -2)));
     assert!(app.board.is_grouped());
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     app.settings.theme = floetask_application::ThemePreference::Dark;
     let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") else {
         return;
@@ -1217,7 +1268,7 @@ fn dark_board_snapshots_for_the_readme() {
         (floetask_application::DrawerTab::Filters, "readme-filters"),
         (floetask_application::DrawerTab::Sorting, "readme-sorting"),
     ] {
-        let _ = app.update(Message::DrawerTab(tab));
+        let _ = app.update(Message::Drawer(drawer::Message::Tab(tab)));
         let path = PathBuf::from(&dir).join(name);
         let mut ui = iced_test::Simulator::with_size(iced::Settings::default(), (1600.0, 1000.0), app.view());
         let snapshot = ui.snapshot(&app.theme()).unwrap();
@@ -1230,8 +1281,10 @@ fn about_page_shows_the_version_and_an_available_update() {
     let runtime = runtime();
     let _tokio = runtime.enter();
     let mut app = app();
-    let _ = app.update(Message::OpenSettings);
-    let _ = app.update(Message::SettingsSection(crate::app::SettingsSection::About));
+    let _ = app.update(Message::Settings(settings::Message::Open));
+    let _ = app.update(Message::Settings(settings::Message::Section(
+        crate::settings::SettingsSection::About,
+    )));
     assert!(
         simulator(app.view())
             .find(format!("Version {}", env!("CARGO_PKG_VERSION")).as_str())
@@ -1245,22 +1298,25 @@ fn about_page_shows_the_version_and_an_available_update() {
             .is_ok()
     );
     let messages = click(&app, "Check now");
-    assert!(matches!(&messages[..], [Message::CheckForUpdates]));
-    let _ = app.update(Message::CheckForUpdates);
-    assert_eq!(app.update, crate::app::UpdateState::Checking);
+    assert!(matches!(
+        &messages[..],
+        [Message::Settings(settings::Message::CheckForUpdates)]
+    ));
+    let _ = app.update(Message::Settings(settings::Message::CheckForUpdates));
+    assert_eq!(app.update, crate::settings::UpdateState::Checking);
     let found = app.services.ports.updater.releases();
-    let _ = app.update(Message::UpdateChecked(true, found));
+    let _ = app.update(Message::Settings(settings::Message::UpdateChecked(true, found)));
     // The stable channel does not offer the release candidate.
-    assert_eq!(app.update, crate::app::UpdateState::UpToDate);
+    assert_eq!(app.update, crate::settings::UpdateState::UpToDate);
 
     // The preview channel does, and switching checks again.
-    let _ = app.update(Message::Setting(SettingChange::UpdateChannel(
-        floetask_application::UpdateChannel::Preview,
+    let _ = app.update(Message::Settings(settings::Message::Change(
+        SettingChange::UpdateChannel(floetask_application::UpdateChannel::Preview),
     )));
-    assert_eq!(app.update, crate::app::UpdateState::Checking);
+    assert_eq!(app.update, crate::settings::UpdateState::Checking);
     let found = app.services.ports.updater.releases();
-    let _ = app.update(Message::UpdateChecked(true, found));
-    assert!(matches!(&app.update, crate::app::UpdateState::Available(release) if release.version == "9.0.0-rc.1"));
+    let _ = app.update(Message::Settings(settings::Message::UpdateChecked(true, found)));
+    assert!(matches!(&app.update, crate::settings::UpdateState::Available(release) if release.version == "9.0.0-rc.1"));
     assert!(
         simulator(app.view())
             .find("floetask 9.0.0-rc.1 (preview) is available.")
@@ -1269,15 +1325,15 @@ fn about_page_shows_the_version_and_an_available_update() {
     assert!(simulator(app.view()).find("Install and restart").is_ok());
 
     // Rolling back installs the earlier version picked.
-    let _ = app.update(Message::RollbackChoice("0.3.1".to_owned()));
+    let _ = app.update(Message::Settings(settings::Message::RollbackChoice("0.3.1".to_owned())));
     snapshot(&app, "settings-about");
     let messages = click(&app, "Install");
-    let [Message::InstallRelease(version)] = &messages[..] else {
+    let [Message::Settings(settings::Message::InstallRelease(version))] = &messages[..] else {
         panic!("expected InstallRelease, got {messages:?}")
     };
     assert_eq!(version, "0.3.1");
-    let _ = app.update(Message::InstallRelease(version.clone()));
-    assert_eq!(app.update, crate::app::UpdateState::Installing("0.3.1".to_owned()));
+    let _ = app.update(Message::Settings(settings::Message::InstallRelease(version.clone())));
+    assert_eq!(app.update, crate::settings::UpdateState::Installing("0.3.1".to_owned()));
 }
 
 #[test]
@@ -1295,9 +1351,9 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
 
     // Today (Sunday 4 October) ends the week that starts on Monday 28 September.
     // ("Call mom @phone" is rich text there, which the simulator cannot find.)
-    let _ = app.update(Message::CalendarMode(CalendarMode::Week));
+    let _ = app.update(Message::Calendar(calendar::Message::Mode(CalendarMode::Week)));
     assert!(simulator(app.view()).find("Prepare slides").is_err());
-    let _ = app.update(Message::CalendarStep(1));
+    let _ = app.update(Message::Calendar(calendar::Message::Step(1)));
     assert!(simulator(app.view()).find("Prepare slides").is_ok());
     snapshot(&app, "calendar-week");
 
@@ -1305,24 +1361,24 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
     let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
     let target = TodoRef::new(slides.line, &slides.todo);
     let due = slides.todo.due().unwrap();
-    let _ = app.update(Message::CalendarPress(target.clone(), Some(due)));
-    let _ = app.update(Message::CalendarRelease);
+    let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), Some(due))));
+    let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
     let _ = app.update(Message::CloseDialog);
 
     // Dragged away and dropped back on the same day, nothing opens.
-    let _ = app.update(Message::CalendarPress(target.clone(), Some(due)));
-    let _ = app.update(Message::CalendarCardLeft);
-    let _ = app.update(Message::CalendarRelease);
+    let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), Some(due))));
+    let _ = app.update(Message::Calendar(calendar::Message::CardLeft));
+    let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(app.dialog.is_none());
 
     // Dropped on another day, only the due date changes.
     let next_day = floetask_domain::date::add_days(due, 2);
-    let _ = app.update(Message::CalendarPress(target.clone(), Some(due)));
-    let _ = app.update(Message::CalendarHover(next_day, true));
-    let _ = app.update(Message::CalendarHover(due, false));
+    let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), Some(due))));
+    let _ = app.update(Message::Calendar(calendar::Message::Hover(next_day, true)));
+    let _ = app.update(Message::Calendar(calendar::Message::Hover(due, false)));
     assert_eq!(app.calendar_hover, Some(next_day));
-    let _ = app.update(Message::CalendarRelease);
+    let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(app.calendar_drag.is_none());
     let moved = app.services.todo_files.set_date(
         Path::new(TODO_PATH),
@@ -1331,11 +1387,11 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
         Some(next_day),
         &app.file_options(),
     );
-    let _ = app.update(Message::Saved(PathBuf::from(TODO_PATH), moved));
+    let _ = app.update(Message::Files(files::Message::Saved(PathBuf::from(TODO_PATH), moved)));
     let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
     assert_eq!(slides.todo.due(), Some(next_day));
 
-    let _ = app.update(Message::CalendarOpenDay(next_day));
+    let _ = app.update(Message::Calendar(calendar::Message::OpenDay(next_day)));
     assert_eq!(app.state.calendar_mode, CalendarMode::Day);
     assert!(simulator(app.view()).find("Prepare slides").is_ok());
     snapshot(&app, "calendar-day");
@@ -1349,7 +1405,7 @@ fn calendar_checkbox_completes_a_todo_without_dragging_it() {
     let _ = app.update(Message::ShowMainView(MainView::Calendar));
     let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
     let (line, due) = (slides.line, slides.todo.due().unwrap());
-    let _ = app.update(Message::CalendarOpenDay(due));
+    let _ = app.update(Message::Calendar(calendar::Message::OpenDay(due)));
 
     // The checkbox sits just left of the todo text.
     let mut ui = simulator(app.view());
@@ -1358,11 +1414,13 @@ fn calendar_checkbox_completes_a_todo_without_dragging_it() {
     let _ = ui.simulate(iced_test::simulator::click());
     let messages: Vec<Message> = ui.into_messages().collect();
     assert!(
-        matches!(messages.first(), Some(Message::ToggleComplete(target)) if target.line == line),
+        matches!(messages.first(), Some(Message::List(list::Message::ToggleComplete(target))) if target.line == line),
         "{messages:?}"
     );
     assert!(
-        !messages.iter().any(|m| matches!(m, Message::CalendarPress(..))),
+        !messages
+            .iter()
+            .any(|m| matches!(m, Message::Calendar(calendar::Message::Press(..)))),
         "{messages:?}"
     );
 }
@@ -1375,10 +1433,10 @@ fn undated_panel_lists_todos_without_due_date_and_plans_them() {
     let _ = app.update(Message::ShowMainView(MainView::Calendar));
     let messages = click(&app, "2 without a due date");
     assert!(
-        matches!(&messages[..], [Message::CalendarToggleUndated]),
+        matches!(&messages[..], [Message::Calendar(calendar::Message::ToggleUndated)]),
         "{messages:?}"
     );
-    let _ = app.update(Message::CalendarToggleUndated);
+    let _ = app.update(Message::Calendar(calendar::Message::ToggleUndated));
     assert!(app.calendar_undated_open);
     assert!(simulator(app.view()).find("Without due date").is_ok());
     assert!(simulator(app.view()).find("Legal review").is_ok());
@@ -1387,29 +1445,29 @@ fn undated_panel_lists_todos_without_due_date_and_plans_them() {
     // A click on a card in the panel opens it.
     let legal = app.listing.todos().find(|e| e.todo.body() == "Legal review").unwrap();
     let target = TodoRef::new(legal.line, &legal.todo);
-    let _ = app.update(Message::CalendarPress(target.clone(), None));
-    let _ = app.update(Message::CalendarRelease);
+    let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), None)));
+    let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
     let _ = app.update(Message::CloseDialog);
 
     // Dragged and dropped back in the panel, nothing opens.
-    let _ = app.update(Message::CalendarPress(target.clone(), None));
-    let _ = app.update(Message::CalendarCardLeft);
-    let _ = app.update(Message::CalendarRelease);
+    let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), None)));
+    let _ = app.update(Message::Calendar(calendar::Message::CardLeft));
+    let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(app.dialog.is_none());
 
     // Dragged onto a day, it gets that due date.
     let day = app.today;
-    let _ = app.update(Message::CalendarPress(target.clone(), None));
-    let _ = app.update(Message::CalendarHoverUndated(false));
-    let _ = app.update(Message::CalendarHover(day, true));
-    let _ = app.update(Message::CalendarRelease);
+    let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), None)));
+    let _ = app.update(Message::Calendar(calendar::Message::HoverUndated(false)));
+    let _ = app.update(Message::Calendar(calendar::Message::Hover(day, true)));
+    let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(app.calendar_drag.is_none());
     let moved = app
         .services
         .todo_files
         .set_date(Path::new(TODO_PATH), &target, "due", Some(day), &app.file_options());
-    let _ = app.update(Message::Saved(PathBuf::from(TODO_PATH), moved));
+    let _ = app.update(Message::Files(files::Message::Saved(PathBuf::from(TODO_PATH), moved)));
     let legal = app.listing.todos().find(|e| e.todo.body() == "Legal review").unwrap();
     assert_eq!(legal.todo.due(), Some(day));
     assert!(simulator(app.view()).find("1 without a due date").is_ok());
@@ -1421,15 +1479,15 @@ fn main_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
     use floetask_domain::calendar::CalendarMode;
 
     let mut app = app();
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     let _ = app.update(Message::ShowMainView(MainView::Calendar));
-    let _ = app.update(Message::CalendarToggleUndated);
+    let _ = app.update(Message::Calendar(calendar::Message::ToggleUndated));
     let open = |app: &Floetask| {
         let shown = app.shown_panels();
         (shown.filters, shown.files, shown.undated)
     };
 
-    let _ = app.update(Message::CalendarMode(CalendarMode::Week));
+    let _ = app.update(Message::Calendar(calendar::Message::Mode(CalendarMode::Week)));
     app.state.window.width = 1700.0;
     assert_eq!(open(&app), (true, true, true));
     app.state.window.width = 1500.0;
@@ -1457,20 +1515,20 @@ fn main_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
 
     // Asked for while there is no room, a panel opens over the main view;
     // the next click (or Escape) hides it, and it stays open for later.
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Filters));
     assert!(app.state.drawer_open);
     snapshot(&app, "filter-overlay");
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     assert_eq!(app.panel_overlay, None);
     assert!(app.state.drawer_open);
-    let _ = app.update(Message::ToggleFilesDrawer);
+    let _ = app.update(Message::Files(files::Message::ToggleDrawer));
     assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Files));
     let _ = app.update(Message::ClosePanelOverlay);
     assert_eq!(app.panel_overlay, None);
     // Closed panels opened in a narrow window show as an overlay too.
     app.state.drawer_open = false;
-    let _ = app.update(Message::ToggleDrawer);
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     assert!(app.state.drawer_open);
     assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Filters));
 }

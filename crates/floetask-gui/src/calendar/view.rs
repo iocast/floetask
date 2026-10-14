@@ -16,12 +16,14 @@ use floetask_domain::calendar::{CalendarMode, CalendarSpan, todos_by_day, undate
 use floetask_domain::date::Datelike;
 use floetask_domain::listing::ListedTodo;
 
-use super::icons::{Icon, icon};
-use super::list::{body, meta};
-use super::widgets::{icon_button, with_tooltip};
-use crate::app::{DateKey, Floetask, Message};
+use crate::app::{Floetask, Message};
+use crate::editor::DateKey;
 use crate::i18n::{self, tr, trf};
+use crate::list::{body, meta};
 use crate::theme::{self, Colors};
+use crate::view::icons::{Icon, icon};
+use crate::view::widgets::{icon_button, with_tooltip};
+use crate::{calendar, list};
 
 const WEEKDAYS: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
@@ -42,8 +44,8 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     } else {
         body
     };
-    let mut calendar =
-        mouse_area(column![header(app, &span), body].spacing(12).height(Fill)).on_release(Message::CalendarRelease);
+    let mut calendar = mouse_area(column![header(app, &span), body].spacing(12).height(Fill))
+        .on_release(Message::Calendar(calendar::Message::Release));
     if app.calendar_drag.is_some() {
         calendar = calendar.interaction(mouse::Interaction::Grabbing);
     }
@@ -59,18 +61,18 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
         icon_button(
             Icon::ChevronLeft,
             tr("calendar_previous"),
-            Some(Message::CalendarStep(-1)),
+            Some(Message::Calendar(calendar::Message::Step(-1))),
             colors,
             false
         ),
         button(text(tr("calendar_today")).size(13))
             .padding([6, 12])
             .style(theme::secondary(colors))
-            .on_press(Message::CalendarToday),
+            .on_press(Message::Calendar(calendar::Message::Today)),
         icon_button(
             Icon::ChevronRight,
             tr("calendar_next"),
-            Some(Message::CalendarStep(1)),
+            Some(Message::Calendar(calendar::Message::Step(1))),
             colors,
             false
         ),
@@ -92,7 +94,7 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
         )
         .padding([6, 10])
         .style(theme::ghost(colors, app.calendar_undated_open))
-        .on_press(Message::CalendarToggleUndated)
+        .on_press(Message::Calendar(calendar::Message::ToggleUndated))
         .into()
     } else {
         space().into()
@@ -107,7 +109,7 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
         button(text(tr(key)).size(13))
             .padding([6, 12])
             .style(theme::ghost(colors, option == mode))
-            .on_press(Message::CalendarMode(option))
+            .on_press(Message::Calendar(calendar::Message::Mode(option)))
             .into()
     }))
     .spacing(2);
@@ -226,7 +228,7 @@ fn month_cell_entries<'a>(
             button(text(trf("calendar_more", &[("count", (todos.len() - shown).into())])).size(11))
                 .padding([1, 6])
                 .style(theme::ghost(colors, false))
-                .on_press(Message::CalendarOpenDay(date)),
+                .on_press(Message::Calendar(calendar::Message::OpenDay(date))),
         );
     }
     entries.into()
@@ -278,7 +280,7 @@ fn day_number<'a>(app: &Floetask, date: Date, in_month: bool, colors: Colors) ->
             theme::ghost(colors, false)(theme, status)
         }
     })
-    .on_press(Message::CalendarOpenDay(date))
+    .on_press(Message::Calendar(calendar::Message::OpenDay(date)))
     .into()
 }
 
@@ -329,7 +331,7 @@ fn week_row<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>, width: 
         )
         .padding([2, 6])
         .style(theme::ghost(colors, false))
-        .on_press(Message::CalendarOpenDay(date));
+        .on_press(Message::Calendar(calendar::Message::OpenDay(date)));
         let todos = days.get(&date).map(Vec::as_slice).unwrap_or_default();
         let entries = Column::with_children(todos.iter().map(|entry| card(app, Some(date), entry, colors)))
             .spacing(8)
@@ -383,8 +385,8 @@ fn drop_zone<'a>(
     let target =
         app.calendar_drag.as_ref().is_some_and(|(_, from)| *from != Some(date)) && app.calendar_hover == Some(date);
     mouse_area(content.style(theme::calendar_day(colors, in_month, target)))
-        .on_enter(Message::CalendarHover(date, true))
-        .on_exit(Message::CalendarHover(date, false))
+        .on_enter(Message::Calendar(calendar::Message::Hover(date, true)))
+        .on_exit(Message::Calendar(calendar::Message::Hover(date, false)))
         .into()
 }
 
@@ -417,8 +419,8 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
             .clip(true)
             .style(theme::board_card(colors, is_dragged(app, entry))),
     )
-    .on_press(Message::CalendarPress(target, from))
-    .on_exit(Message::CalendarCardLeft)
+    .on_press(Message::Calendar(calendar::Message::Press(target, from)))
+    .on_exit(Message::Calendar(calendar::Message::CardLeft))
     .interaction(mouse::Interaction::Grab);
     with_tooltip(card, todo.display_text(), colors)
 }
@@ -445,7 +447,10 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
             )
             .padding([2, 8])
             .style(theme::chip(colors.primary, colors, false))
-            .on_press(Message::OpenRowDatePicker(target.clone(), DateKey::Due))
+            .on_press(Message::List(list::Message::OpenDatePicker(
+                target.clone(),
+                DateKey::Due,
+            )))
             .into(),
         );
     }
@@ -473,8 +478,8 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
             .clip(true)
             .style(theme::board_card(colors, is_dragged(app, entry))),
     )
-    .on_press(Message::CalendarPress(target, from))
-    .on_exit(Message::CalendarCardLeft)
+    .on_press(Message::Calendar(calendar::Message::Press(target, from)))
+    .on_exit(Message::Calendar(calendar::Message::CardLeft))
     .interaction(mouse::Interaction::Grab)
     .into()
 }
@@ -493,7 +498,7 @@ fn undated_panel(app: &Floetask) -> Element<'_, Message> {
         icon_button(
             Icon::Close,
             tr("close"),
-            Some(Message::CalendarToggleUndated),
+            Some(Message::Calendar(calendar::Message::ToggleUndated)),
             colors,
             false
         ),
@@ -519,8 +524,8 @@ fn undated_panel(app: &Floetask) -> Element<'_, Message> {
             .height(Fill)
             .style(theme::lane(colors, false)),
     )
-    .on_enter(Message::CalendarHoverUndated(true))
-    .on_exit(Message::CalendarHoverUndated(false))
+    .on_enter(Message::Calendar(calendar::Message::HoverUndated(true)))
+    .on_exit(Message::Calendar(calendar::Message::HoverUndated(false)))
     .into()
 }
 
@@ -529,7 +534,7 @@ fn undated_panel(app: &Floetask) -> Element<'_, Message> {
 fn complete_box<'a>(entry: &ListedTodo, size: f32, colors: Colors) -> Element<'a, Message> {
     let target = TodoRef::new(entry.line, &entry.todo);
     checkbox(entry.todo.is_complete())
-        .on_toggle(move |_| Message::ToggleComplete(target.clone()))
+        .on_toggle(move |_| Message::List(list::Message::ToggleComplete(target.clone())))
         .size(size)
         .style(theme::round_checkbox(colors))
         .into()

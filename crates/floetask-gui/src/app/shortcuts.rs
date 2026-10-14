@@ -6,7 +6,9 @@ use iced::keyboard::{Key, Modifiers, key::Named};
 
 use floetask_application::{MainView, TodoRef};
 
-use super::{Floetask, Message, ViewToggle};
+use super::{Floetask, Message};
+use crate::drawer::ViewToggle;
+use crate::{drawer, editor, files, list, note_window, search, settings};
 
 impl Floetask {
     pub(super) fn on_key(&mut self, window: iced::window::Id, key: Key, modifiers: Modifiers) -> Task<Message> {
@@ -14,7 +16,9 @@ impl Floetask {
         // on a window the user is not looking at.
         if self.note_window.as_ref().is_some_and(|note| note.id == window) {
             return match key.as_ref() {
-                Key::Character("s") if modifiers.command() => self.update(Message::NoteWindowSave),
+                Key::Character("s") if modifiers.command() => {
+                    self.update(Message::NoteWindow(note_window::Message::Save))
+                }
                 _ => Task::none(),
             };
         }
@@ -31,10 +35,12 @@ impl Floetask {
             },
             Key::Named(Named::ArrowDown) => self.move_selection(1),
             Key::Named(Named::ArrowUp) => self.move_selection(-1),
-            Key::Named(Named::Enter) => self.on_selected(Message::OpenTodo),
-            Key::Named(Named::Space) => self.on_selected(Message::ToggleComplete),
-            Key::Named(Named::Delete) => self.on_selected(Message::AskDelete),
-            Key::Named(Named::Backspace) if modifiers.command() => self.on_selected(Message::AskDelete),
+            Key::Named(Named::Enter) => self.on_selected(|target| Message::List(list::Message::OpenTodo(target))),
+            Key::Named(Named::Space) => self.on_selected(|target| Message::List(list::Message::ToggleComplete(target))),
+            Key::Named(Named::Delete) => self.on_selected(|target| Message::List(list::Message::AskDelete(target))),
+            Key::Named(Named::Backspace) if modifiers.command() => {
+                self.on_selected(|target| Message::List(list::Message::AskDelete(target)))
+            }
             _ => Task::none(),
         }
     }
@@ -52,27 +58,30 @@ impl Floetask {
         let alt = modifiers.alt();
         let shift = modifiers.shift();
         Some(match (character.as_str(), alt, shift) {
-            ("n", false, false) => Message::NewTodo,
-            ("f", false, false) => Message::FocusSearch,
-            ("f", false, true) => Message::ToggleSavedFilters,
-            ("h", false, false) => Message::ViewToggle(ViewToggle::Completed, !self.state.view.show_completed),
-            ("h", true, false) => Message::ToggleFilesDrawer,
-            ("0", false, false) => Message::ResetFilters,
-            ("a", true, false) => Message::ArchiveCompleted,
-            ("o", false, false) => Message::OpenFileDialog,
-            (",", false, false) => Message::OpenSettings,
-            ("b", false, false) => Message::ToggleDrawer,
+            ("n", false, false) => Message::Editor(editor::Message::New),
+            ("f", false, false) => Message::Search(search::Message::Focus),
+            ("f", false, true) => Message::Search(search::Message::ToggleSaved),
+            ("h", false, false) => Message::Drawer(drawer::Message::ViewToggle(
+                ViewToggle::Completed,
+                !self.state.view.show_completed,
+            )),
+            ("h", true, false) => Message::Files(files::Message::ToggleDrawer),
+            ("0", false, false) => Message::Drawer(drawer::Message::ResetFilters),
+            ("a", true, false) => Message::Files(files::Message::ArchiveCompleted),
+            ("o", false, false) => Message::Files(files::Message::OpenDialog),
+            (",", false, false) => Message::Settings(settings::Message::Open),
+            ("b", false, false) => Message::Drawer(drawer::Message::Toggle),
             ("b", true, false) => Message::ToggleMainView,
             ("c", true, false) => Message::ShowMainView(if self.state.main_view == MainView::Calendar {
                 MainView::List
             } else {
                 MainView::Calendar
             }),
-            ("d", true, false) => Message::ToggleTheme,
+            ("d", true, false) => Message::Settings(settings::Message::ToggleTheme),
             ("w", false, false) | ("q", false, false) => Message::Quit,
             (digit, false, false) => {
                 let number: usize = digit.parse().ok().filter(|n| (1..=9).contains(n))?;
-                Message::SelectFile(number - 1)
+                Message::Files(files::Message::Select(number - 1))
             }
             _ => return None,
         })
@@ -85,7 +94,7 @@ impl Floetask {
         if let Some(super::Dialog::Editor(editor)) = &self.dialog
             && editor.calendar.is_some()
         {
-            return self.update(Message::EditorCloseCalendar);
+            return self.update(Message::Editor(editor::Message::CloseDatePicker));
         }
         if self.dialog.is_some() {
             return self.close_dialog();
@@ -103,7 +112,7 @@ impl Floetask {
             return Task::none();
         }
         if self.state.drawer_open {
-            return self.update(Message::ToggleDrawer);
+            return self.update(Message::Drawer(drawer::Message::Toggle));
         }
         if !self.search.input.is_empty() {
             return self.clear_search();

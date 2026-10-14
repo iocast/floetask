@@ -1,17 +1,21 @@
 //! The drawer: a floating panel with attributes, view filters and sorting.
 
-use iced::widget::{Column, Row, button, column, container, mouse_area, row, rule, scrollable, space, text};
+use iced::widget::{
+    Column, Row, button, column, container, mouse_area, row, rule, scrollable, space, text, text_input,
+};
 use iced::{Alignment, Element, Fill};
 
 use floetask_application::DrawerTab;
 use floetask_domain::listing::{Attribute, AttributeSummary};
 
-use super::icons::{Icon, icon};
-use super::list::{attribute_label, status_label};
-use super::widgets::{caption, icon_button, switch};
-use crate::app::{Floetask, Message, ViewToggle};
+use super::ViewToggle;
+use crate::app::{Floetask, Message};
+use crate::drawer;
 use crate::i18n::{tr, trf};
+use crate::list::{attribute_label, status_label};
 use crate::theme::{self, Colors};
+use crate::view::icons::{Icon, icon};
+use crate::view::widgets::{caption, danger_button, icon_button, primary_button, secondary_button, switch, title};
 
 const WIDTH: f32 = crate::layout::FILTER_DRAWER_WIDTH;
 
@@ -47,7 +51,7 @@ fn segmented(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             .width(Fill)
             .padding([6, 0])
             .style(theme::tab(colors, active))
-            .on_press(Message::DrawerTab(value))
+            .on_press(Message::Drawer(drawer::Message::Tab(value)))
     };
     container(
         row![
@@ -81,7 +85,7 @@ fn attributes(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             )
             .padding([6, 10])
             .style(theme::ghost(colors, true))
-            .on_press(Message::ResetFilters),
+            .on_press(Message::Drawer(drawer::Message::ResetFilters)),
         );
     }
     for summary in &app.summaries {
@@ -124,11 +128,11 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
         .padding([4, 4])
         .style(theme::ghost(colors, false))
         .width(Fill)
-        .on_press(Message::ToggleSection(attribute)),
+        .on_press(Message::Drawer(drawer::Message::ToggleSection(attribute))),
         icon_button(
             if hidden { Icon::EyeOff } else { Icon::Eye },
             tr(if hidden { "show_category" } else { "hide_category" }),
-            Some(Message::ToggleCategory(attribute)),
+            Some(Message::Drawer(drawer::Message::ToggleCategory(attribute))),
             colors,
             hidden,
         ),
@@ -161,11 +165,15 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
         )
         .padding([3, 10])
         .style(theme::chip(color, colors, state.is_some()))
-        .on_press(Message::FilterValue(attribute, value.value.clone(), exclude_click));
+        .on_press(Message::Drawer(drawer::Message::FilterValue(
+            attribute,
+            value.value.clone(),
+            exclude_click,
+        )));
         let on_right = if attribute.is_renamable() {
-            Message::AskRename(attribute, value.value.clone())
+            Message::Drawer(drawer::Message::AskRename(attribute, value.value.clone()))
         } else {
-            Message::FilterValue(attribute, value.value.clone(), true)
+            Message::Drawer(drawer::Message::FilterValue(attribute, value.value.clone(), true))
         };
         mouse_area(chip).on_right_press(on_right).into()
     }))
@@ -178,7 +186,9 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
 fn filters(app: &Floetask) -> Element<'_, Message> {
     let view = &app.state.view;
     let toggle = |label: &'static str, value: bool, which: ViewToggle| {
-        switch(tr(label), value, move |on| Message::ViewToggle(which, on))
+        switch(tr(label), value, move |on| {
+            Message::Drawer(drawer::Message::ViewToggle(which, on))
+        })
     };
     let hidden_statuses: Vec<String> = app
         .settings
@@ -194,7 +204,7 @@ fn filters(app: &Floetask) -> Element<'_, Message> {
             &[("statuses", hidden_statuses.join(", ").to_lowercase().into())],
         );
         toggles = toggles.push(switch(label, view.show_hidden_statuses, |on| {
-            Message::ViewToggle(ViewToggle::HiddenStatuses, on)
+            Message::Drawer(drawer::Message::ViewToggle(ViewToggle::HiddenStatuses, on))
         }));
     }
     toggles
@@ -238,21 +248,21 @@ fn sorting(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                     Icon::ArrowUp
                 },
                 tr("invert"),
-                Some(Message::InvertSort(index)),
+                Some(Message::Drawer(drawer::Message::InvertSort(index))),
                 colors,
                 criterion.descending,
             ),
             icon_button(
                 Icon::ChevronUp,
                 tr("move_up"),
-                (index > 0).then_some(Message::MoveSort(index, -1)),
+                (index > 0).then_some(Message::Drawer(drawer::Message::MoveSort(index, -1))),
                 colors,
                 false
             ),
             icon_button(
                 Icon::ChevronDown,
                 tr("move_down"),
-                (index < last).then_some(Message::MoveSort(index, 1)),
+                (index < last).then_some(Message::Drawer(drawer::Message::MoveSort(index, 1))),
                 colors,
                 false,
             ),
@@ -264,9 +274,49 @@ fn sorting(app: &Floetask, colors: Colors) -> Element<'_, Message> {
     column![
         criteria,
         rule::horizontal(1),
-        switch(tr("file_order"), sorting.file_order, Message::FileOrder),
-        switch(tr("completed_last"), sorting.completed_last, Message::CompletedLast),
+        switch(tr("file_order"), sorting.file_order, |on| Message::Drawer(
+            drawer::Message::FileOrder(on)
+        )),
+        switch(tr("completed_last"), sorting.completed_last, |on| Message::Drawer(
+            drawer::Message::CompletedLast(on)
+        )),
     ]
     .spacing(14)
+    .into()
+}
+
+pub fn rename_dialog<'a>(
+    app: &'a Floetask,
+    attribute: Attribute,
+    from: &'a str,
+    input: &'a str,
+) -> Element<'a, Message> {
+    let colors = app.colors();
+    let field = text_input("", input)
+        .on_input(|text| Message::Drawer(drawer::Message::RenameInput(text)))
+        .on_submit(Message::ConfirmDialog)
+        .padding(10)
+        .style(theme::input(colors));
+    column![
+        title(trf(
+            "rename_title",
+            &[("value", attribute_label(app, attribute, from).into())]
+        )),
+        field,
+        row![
+            danger_button(
+                tr("remove_value"),
+                Message::Drawer(drawer::Message::AskRemoveValue(attribute, from.to_owned())),
+                colors
+            ),
+            space().width(Fill),
+            secondary_button(tr("cancel"), Message::CloseDialog, colors),
+            primary_button(tr("rename"), Message::ConfirmDialog, colors),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    ]
+    .spacing(16)
+    .width(460)
     .into()
 }

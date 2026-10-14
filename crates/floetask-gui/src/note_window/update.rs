@@ -1,10 +1,6 @@
-//! The note window: a second window with the Markdown editor, opened from a
-//! todo's note chip or from the add/edit dialog. There is only one; opening
-//! another note reuses it. Edits are saved once typing pauses, on `Ctrl+S`,
-//! and before the window closes or shows another note.
+//! Opening, saving and closing the note window.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use iced::{Size, Task, window};
 use iced_markdown_editor::Event;
@@ -12,56 +8,10 @@ use iced_markdown_editor::Event;
 use floetask_application::{NoteService, WindowState};
 use floetask_domain::NoteLink;
 
-use super::dialog::NoteField;
-use super::{Dialog, Floetask, Message};
-
-/// How long typing has to pause before the note is saved.
-const AUTOSAVE_DELAY: Duration = Duration::from_millis(800);
-
-pub struct NoteWindow {
-    pub id: window::Id,
-    /// The todo file whose notes folder `link` is relative to.
-    pub todo_file: PathBuf,
-    pub link: NoteLink,
-    pub note: NoteField,
-    /// Bumped on every edit, so only the latest pending autosave writes.
-    revision: u64,
-    /// Why the last save failed, until a save succeeds.
-    pub error: Option<String>,
-}
-
-impl NoteWindow {
-    pub fn path(&self) -> PathBuf {
-        NoteService::link_path(&self.todo_file, &self.link)
-    }
-
-    /// The note's name for the title: `todo-notes/plan.md`, or the file name
-    /// of a note kept elsewhere.
-    pub fn title(&self) -> String {
-        match &self.link {
-            NoteLink::Folder(name) => format!("{}/{name}", NoteService::folder_name(&self.todo_file)),
-            NoteLink::External(_) => self.link.file_name().to_owned(),
-        }
-    }
-
-    fn schedule_autosave(&mut self) -> Task<Message> {
-        self.revision += 1;
-        let revision = self.revision;
-        Task::perform(tokio::time::sleep(AUTOSAVE_DELAY), move |()| {
-            Message::NoteWindowAutosave(revision)
-        })
-    }
-}
-
-impl std::fmt::Debug for NoteWindow {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NoteWindow")
-            .field("id", &self.id)
-            .field("link", &self.link)
-            .field("note", &self.note)
-            .finish_non_exhaustive()
-    }
-}
+use super::NoteWindow;
+use crate::app::{Dialog, Floetask, Message};
+use crate::editor::NoteField;
+use crate::{editor, note_window};
 
 /// The note window opens as an ordinary window with the system's frame,
 /// where it was last; the first time, the system places it.
@@ -80,9 +30,9 @@ fn settings(last: &WindowState) -> window::Settings {
 }
 
 impl Floetask {
-    pub(super) fn update_note_window(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_note_window(&mut self, message: note_window::Message) -> Task<Message> {
         match message {
-            Message::NoteWindowLoaded(todo_file, result) => match result {
+            note_window::Message::Loaded(todo_file, result) => match result {
                 Ok((link, text)) => {
                     // The note may have just been created: update its link.
                     self.refresh();
@@ -90,12 +40,16 @@ impl Floetask {
                 }
                 Err(error) => self.report(&error),
             },
-            Message::NoteWindowAction(action) => {
+            note_window::Message::Action(action) => {
                 let Some(window) = &mut self.note_window else {
                     return Task::none();
                 };
                 let output = window.note.update(action);
-                let mut tasks = vec![output.task.map(Message::NoteWindowAction)];
+                let mut tasks = vec![
+                    output
+                        .task
+                        .map(|action| Message::NoteWindow(note_window::Message::Action(action))),
+                ];
                 for event in output.events {
                     match event {
                         Event::Changed => tasks.push(window.schedule_autosave()),
@@ -106,13 +60,13 @@ impl Floetask {
                 }
                 Task::batch(tasks)
             }
-            Message::NoteWindowAutosave(revision) => match &self.note_window {
+            note_window::Message::Autosave(revision) => match &self.note_window {
                 Some(window) if window.revision == revision => self.save_note_window().unwrap_or_else(Task::none),
                 _ => Task::none(),
             },
-            Message::NoteWindowSave => self.save_note_window().unwrap_or_else(Task::none),
-            Message::NoteWindowSaved(path, text, result) => self.note_window_saved(&path, text, result),
-            Message::NoteWindowOpenExternally => {
+            note_window::Message::Save => self.save_note_window().unwrap_or_else(Task::none),
+            note_window::Message::Saved(path, text, result) => self.note_window_saved(&path, text, result),
+            note_window::Message::OpenExternally => {
                 let Some(window) = &self.note_window else {
                     return Task::none();
                 };
@@ -121,19 +75,25 @@ impl Floetask {
                     window.todo_file.clone(),
                     window.link.clone(),
                 );
-                Task::perform(
-                    async move { notes.open_externally(&todo_file, &link) },
-                    Message::NoteOpened,
-                )
+                Task::perform(async move { notes.open_externally(&todo_file, &link) }, |result| {
+                    Message::NoteWindow(note_window::Message::OpenedExternally(result))
+                })
             }
-            _ => Task::none(),
+            note_window::Message::OpenedExternally(result) => match result {
+                // The note may have just been created: update its link.
+                Ok(_) => {
+                    self.refresh();
+                    Task::none()
+                }
+                Err(error) => self.report(&error),
+            },
         }
     }
 
     /// Shows a note in the note window, opening the window or reusing it;
     /// the note it showed before is saved first. `text` is the note on disk,
     /// `unsaved` text typed in the dialog that is not on disk yet.
-    pub(super) fn show_note_window(
+    pub(crate) fn show_note_window(
         &mut self,
         todo_file: PathBuf,
         link: NoteLink,
@@ -181,7 +141,7 @@ impl Floetask {
     }
 
     /// Saves and closes the note window, remembering where it was.
-    pub(super) fn close_note_window(&mut self) -> Task<Message> {
+    pub(crate) fn close_note_window(&mut self) -> Task<Message> {
         let release = self.release_note_window();
         match self.note_window.take() {
             Some(window) => Task::batch([release, self.persist_state(), window::close(window.id)]),
@@ -190,7 +150,7 @@ impl Floetask {
     }
 
     /// Follows the note window's moves and resizes, so it opens there again.
-    pub(super) fn on_note_window_event(&mut self, event: window::Event) -> Task<Message> {
+    pub(crate) fn on_note_window_event(&mut self, event: window::Event) -> Task<Message> {
         match event {
             window::Event::CloseRequested => self.close_note_window(),
             window::Event::Resized(size) => {
@@ -230,7 +190,7 @@ impl Floetask {
                 let result = notes.write(&todo_file, &link, &text);
                 (path, text, result)
             },
-            |(path, text, result)| Message::NoteWindowSaved(path, text, result),
+            |(path, text, result)| Message::NoteWindow(note_window::Message::Saved(path, text, result)),
         ))
     }
 
@@ -278,7 +238,7 @@ impl Floetask {
                 let text = notes.read(&todo_file, &link);
                 (link, text)
             },
-            |(link, text)| Message::NoteLinked(link, text),
+            |(link, text)| Message::Editor(editor::Message::NoteLinked(link, text)),
         )
     }
 
@@ -295,7 +255,7 @@ impl Floetask {
     }
 
     /// Saves the note window on exit, while there is no time for a task.
-    pub(super) fn save_note_window_now(&self) {
+    pub(crate) fn save_note_window_now(&self) {
         if let Some(window) = self.note_window.as_ref().filter(|window| window.note.changed())
             && let Err(error) = self
                 .services

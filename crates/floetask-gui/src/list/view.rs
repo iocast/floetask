@@ -18,12 +18,14 @@ use floetask_domain::status::{StatusSet, label_from_key};
 use floetask_domain::todo::TextSegment;
 use floetask_domain::{Date, NoteLink, Todo};
 
-use super::LIST_ID;
-use super::icons::{Icon, icon};
-use super::widgets::{icon_button, with_tooltip};
-use crate::app::{DateKey, Floetask, Message};
+use crate::app::{Floetask, Message};
+use crate::editor::DateKey;
 use crate::i18n::{self, tr, trf};
 use crate::theme::{self, Colors};
+use crate::view::LIST_ID;
+use crate::view::icons::{Icon, icon};
+use crate::view::widgets::{icon_button, with_tooltip};
+use crate::{drawer, list};
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
@@ -38,7 +40,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
             rows = rows.push(collapsible(
                 header,
                 collapsed,
-                Message::ToggleListGroup(key),
+                Message::List(list::Message::ToggleGroup(key)),
                 app.colors(),
             ));
         }
@@ -86,7 +88,7 @@ pub(crate) fn group_header<'a>(
         let shown = group_title(&attribute_label(app, attribute, value), colors);
         label = label.push(if attribute.is_renamable() {
             mouse_area(shown)
-                .on_right_press(Message::AskRename(attribute, value.clone()))
+                .on_right_press(Message::Drawer(drawer::Message::AskRename(attribute, value.clone())))
                 .into()
         } else {
             shown
@@ -154,7 +156,7 @@ fn todo_row<'a>(
 
     let toggle_target = target.clone();
     let done = checkbox(todo.is_complete())
-        .on_toggle(move |_| Message::ToggleComplete(toggle_target.clone()))
+        .on_toggle(move |_| Message::List(list::Message::ToggleComplete(toggle_target.clone())))
         .size(18)
         .style(theme::round_checkbox(colors));
 
@@ -174,10 +176,10 @@ fn todo_row<'a>(
         .width(Fill)
         .style(theme::row(colors, hovered, selected));
     mouse_area(card)
-        .on_press(Message::OpenTodo(target))
-        .on_right_press(Message::RowMenu(Some(entry.line)))
-        .on_enter(Message::RowHover(Some(entry.line)))
-        .on_exit(Message::RowHover(None))
+        .on_press(Message::List(list::Message::OpenTodo(target)))
+        .on_right_press(Message::List(list::Message::RowMenu(Some(entry.line))))
+        .on_enter(Message::List(list::Message::Hover(Some(entry.line))))
+        .on_exit(Message::List(list::Message::Hover(None)))
         .into()
 }
 
@@ -221,7 +223,7 @@ pub(crate) fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Ele
                     .background(colors.tint(colors.success, 0.15))
                     .border(iced::border::rounded(10))
                     .padding([1, 8])
-                    .link(Message::ChipFilter(Attribute::Contexts, name)),
+                    .link(Message::List(list::Message::ChipFilter(Attribute::Contexts, name))),
                 span(PILL_GAP),
             ],
         })
@@ -252,7 +254,7 @@ pub(crate) fn meta<'a>(
         button(content.push(text(label).size(12)))
             .padding([2, 8])
             .style(theme::chip(color, colors, active))
-            .on_press(Message::ChipFilter(attribute, value))
+            .on_press(Message::List(list::Message::ChipFilter(attribute, value)))
     };
 
     if let Some(priority) = todo.priority()
@@ -326,14 +328,14 @@ pub(crate) fn meta<'a>(
         )
         .padding([2, 8])
         .style(theme::chip(color, colors, active))
-        .on_press(Message::ChipFilter(attribute, filter_value));
+        .on_press(Message::List(list::Message::ChipFilter(attribute, filter_value)));
         chips = chips.push(
             row![
                 labelled,
                 button(icon(Icon::ChevronDown, 12.0, colors.muted))
                     .padding(2)
                     .style(theme::ghost(colors, false))
-                    .on_press(Message::OpenRowDatePicker(target.clone(), key)),
+                    .on_press(Message::List(list::Message::OpenDatePicker(target.clone(), key))),
             ]
             .spacing(0)
             .align_y(Alignment::Center),
@@ -426,7 +428,7 @@ fn note_button<'a>(app: &Floetask, note: &'a str, target: &TodoRef, colors: Colo
     )
     .padding([2, 8])
     .style(theme::chip(color, colors, false))
-    .on_press_maybe((status != NoteStatus::Invalid).then(|| Message::OpenNote(target.clone())));
+    .on_press_maybe((status != NoteStatus::Invalid).then(|| Message::List(list::Message::OpenNote(target.clone()))));
     with_tooltip(chip, hint, colors)
 }
 
@@ -436,28 +438,28 @@ fn quick_actions<'a>(todo: &'a Todo, target: &TodoRef, colors: Colors) -> Elemen
         icon_button(
             Icon::Pencil,
             tr("edit"),
-            Some(Message::OpenTodo(target.clone())),
+            Some(Message::List(list::Message::OpenTodo(target.clone()))),
             colors,
             false
         ),
         icon_button(
             Icon::Copy,
             tr("copy"),
-            Some(Message::CopyTodo(todo.raw().to_owned())),
+            Some(Message::List(list::Message::Copy(todo.raw().to_owned()))),
             colors,
             false
         ),
         icon_button(
             Icon::Archive,
             tr("archive_one"),
-            Some(Message::ArchiveOne(target.clone())),
+            Some(Message::List(list::Message::ArchiveOne(target.clone()))),
             colors,
             false
         ),
         icon_button(
             Icon::Trash,
             tr("delete"),
-            Some(Message::AskDelete(target.clone())),
+            Some(Message::List(list::Message::AskDelete(target.clone()))),
             colors,
             false
         ),

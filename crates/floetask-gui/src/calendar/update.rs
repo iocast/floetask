@@ -1,66 +1,52 @@
-//! The calendar view: switching modes, stepping through periods and dragging
-//! todos to another day.
+//! Switching modes, stepping through periods and dragging todos to another
+//! day.
 
 use iced::Task;
 
-use floetask_application::MainView;
 use floetask_domain::calendar::{CalendarMode, step};
 
-use super::{Floetask, Message};
+use crate::app::{Floetask, Message};
+use crate::{calendar, list};
 
 impl Floetask {
-    pub(super) fn update_calendar(&mut self, message: Message) -> Task<Message> {
+    pub(crate) fn update_calendar(&mut self, message: calendar::Message) -> Task<Message> {
         match message {
-            Message::ShowMainView(view) => {
-                if view == MainView::Calendar && self.state.main_view != MainView::Calendar {
-                    // The calendar always opens on today.
-                    self.calendar_anchor = self.today;
-                }
-                self.state.main_view = view;
-                self.drag = None;
-                self.calendar_drag = None;
-                self.persist_state()
-            }
-            Message::CalendarMode(mode) => {
+            calendar::Message::Mode(mode) => {
                 self.state.calendar_mode = mode;
                 self.persist_state()
             }
-            Message::CalendarStep(steps) => {
+            calendar::Message::Step(steps) => {
                 self.calendar_anchor = step(self.state.calendar_mode, self.calendar_anchor, steps);
                 Task::none()
             }
-            Message::CalendarToday => {
+            calendar::Message::Today => {
                 self.calendar_anchor = self.today;
                 Task::none()
             }
-            Message::CalendarOpenDay(day) => {
+            calendar::Message::OpenDay(day) => {
                 self.calendar_anchor = day;
                 self.state.calendar_mode = CalendarMode::Day;
                 self.persist_state()
             }
-            Message::CalendarPress(target, day) => {
+            calendar::Message::Press(target, day) => {
                 self.calendar_drag = Some((target, day));
                 self.calendar_drag_moved = false;
                 self.calendar_hover = day;
                 self.calendar_undated_hover = day.is_none();
                 Task::none()
             }
-            Message::ClosePanelOverlay => {
-                self.panel_overlay = None;
-                Task::none()
-            }
-            Message::CalendarToggleUndated => {
+            calendar::Message::ToggleUndated => {
                 self.calendar_undated_open = !self.calendar_undated_open;
                 Task::none()
             }
-            Message::CalendarHoverUndated(inside) => {
+            calendar::Message::HoverUndated(inside) => {
                 self.calendar_undated_hover = inside;
                 if inside {
                     self.calendar_hover = None;
                 }
                 Task::none()
             }
-            Message::CalendarHover(day, entered) => {
+            calendar::Message::Hover(day, entered) => {
                 if entered {
                     self.calendar_hover = Some(day);
                 } else if self.calendar_hover == Some(day) {
@@ -70,14 +56,13 @@ impl Floetask {
                 }
                 Task::none()
             }
-            Message::CalendarCardLeft => {
+            calendar::Message::CardLeft => {
                 if self.calendar_drag.is_some() {
                     self.calendar_drag_moved = true;
                 }
                 Task::none()
             }
-            Message::CalendarRelease => self.drop_on_day(),
-            _ => Task::none(),
+            calendar::Message::Release => self.drop_on_day(),
         }
     }
 
@@ -92,8 +77,10 @@ impl Floetask {
         let moved = std::mem::take(&mut self.calendar_drag_moved);
         match (from, self.calendar_hover) {
             (Some(from), Some(day)) if from == day && moved => Task::none(),
-            (Some(from), Some(day)) if from == day => self.update(Message::OpenTodo(target)),
-            (None, None) if self.calendar_undated_hover && !moved => self.update(Message::OpenTodo(target)),
+            (Some(from), Some(day)) if from == day => self.update(Message::List(list::Message::OpenTodo(target))),
+            (None, None) if self.calendar_undated_hover && !moved => {
+                self.update(Message::List(list::Message::OpenTodo(target)))
+            }
             (_, Some(day)) => self.change_active_file(move |service, path, options| {
                 service.set_date(path, &target, "due", Some(day), options)
             }),

@@ -14,15 +14,17 @@ use floetask_domain::status::DEFAULT_STATUS;
 use floetask_domain::todo::Todo;
 use floetask_domain::{NoteLink, Priority, RecurrenceUnit};
 
-use super::EDITOR_ID;
-use super::calendar;
-use super::icons::{Icon, icon};
-use super::list::status_label;
-use super::popover::popover;
-use super::widgets::{caption, primary_button, secondary_button, title, with_tooltip};
-use crate::app::{DateKey, Editor, Floetask, Message};
+use super::date_picker;
+use super::{DateKey, Editor};
+use crate::app::{Floetask, Message};
+use crate::editor;
 use crate::i18n::{self, tr, trf};
+use crate::list::status_label;
 use crate::theme::{self, Colors};
+use crate::view::EDITOR_ID;
+use crate::view::icons::{Icon, icon};
+use crate::view::popover::popover;
+use crate::view::widgets::{caption, primary_button, secondary_button, title, with_tooltip};
 
 pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     let colors = app.colors();
@@ -36,7 +38,7 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     let input = text_editor(&editor.content)
         .id(EDITOR_ID)
         .placeholder(tr("editor_placeholder"))
-        .on_action(Message::EditorAction)
+        .on_action(|action| Message::Editor(editor::Message::Action(action)))
         .min_height(96)
         .max_height(240)
         .padding(12)
@@ -46,13 +48,21 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
             let command = press.modifiers.command();
             let custom = |message| Some(text_editor::Binding::Custom(message));
             match press.key.as_ref() {
-                Key::Named(Named::Enter) if command => custom(Message::SaveEditor),
-                Key::Named(Named::Escape) if has_suggestions => custom(Message::EditorDismissSuggestions),
-                Key::Named(Named::Escape) if calendar_open => custom(Message::EditorCloseCalendar),
+                Key::Named(Named::Enter) if command => custom(Message::Editor(editor::Message::Save)),
+                Key::Named(Named::Escape) if has_suggestions => {
+                    custom(Message::Editor(editor::Message::DismissSuggestions))
+                }
+                Key::Named(Named::Escape) if calendar_open => custom(Message::Editor(editor::Message::CloseDatePicker)),
                 Key::Named(Named::Escape) => custom(Message::CloseDialog),
-                Key::Named(Named::ArrowDown) if has_suggestions => custom(Message::EditorSuggestionMove(1)),
-                Key::Named(Named::ArrowUp) if has_suggestions => custom(Message::EditorSuggestionMove(-1)),
-                Key::Named(Named::Enter | Named::Tab) if has_suggestions => custom(Message::EditorAccept),
+                Key::Named(Named::ArrowDown) if has_suggestions => {
+                    custom(Message::Editor(editor::Message::SuggestionMove(1)))
+                }
+                Key::Named(Named::ArrowUp) if has_suggestions => {
+                    custom(Message::Editor(editor::Message::SuggestionMove(-1)))
+                }
+                Key::Named(Named::Enter | Named::Tab) if has_suggestions => {
+                    custom(Message::Editor(editor::Message::Accept))
+                }
                 _ => text_editor::Binding::from_key_press(press),
             }
         });
@@ -97,7 +107,7 @@ fn suggestions(editor: &Editor, colors: Colors) -> Element<'_, Message> {
         button(text(name.as_str()).size(13))
             .padding([3, 10])
             .style(theme::chip(color, colors, index == editor.selected_suggestion))
-            .on_press(Message::EditorSuggestion(index))
+            .on_press(Message::Editor(editor::Message::Suggestion(index)))
             .into()
     }))
     .spacing(6)
@@ -130,17 +140,17 @@ fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
         .style(theme::ghost(colors, open || date.is_some()))
         // While open, a click on the button closes the calendar like any outside click.
         .on_press(if open {
-            Message::EditorCloseCalendar
+            Message::Editor(editor::Message::CloseDatePicker)
         } else {
-            Message::EditorOpenCalendar(key)
+            Message::Editor(editor::Message::OpenDatePicker(key))
         });
         let calendar = editor.calendar.as_ref().filter(|_| open).map(|calendar| {
-            container(calendar::view(calendar, app.today, app.settings.week_start, colors))
+            container(date_picker::view(calendar, app.today, app.settings.week_start, colors))
                 .padding(12)
                 .style(theme::card(colors))
                 .into()
         });
-        popover(anchor, calendar, Message::EditorCloseCalendar).align_left()
+        popover(anchor, calendar, Message::Editor(editor::Message::CloseDatePicker)).align_left()
     };
     let current_status = todo.status_tag().unwrap_or(DEFAULT_STATUS);
     let choice = |key: String| StatusChoice(status_label(app, &key), key);
@@ -153,12 +163,12 @@ fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
         row![
             text(tr("priority")).size(13).color(colors.muted),
             pick_list(priorities, Some(PriorityChoice(todo.priority())), |choice| {
-                Message::EditorPriority(choice.0)
+                Message::Editor(editor::Message::Priority(choice.0))
             })
             .text_size(13),
             text(tr("status")).size(13).color(colors.muted),
             pick_list(statuses, Some(choice(current_status.to_owned())), |choice| {
-                Message::EditorStatus(choice.1)
+                Message::Editor(editor::Message::Status(choice.1))
             })
             .text_size(13),
             date_button(DateKey::Due, todo.due()),
@@ -190,26 +200,30 @@ fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message>
     let repeat = row![
         icon(Icon::Repeat, 14.0, colors.muted),
         text(tr("rec")).size(13).color(colors.muted),
-        number("1", &editor.recurrence_count, Message::EditorRecurrenceCount),
+        number("1", &editor.recurrence_count, |count| Message::Editor(
+            editor::Message::RecurrenceCount(count)
+        )),
         pick_list(units, Some(UnitChoice(editor.recurrence_unit)), |unit| {
-            Message::EditorRecurrenceUnit(unit.0)
+            Message::Editor(editor::Message::RecurrenceUnit(unit.0))
         })
         .text_size(13),
         checkbox(editor.recurrence_strict)
             .label(tr("strict"))
-            .on_toggle(Message::EditorRecurrenceStrict)
+            .on_toggle(|strict| Message::Editor(editor::Message::RecurrenceStrict(strict)))
             .text_size(13),
-        small("set", Message::EditorApplyRecurrence(true)),
-        small("clear", Message::EditorApplyRecurrence(false)),
+        small("set", Message::Editor(editor::Message::ApplyRecurrence(true))),
+        small("clear", Message::Editor(editor::Message::ApplyRecurrence(false))),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
     let pomodoros = row![
         icon(Icon::Timer, 14.0, colors.muted),
         text(tr("pm")).size(13).color(colors.muted),
-        number("1", &editor.pomodoros, Message::EditorPomodoros),
-        small("set", Message::EditorApplyPomodoros(true)),
-        small("clear", Message::EditorApplyPomodoros(false)),
+        number("1", &editor.pomodoros, |count| Message::Editor(
+            editor::Message::Pomodoros(count)
+        )),
+        small("set", Message::Editor(editor::Message::ApplyPomodoros(true))),
+        small("clear", Message::Editor(editor::Message::ApplyPomodoros(false))),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -233,15 +247,27 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
         icon(Icon::Note, 14.0, colors.muted),
         caption(tr("notes"), colors),
         space::horizontal(),
-        tool(Icon::Attach, "link_note_file", Message::EditorPickNoteFile),
+        tool(
+            Icon::Attach,
+            "link_note_file",
+            Message::Editor(editor::Message::PickNoteFile)
+        ),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
     if !matches!(target, Some(Err(_))) {
-        header = header.push(tool(Icon::Window, "open_note_window", Message::EditorOpenNoteWindow));
+        header = header.push(tool(
+            Icon::Window,
+            "open_note_window",
+            Message::Editor(editor::Message::OpenNoteWindow),
+        ));
     }
     if target.is_some() {
-        header = header.push(tool(Icon::Close, "unlink_note", Message::EditorUnlinkNote));
+        header = header.push(tool(
+            Icon::Close,
+            "unlink_note",
+            Message::Editor(editor::Message::UnlinkNote),
+        ));
     }
 
     let mut section = column![header].spacing(8);
@@ -253,7 +279,11 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
         container(
             row![
                 text(tr("note_in_window")).size(13).color(colors.muted).width(Fill),
-                secondary_button(tr("show_note_window"), Message::EditorOpenNoteWindow, colors),
+                secondary_button(
+                    tr("show_note_window"),
+                    Message::Editor(editor::Message::OpenNoteWindow),
+                    colors
+                ),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -268,7 +298,7 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
                 .status_bar(false)
                 .height(220)
                 .view()
-                .map(Message::EditorNoteAction),
+                .map(|action| Message::Editor(editor::Message::NoteAction(action))),
         )
         .padding(4)
         .style(theme::note_field(colors, state.is_focused()))
@@ -316,12 +346,16 @@ fn link_question<'a>(app: &Floetask, picked: &Path, colors: Colors) -> Element<'
             row![
                 primary_button(
                     trf("note_move_into", &[("folder", folder.as_str().into())]),
-                    Message::EditorMovePickedNote,
+                    Message::Editor(editor::Message::MovePickedNote),
                     colors
                 ),
-                secondary_button(tr("note_keep_in_place"), Message::EditorKeepPickedNote, colors),
+                secondary_button(
+                    tr("note_keep_in_place"),
+                    Message::Editor(editor::Message::KeepPickedNote),
+                    colors
+                ),
                 space::horizontal(),
-                secondary_button(tr("cancel"), Message::EditorCancelPickedNote, colors),
+                secondary_button(tr("cancel"), Message::Editor(editor::Message::CancelPickedNote), colors),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -352,7 +386,7 @@ fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
     row![
         text(tr("editor_hint")).size(12).color(colors.muted).width(Fill),
         secondary_button(tr("cancel"), Message::CloseDialog, colors),
-        primary_button(save_label, Message::SaveEditor, colors),
+        primary_button(save_label, Message::Editor(editor::Message::Save), colors),
     ]
     .spacing(8)
     .align_y(Alignment::Center)

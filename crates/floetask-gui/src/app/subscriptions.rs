@@ -13,6 +13,7 @@ use floetask_application::WatcherOptions;
 use floetask_application::ports::FileWatcher;
 
 use super::{Dialog, Floetask, Message};
+use crate::{editor, files, note_window};
 
 const TICK: Duration = Duration::from_secs(60);
 
@@ -56,10 +57,18 @@ fn note_editors(app: &Floetask) -> Subscription<Message> {
     let window = app.note_window.as_ref().map(|window| window.note.state());
     let mut subscriptions = Vec::new();
     if let Some(state) = dialog {
-        subscriptions.push(state.subscription().map(Message::EditorNoteAction));
+        subscriptions.push(
+            state
+                .subscription()
+                .map(|action| Message::Editor(editor::Message::NoteAction(action))),
+        );
     }
     if let Some(state) = window {
-        subscriptions.push(state.subscription().map(Message::NoteWindowAction));
+        subscriptions.push(
+            state
+                .subscription()
+                .map(|action| Message::NoteWindow(note_window::Message::Action(action))),
+        );
     }
     if dialog.is_some_and(|state| state.is_focused()) {
         subscriptions.push(event::listen_with(|event, status, id| match (event, status) {
@@ -124,7 +133,11 @@ fn watch(app: &Floetask) -> Subscription<Message> {
                 }
             };
             while let Some(path) = changes.next().await {
-                if output.send(Message::FileChanged(path)).await.is_err() {
+                if output
+                    .send(Message::Files(files::Message::Changed(path)))
+                    .await
+                    .is_err()
+                {
                     break;
                 }
             }
