@@ -15,7 +15,7 @@ floetask-app ──► floetask-gui ──► floetask-application ──► flo
 | Crate | Layer | Holds | May depend on |
 |---|---|---|---|
 | `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `note:` name rules, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts), the status board (columns, lanes, moving a todo), the calendar (spans, todos by day) | `chrono`, `regex`, `thiserror` only |
-| `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` (including the `Updater` and `SystemLocale`) | domain |
+| `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` (including the `Updater` and `SystemLocale`) | domain, `serde` (derives only) |
 | `floetask-infrastructure` | Adapters | Local file system with safe writes, debounced watcher, TOML stores (config, state, filters, notified, colors), XDG paths, OS notifications, opening links, release updates, the OS language | domain, application, I/O crates |
 | `floetask-gui` | Presentation | iced app: state, messages, update handlers, views, theme, i18n (Fluent files in `locales/`) | domain, application, `iced`, `rfd`, `fluent-bundle` (never infrastructure) |
 | `floetask-app` | Composition root | CLI (`clap`), wires infrastructure ports into services, starts the GUI | everything |
@@ -24,7 +24,7 @@ Rules:
 
 - **Domain is pure.** No I/O, no clock, no serde. "Today" is always a parameter. New business rules go here with unit tests.
 - **Application talks to the world only through `ports.rs` traits.** A new external need (a file, the OS, a service) means a new port trait here and an adapter in infrastructure.
-- **Serialisation lives in infrastructure.** Each store owns a private DTO and maps to and from application types. Do not add `serde` derives to domain or application types.
+- **Stored application types derive serde; domain types never do.** `Settings`, `AppState`, `SavedFilter` and `ColorOverrides` derive `Serialize`/`Deserialize` with `#[serde(default)]`, so a new setting is one field. Domain values inside them are mapped in `floetask-application/src/persist.rs` and used with `#[serde(with = "...")]`. Enums are stored by lowercase name, with `#[serde(other)]` on the last variant so an unknown name in a hand-edited file falls back instead of failing. Infrastructure owns the files: paths, TOML, safe writes, and a small wrapper where the file holds more than the type (the schema version, the `[[filter]]` table).
 - **The GUI never touches infrastructure.** It receives `Services` from the composition root and calls use cases from background tasks (`Task::perform`).
 - **The GUI keeps logic thin.** Handlers call services and update presentation state. Text logic worth testing goes in a widget-free module (see `compose.rs`).
 

@@ -1,5 +1,7 @@
-//! TOML-backed stores. Each store owns its file format (a DTO) and maps it
-//! to and from application types, so serialisation never leaks inward.
+//! TOML-backed stores. The application types derive serde themselves; a
+//! store owns the file: where it is, the TOML format, safe writes, and a
+//! wrapper where the file holds more than the type (a schema version, a
+//! `[[filter]]` table name).
 
 pub mod filters;
 pub mod notified;

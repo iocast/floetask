@@ -26,27 +26,12 @@ impl SavedFilterStore for TomlSavedFilterStore {
         let Some(file) = read_toml::<FiltersFile>(&self.path)? else {
             return Ok(default_filters());
         };
-        Ok(file
-            .filter
-            .into_iter()
-            .map(|f| SavedFilter {
-                name: f.name,
-                query: f.query,
-                suppress_notifications: f.suppress_notifications,
-            })
-            .collect())
+        Ok(file.filter)
     }
 
     fn save(&self, filters: &[SavedFilter]) -> Result<(), AppError> {
         let file = FiltersFile {
-            filter: filters
-                .iter()
-                .map(|f| FilterEntry {
-                    name: f.name.clone(),
-                    query: f.query.clone(),
-                    suppress_notifications: f.suppress_notifications,
-                })
-                .collect(),
+            filter: filters.to_vec(),
         };
         write_toml(&self.path, &file)
     }
@@ -60,15 +45,7 @@ impl SavedFilterStore for TomlSavedFilterStore {
 #[serde(default)]
 struct FiltersFile {
     /// `[[filter]]` tables.
-    filter: Vec<FilterEntry>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct FilterEntry {
-    name: String,
-    query: String,
-    #[serde(default)]
-    suppress_notifications: bool,
+    filter: Vec<SavedFilter>,
 }
 
 #[cfg(test)]
@@ -87,5 +64,14 @@ mod tests {
         }];
         store.save(&filters).unwrap();
         assert_eq!(store.load().unwrap(), filters);
+    }
+
+    #[test]
+    fn suppress_notifications_is_optional() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("filters.toml");
+        std::fs::write(&path, "[[filter]]\nname = \"Work\"\nquery = \"+work\"\n").unwrap();
+        let filters = TomlSavedFilterStore::new(path).load().unwrap();
+        assert!(!filters[0].suppress_notifications);
     }
 }

@@ -11,6 +11,7 @@ pub mod colors;
 pub mod error;
 pub mod notes;
 pub mod notifications;
+mod persist;
 pub mod ports;
 pub mod saved_filters;
 pub mod settings;

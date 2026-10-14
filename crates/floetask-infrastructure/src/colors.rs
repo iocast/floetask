@@ -11,10 +11,8 @@
 
 use std::path::PathBuf;
 
-use serde::Deserialize;
-
 use floetask_application::ports::ColorStore;
-use floetask_application::{AppError, ColorOverrides, PaletteOverrides};
+use floetask_application::{AppError, ColorOverrides};
 
 use crate::stores::read_toml;
 
@@ -30,11 +28,7 @@ impl TomlColorStore {
 
 impl ColorStore for TomlColorStore {
     fn load(&self) -> Result<ColorOverrides, AppError> {
-        let file: ColorsFile = read_toml(&self.path)?.unwrap_or_default();
-        Ok(ColorOverrides {
-            light: file.light.into(),
-            dark: file.dark.into(),
-        })
+        Ok(read_toml(&self.path)?.unwrap_or_default())
     }
 
     fn location(&self) -> PathBuf {
@@ -42,51 +36,10 @@ impl ColorStore for TomlColorStore {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
-#[serde(default)]
-struct ColorsFile {
-    light: PaletteFile,
-    dark: PaletteFile,
-}
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-struct PaletteFile {
-    background: Option<String>,
-    text: Option<String>,
-    primary: Option<String>,
-    project: Option<String>,
-    success: Option<String>,
-    warning: Option<String>,
-    danger: Option<String>,
-    navigation: Option<String>,
-    priority_a: Option<String>,
-    priority_b: Option<String>,
-    priority_c: Option<String>,
-    priority_other: Option<String>,
-}
-
-impl From<PaletteFile> for PaletteOverrides {
-    fn from(f: PaletteFile) -> Self {
-        Self {
-            background: f.background,
-            text: f.text,
-            primary: f.primary,
-            project: f.project,
-            success: f.success,
-            warning: f.warning,
-            danger: f.danger,
-            navigation: f.navigation,
-            priority_a: f.priority_a,
-            priority_b: f.priority_b,
-            priority_c: f.priority_c,
-            priority_other: f.priority_other,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use floetask_application::PaletteOverrides;
+
     use super::*;
 
     #[test]
@@ -97,5 +50,13 @@ mod tests {
         let colors = TomlColorStore::new(path).load().unwrap();
         assert_eq!(colors.dark.primary.as_deref(), Some("#ff0000"));
         assert_eq!(colors.light, PaletteOverrides::default());
+    }
+
+    #[test]
+    fn unknown_colour_name_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("colors.toml");
+        std::fs::write(&path, "[dark]\nprimry = \"#ff0000\"\n").unwrap();
+        assert!(TomlColorStore::new(path).load().is_err());
     }
 }

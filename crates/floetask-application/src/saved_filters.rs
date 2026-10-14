@@ -1,14 +1,17 @@
 //! Named search queries the user saved.
 
+use serde::{Deserialize, Serialize};
+
 use floetask_domain::search::Query;
 use floetask_domain::todo::Todo;
 use floetask_domain::{Date, WeekStart};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SavedFilter {
     pub name: String,
     pub query: String,
     /// Todos matching this filter never trigger notifications.
+    #[serde(default)]
     pub suppress_notifications: bool,
 }
 

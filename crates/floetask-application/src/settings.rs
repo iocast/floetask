@@ -3,40 +3,52 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use serde::{Deserialize, Serialize};
+
 use floetask_domain::board::BoardColumns;
 use floetask_domain::{StatusSet, WeekStart};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+// Enums are stored by their lowercase name. The `other` variant comes last
+// (serde requires it): an unknown name in a hand-edited file falls back to it.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ThemePreference {
-    #[default]
-    System,
     Light,
     Dark,
+    #[default]
+    #[serde(other)]
+    System,
 }
 
 /// What a calendar month cell does with more todos than fit in it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum MonthOverflow {
-    /// Show the todos that fit and "+N more", which opens the day.
-    #[default]
-    More,
     /// List every todo and let the cell scroll.
     Scroll,
+    /// Show the todos that fit and "+N more", which opens the day.
+    #[default]
+    #[serde(other)]
+    More,
 }
 
 /// Which releases the updater offers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum UpdateChannel {
-    /// Releases only.
-    #[default]
-    Stable,
     /// Release candidates (`X.Y.Z-rc.N`) too: the next version early, for
     /// people who want to try it before everyone gets it.
     Preview,
+    /// Releases only.
+    #[default]
+    #[serde(other)]
+    Stable,
 }
 
 /// How todo files are watched for external changes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WatcherOptions {
     /// Wait until a file has been stable this long before reloading, so sync
     /// tools do not cause flicker.
@@ -56,7 +68,9 @@ impl Default for WatcherOptions {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Missing keys take their default, so older and partial files stay valid.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
     pub append_creation_date: bool,
     pub convert_relative_dates: bool,
@@ -73,6 +87,7 @@ pub struct Settings {
     pub notification_threshold_days: u8,
     pub zoom_percent: u16,
     pub theme: ThemePreference,
+    #[serde(with = "crate::persist::week_start")]
     pub week_start: WeekStart,
     pub month_overflow: MonthOverflow,
     /// `system` or a language code such as `en`.
@@ -81,9 +96,11 @@ pub struct Settings {
     pub exclude_lines_with_prefix: Vec<String>,
     pub watcher: WatcherOptions,
     /// Workflow statuses for `status:`: display order and hidden ones.
+    #[serde(with = "crate::persist::statuses")]
     pub statuses: StatusSet,
     /// Board columns per todo file. Files without an entry use the default
     /// columns.
+    #[serde(with = "crate::persist::boards")]
     pub boards: BTreeMap<PathBuf, BoardColumns>,
 }
 

@@ -1,13 +1,14 @@
 //! `config.toml`: user settings.
+//!
+//! `Settings` derives serde itself; this store adds the schema version and
+//! owns reading and writing the file.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
 use floetask_application::ports::SettingsStore;
-use floetask_application::{AppError, MonthOverflow, Settings, ThemePreference, UpdateChannel, WatcherOptions};
-use floetask_domain::board::BoardColumns;
-use floetask_domain::{StatusSet, WeekStart};
+use floetask_application::{AppError, Settings};
 
 use super::{read_toml, write_toml};
 
@@ -27,11 +28,15 @@ impl TomlSettingsStore {
 impl SettingsStore for TomlSettingsStore {
     fn load(&self) -> Result<Settings, AppError> {
         let file: Option<SettingsFile> = read_toml(&self.path)?;
-        Ok(file.map(Settings::from).unwrap_or_default().normalized())
+        Ok(file.map(|file| file.settings).unwrap_or_default().normalized())
     }
 
     fn save(&self, settings: &Settings) -> Result<(), AppError> {
-        write_toml(&self.path, &SettingsFile::from(settings))
+        let file = SettingsFile {
+            schema_version: SCHEMA_VERSION,
+            settings: settings.clone(),
+        };
+        write_toml(&self.path, &file)
     }
 
     fn location(&self) -> PathBuf {
@@ -39,271 +44,104 @@ impl SettingsStore for TomlSettingsStore {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Serialize, Deserialize)]
 struct SettingsFile {
+    #[serde(default)]
     schema_version: u32,
-    append_creation_date: bool,
-    convert_relative_dates: bool,
-    human_friendly_dates: bool,
-    safe_writes: bool,
-    bulk_creation: bool,
-    disable_animations: bool,
-    compact: bool,
-    notifications: bool,
-    check_for_updates: bool,
-    /// `stable` or `preview` (release candidates too).
-    update_channel: String,
-    notification_threshold_days: u8,
-    zoom_percent: u16,
-    /// `system`, `light` or `dark`.
-    theme: String,
-    /// `monday`, `saturday` or `sunday`.
-    week_start: String,
-    /// `more` or `scroll`: what a full calendar month cell does.
-    month_overflow: String,
-    language: String,
-    exclude_lines_with_prefix: Vec<String>,
-    watcher: WatcherFile,
-    statuses: StatusesFile,
-    /// `[[boards]]`: board columns of one todo file each.
-    boards: Vec<BoardFile>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct BoardFile {
-    file: PathBuf,
-    /// Column keys, with a display name for statuses only this board knows.
-    columns: Vec<StatusEntry>,
-}
-
-impl BoardFile {
-    fn new(file: &Path, columns: &BoardColumns) -> Self {
-        Self {
-            file: file.to_path_buf(),
-            columns: columns
-                .keys()
-                .into_iter()
-                .map(|key| StatusEntry::new(key.clone(), columns.label(&key)))
-                .collect(),
-        }
-    }
-
-    fn columns(&self) -> BoardColumns {
-        let mut columns = BoardColumns::from_keys(self.columns.iter().map(StatusEntry::key));
-        for entry in &self.columns {
-            if let StatusEntry::Labelled { key, label } = entry {
-                columns.set_label(key, label);
-            }
-        }
-        columns
-    }
-}
-
-/// `[statuses]`: the user's workflow statuses for the `status:` extension.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(default)]
-struct StatusesFile {
-    /// Display and sort order; custom statuses go here too.
-    order: Vec<StatusEntry>,
-    /// Statuses left out of the default list, like `someday`.
-    hidden: Vec<String>,
-}
-
-/// One entry of `order`: a plain key such as `"doing"`, or a table with a
-/// display name, `{ key = "in-review", label = "In review" }`. Plain keys
-/// keep older files valid and leave built-in statuses translated.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum StatusEntry {
-    Key(String),
-    Labelled { key: String, label: String },
-}
-
-impl StatusEntry {
-    fn new(key: String, label: Option<&str>) -> Self {
-        match label {
-            Some(label) => Self::Labelled {
-                key,
-                label: label.to_owned(),
-            },
-            None => Self::Key(key),
-        }
-    }
-
-    fn key(&self) -> &str {
-        match self {
-            Self::Key(key) | Self::Labelled { key, .. } => key,
-        }
-    }
-}
-
-impl From<StatusesFile> for StatusSet {
-    fn from(file: StatusesFile) -> Self {
-        let keys = file.order.iter().map(|entry| entry.key().to_owned()).collect();
-        let mut set = StatusSet::new(keys, file.hidden);
-        for entry in &file.order {
-            if let StatusEntry::Labelled { key, label } = entry {
-                set.set_label(key, label);
-            }
-        }
-        set
-    }
-}
-
-impl Default for StatusesFile {
-    fn default() -> Self {
-        Self::from(&StatusSet::default())
-    }
-}
-
-impl From<&StatusSet> for StatusesFile {
-    fn from(statuses: &StatusSet) -> Self {
-        Self {
-            order: statuses
-                .names()
-                .iter()
-                .map(|key| StatusEntry::new(key.clone(), statuses.label(key)))
-                .collect(),
-            hidden: statuses.hidden().to_vec(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(default)]
-struct WatcherFile {
-    debounce_ms: u64,
-    polling: bool,
-    poll_interval_ms: u64,
-}
-
-impl Default for SettingsFile {
-    fn default() -> Self {
-        Self::from(&Settings::default())
-    }
-}
-
-impl Default for WatcherFile {
-    fn default() -> Self {
-        let defaults = WatcherOptions::default();
-        Self {
-            debounce_ms: defaults.debounce_ms,
-            polling: defaults.polling,
-            poll_interval_ms: defaults.poll_interval_ms,
-        }
-    }
-}
-
-impl From<&Settings> for SettingsFile {
-    fn from(s: &Settings) -> Self {
-        Self {
-            schema_version: SCHEMA_VERSION,
-            append_creation_date: s.append_creation_date,
-            convert_relative_dates: s.convert_relative_dates,
-            human_friendly_dates: s.human_friendly_dates,
-            safe_writes: s.safe_writes,
-            bulk_creation: s.bulk_creation,
-            disable_animations: s.disable_animations,
-            compact: s.compact,
-            notifications: s.notifications,
-            check_for_updates: s.check_for_updates,
-            update_channel: match s.update_channel {
-                UpdateChannel::Stable => "stable",
-                UpdateChannel::Preview => "preview",
-            }
-            .to_owned(),
-            notification_threshold_days: s.notification_threshold_days,
-            zoom_percent: s.zoom_percent,
-            theme: match s.theme {
-                ThemePreference::System => "system",
-                ThemePreference::Light => "light",
-                ThemePreference::Dark => "dark",
-            }
-            .to_owned(),
-            week_start: match s.week_start {
-                WeekStart::Monday => "monday",
-                WeekStart::Saturday => "saturday",
-                WeekStart::Sunday => "sunday",
-            }
-            .to_owned(),
-            month_overflow: match s.month_overflow {
-                MonthOverflow::More => "more",
-                MonthOverflow::Scroll => "scroll",
-            }
-            .to_owned(),
-            language: s.language.clone(),
-            exclude_lines_with_prefix: s.exclude_lines_with_prefix.clone(),
-            watcher: WatcherFile {
-                debounce_ms: s.watcher.debounce_ms,
-                polling: s.watcher.polling,
-                poll_interval_ms: s.watcher.poll_interval_ms,
-            },
-            statuses: StatusesFile::from(&s.statuses),
-            boards: s
-                .boards
-                .iter()
-                .map(|(file, columns)| BoardFile::new(file, columns))
-                .collect(),
-        }
-    }
-}
-
-impl From<SettingsFile> for Settings {
-    fn from(f: SettingsFile) -> Self {
-        Self {
-            append_creation_date: f.append_creation_date,
-            convert_relative_dates: f.convert_relative_dates,
-            human_friendly_dates: f.human_friendly_dates,
-            safe_writes: f.safe_writes,
-            bulk_creation: f.bulk_creation,
-            disable_animations: f.disable_animations,
-            compact: f.compact,
-            notifications: f.notifications,
-            check_for_updates: f.check_for_updates,
-            update_channel: match f.update_channel.as_str() {
-                "preview" => UpdateChannel::Preview,
-                _ => UpdateChannel::Stable,
-            },
-            notification_threshold_days: f.notification_threshold_days,
-            zoom_percent: f.zoom_percent,
-            theme: match f.theme.as_str() {
-                "light" => ThemePreference::Light,
-                "dark" => ThemePreference::Dark,
-                _ => ThemePreference::System,
-            },
-            week_start: match f.week_start.as_str() {
-                "saturday" => WeekStart::Saturday,
-                "sunday" => WeekStart::Sunday,
-                _ => WeekStart::Monday,
-            },
-            month_overflow: match f.month_overflow.as_str() {
-                "scroll" => MonthOverflow::Scroll,
-                _ => MonthOverflow::More,
-            },
-            language: f.language,
-            exclude_lines_with_prefix: f.exclude_lines_with_prefix,
-            watcher: WatcherOptions {
-                debounce_ms: f.watcher.debounce_ms,
-                polling: f.watcher.polling,
-                poll_interval_ms: f.watcher.poll_interval_ms,
-            },
-            statuses: StatusSet::from(f.statuses),
-            boards: f
-                .boards
-                .into_iter()
-                .map(|board| {
-                    let columns = board.columns();
-                    (board.file, columns)
-                })
-                .collect(),
-        }
-    }
+    #[serde(flatten)]
+    settings: Settings,
 }
 
 #[cfg(test)]
 mod tests {
+    use floetask_application::{MonthOverflow, ThemePreference, UpdateChannel};
+    use floetask_domain::board::BoardColumns;
+    use floetask_domain::{StatusSet, WeekStart};
+
     use super::*;
+
+    #[test]
+    fn reads_the_format_older_versions_wrote() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(
+            &path,
+            r###"schema_version = 1
+append_creation_date = true
+convert_relative_dates = true
+human_friendly_dates = false
+safe_writes = true
+bulk_creation = false
+disable_animations = false
+compact = true
+notifications = true
+check_for_updates = true
+update_channel = "preview"
+notification_threshold_days = 3
+zoom_percent = 110
+theme = "dark"
+week_start = "sunday"
+month_overflow = "scroll"
+language = "de"
+exclude_lines_with_prefix = ["##"]
+
+[watcher]
+debounce_ms = 250
+polling = false
+poll_interval_ms = 1000
+
+[statuses]
+order = ["doing", { key = "in-review", label = "In review" }, "todo", "waiting", "someday"]
+hidden = ["someday"]
+
+[[boards]]
+file = "/home/me/todo.txt"
+columns = ["doing", "done"]
+"###,
+        )
+        .unwrap();
+        let settings = TomlSettingsStore::new(path).load().unwrap();
+        assert!(settings.append_creation_date && settings.compact);
+        assert_eq!(settings.update_channel, UpdateChannel::Preview);
+        assert_eq!(settings.notification_threshold_days, 3);
+        assert_eq!(settings.zoom_percent, 110);
+        assert_eq!(settings.theme, ThemePreference::Dark);
+        assert_eq!(settings.week_start, WeekStart::Sunday);
+        assert_eq!(settings.month_overflow, MonthOverflow::Scroll);
+        assert_eq!(settings.language, "de");
+        assert_eq!(settings.exclude_lines_with_prefix, ["##"]);
+        assert_eq!(settings.watcher.debounce_ms, 250);
+        assert_eq!(settings.statuses.label("in-review"), Some("In review"));
+        assert_eq!(
+            settings.board_columns(std::path::Path::new("/home/me/todo.txt")).keys(),
+            ["doing", "done"]
+        );
+    }
+
+    #[test]
+    fn unknown_names_fall_back_to_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(
+            &path,
+            "theme = \"blue\"\nweek_start = \"friday\"\nmonth_overflow = \"x\"\nupdate_channel = \"nightly\"\n",
+        )
+        .unwrap();
+        let settings = TomlSettingsStore::new(path).load().unwrap();
+        assert_eq!(settings.theme, ThemePreference::System);
+        assert_eq!(settings.week_start, WeekStart::Monday);
+        assert_eq!(settings.month_overflow, MonthOverflow::More);
+        assert_eq!(settings.update_channel, UpdateChannel::Stable);
+    }
+
+    #[test]
+    fn writes_the_schema_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        TomlSettingsStore::new(path.clone()).save(&Settings::default()).unwrap();
+        let written = std::fs::read_to_string(&path).unwrap();
+        assert!(written.starts_with("schema_version = 1\n"), "{written}");
+    }
 
     #[test]
     fn missing_file_gives_defaults_and_round_trips() {

@@ -1,12 +1,14 @@
 //! Persisted "where I left off" state. Losing it costs nothing but layout.
 
-use floetask_domain::calendar::CalendarMode;
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
+use floetask_domain::calendar::CalendarMode;
 use floetask_domain::listing::{Attribute, Sorting, ViewOptions};
 
 /// A registered todo file and its optional done file for archiving.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TodoFileEntry {
     pub path: PathBuf,
     pub done_path: Option<PathBuf>,
@@ -25,27 +27,35 @@ impl TodoFileEntry {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+// Enums are stored by their lowercase name. The `other` variant comes last
+// (serde requires it): an unknown name falls back to it.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum DrawerTab {
-    #[default]
-    Attributes,
     Filters,
     Sorting,
+    #[default]
+    #[serde(other)]
+    Attributes,
 }
 
 /// How the active file is shown.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum MainView {
-    /// The grouped, sorted list.
-    #[default]
-    List,
     /// The status board with one column per status.
     Board,
     /// Todos on a day, week or month calendar by due date.
     Calendar,
+    /// The grouped, sorted list.
+    #[default]
+    #[serde(other)]
+    List,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WindowState {
     pub width: f32,
     pub height: f32,
@@ -66,19 +76,25 @@ impl Default for WindowState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// Missing keys take their default, so older files stay valid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AppState {
     pub files: Vec<TodoFileEntry>,
     pub active_file: usize,
+    #[serde(with = "crate::persist::sorting")]
     pub sorting: Sorting,
+    #[serde(with = "crate::persist::view_options")]
     pub view: ViewOptions,
     pub drawer_open: bool,
     pub drawer_tab: DrawerTab,
     /// The collapsible file list on the left.
     pub files_drawer_open: bool,
+    #[serde(with = "crate::persist::attributes")]
     pub collapsed_sections: Vec<Attribute>,
     pub main_view: MainView,
     /// Day, week or month in the calendar view.
+    #[serde(with = "crate::persist::calendar_mode")]
     pub calendar_mode: CalendarMode,
     /// The board splits into one board per group when the list is grouped.
     pub board_grouped: bool,
