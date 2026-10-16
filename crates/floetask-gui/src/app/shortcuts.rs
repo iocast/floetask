@@ -81,14 +81,14 @@ impl Floetask {
             ("w", false, false) | ("q", false, false) => Message::Quit,
             (digit, false, false) => {
                 let number: usize = digit.parse().ok().filter(|n| (1..=9).contains(n))?;
-                Message::Files(files::Message::Select(number - 1))
+                Message::Files(files::Message::Select(*self.state.drawer_order().get(number - 1)?))
             }
             _ => return None,
         })
     }
 
     fn escape(&mut self) -> Task<Message> {
-        if self.drag.take().is_some() {
+        if self.drag.take().is_some() || self.file_drag.take().is_some() {
             return Task::none();
         }
         if let Some(super::Dialog::Editor(editor)) = &self.dialog

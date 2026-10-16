@@ -38,6 +38,11 @@ file_actions = File actions
 set_archive_file = Set archive file
 open_archive_file = Open archive file
 close_file = Close
+sort_files = Sort files
+file_sort_custom = Custom order
+file_sort_custom_hint = Drag files to arrange them
+file_sort_name = Name
+file_sort_folder = Folder
 toggle_theme = Switch light / dark
 
 ## Counts

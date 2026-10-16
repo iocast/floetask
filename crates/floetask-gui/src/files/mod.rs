@@ -6,7 +6,7 @@ mod view;
 
 use std::path::PathBuf;
 
-use floetask_application::AppError;
+use floetask_application::{AppError, FileSort};
 use floetask_domain::TodoDocument;
 
 pub(crate) use view::drawer;
@@ -32,4 +32,26 @@ pub enum Message {
     Reveal(usize),
     AskRemove(usize),
     ArchiveCompleted,
+    /// Opens (`true`) or closes the sort menu.
+    SortMenu(bool),
+    Sort(FileSort),
+    /// A file was pressed: start dragging it.
+    Press(usize),
+    /// The mouse entered (`true`) or left a file and its archive.
+    Hover(usize, bool),
+    /// The cursor left the pressed file: a press there became a drag.
+    EntryLeft,
+    Release,
+    /// The cursor left the file list, which ends a drag without a drop.
+    ListLeft,
+}
+
+/// A file being dragged in the drawer to a new place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FileDrag {
+    /// Index of the file in `AppState::files`.
+    pub from: usize,
+    /// The cursor left the file since the press, so releasing it is a drop,
+    /// never a click.
+    pub moved: bool,
 }

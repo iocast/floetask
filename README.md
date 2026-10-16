@@ -98,7 +98,7 @@ Colours are read at start-up.
 
 floetask draws its own title bar, like Firefox and Zed: the file-drawer toggle and logo on the left, the search field in the middle, the filter drawer and settings on the right, then the window buttons. Drag the empty space to move the window, double-click it to maximise, and drag the window edges to resize.
 
-The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New todo** button, your files (each with its archive file listed right under it), and Open / Create at the bottom. Each file's ⋮ menu opens a floating list that sets its archive (done) file, opens the archive file in floetask, archives completed todos, shows the file in your file manager, or closes it.
+The **file drawer** on the left (`Ctrl+Alt+H` to show or hide) has the **New todo** button, your files (each with its archive file listed right under it), and Open / Create at the bottom. The sort button next to *Files* orders them by name or folder; drag a file to put it in your own order (its archive file moves with it). Each file's ⋮ menu opens a floating list that sets its archive (done) file, opens the archive file in floetask, archives completed todos, shows the file in your file manager, or closes it.
 
 The theme follows the system until you pick light or dark in Settings (or press `Ctrl+Alt+D`).
 

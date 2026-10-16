@@ -40,6 +40,21 @@ pub enum DrawerTab {
     Attributes,
 }
 
+/// The order of the file drawer. Archive files never sort on their own:
+/// they stay under the todo file that archives into them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FileSort {
+    /// By file name, then by folder.
+    Name,
+    /// By folder path, then by file name.
+    Folder,
+    /// The order the user dragged the files into (the order of `files`).
+    #[default]
+    #[serde(other)]
+    Custom,
+}
+
 /// How the active file is shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -82,6 +97,8 @@ impl Default for WindowState {
 pub struct AppState {
     pub files: Vec<TodoFileEntry>,
     pub active_file: usize,
+    /// The order of the file drawer.
+    pub file_sort: FileSort,
     #[serde(with = "crate::persist::sorting")]
     pub sorting: Sorting,
     #[serde(with = "crate::persist::view_options")]
@@ -112,6 +129,7 @@ impl Default for AppState {
         Self {
             files: Vec::new(),
             active_file: 0,
+            file_sort: FileSort::default(),
             sorting: Sorting::default(),
             view: ViewOptions::default(),
             drawer_open: false,
@@ -156,6 +174,77 @@ impl AppState {
         if self.active_file >= self.files.len() {
             self.active_file = self.files.len().saturating_sub(1);
         }
+    }
+
+    /// Whether the file at `index` is the archive of another registered file.
+    /// Such a file is listed under that file, not on its own.
+    pub fn is_archive_of_another(&self, index: usize) -> bool {
+        let path = &self.files[index].path;
+        self.files
+            .iter()
+            .enumerate()
+            .any(|(other, entry)| other != index && entry.done_path.as_ref() == Some(path))
+    }
+
+    /// Indexes of the files the drawer lists on their own, in `file_sort`
+    /// order. Archive files of another file are left out.
+    pub fn drawer_order(&self) -> Vec<usize> {
+        let mut order: Vec<usize> = (0..self.files.len())
+            .filter(|&index| !self.is_archive_of_another(index))
+            .collect();
+        let name = |index: usize| self.files[index].file_name().to_lowercase();
+        let folder = |index: usize| {
+            self.files[index]
+                .path
+                .parent()
+                .map(|parent| parent.to_string_lossy().to_lowercase())
+                .unwrap_or_default()
+        };
+        match self.file_sort {
+            FileSort::Custom => {}
+            FileSort::Name => order.sort_by_cached_key(|&index| (name(index), folder(index))),
+            FileSort::Folder => order.sort_by_cached_key(|&index| (folder(index), name(index))),
+        }
+        order
+    }
+
+    /// Moves the file at `from` to where the file at `to` is in the drawer,
+    /// and switches the drawer to the custom order, starting from the order
+    /// shown. A registered archive file moves with its todo file.
+    pub fn move_file(&mut self, from: usize, to: usize) {
+        let mut order = self.drawer_order();
+        let (Some(from_position), Some(to_position)) = (
+            order.iter().position(|&index| index == from),
+            order.iter().position(|&index| index == to),
+        ) else {
+            return;
+        };
+        let moved = order.remove(from_position);
+        order.insert(to_position, moved);
+
+        let mut placed = vec![false; self.files.len()];
+        let mut indexes = Vec::with_capacity(self.files.len());
+        for index in order {
+            indexes.push(index);
+            placed[index] = true;
+            if let Some(done) = &self.files[index].done_path
+                && let Some(archive) = self.files.iter().position(|entry| &entry.path == done)
+                && !placed[archive]
+            {
+                indexes.push(archive);
+                placed[archive] = true;
+            }
+        }
+        // Archives of archives keep their old relative order at the end.
+        indexes.extend((0..self.files.len()).filter(|&index| !placed[index]));
+
+        let active = self.active_entry().map(|entry| entry.path.clone());
+        let mut old: Vec<Option<TodoFileEntry>> = std::mem::take(&mut self.files).into_iter().map(Some).collect();
+        self.files = indexes.into_iter().filter_map(|index| old[index].take()).collect();
+        if let Some(active) = active {
+            self.active_file = self.files.iter().position(|entry| entry.path == active).unwrap_or(0);
+        }
+        self.file_sort = FileSort::Custom;
     }
 
     /// Collapses a board group, or expands it again.
@@ -204,5 +293,59 @@ mod tests {
         assert_eq!(state.active_file, 0);
         state.remove_file(0);
         assert!(state.active_entry().is_none());
+    }
+
+    fn names(state: &AppState) -> Vec<String> {
+        state.files.iter().map(TodoFileEntry::file_name).collect()
+    }
+
+    fn drawer_names(state: &AppState) -> Vec<String> {
+        state
+            .drawer_order()
+            .into_iter()
+            .map(|index| state.files[index].file_name())
+            .collect()
+    }
+
+    /// `b.txt` in `/z`, `a.txt` and its open archive `done.txt` in `/y`,
+    /// `c.txt` in `/x`.
+    fn three_files() -> AppState {
+        let mut state = AppState::default();
+        for path in ["/z/b.txt", "/y/a.txt", "/y/done.txt", "/x/c.txt"] {
+            state.open_file(path.into());
+        }
+        state.files[1].done_path = Some("/y/done.txt".into());
+        state
+    }
+
+    #[test]
+    fn drawer_sorts_files_but_leaves_archives_out() {
+        let mut state = three_files();
+        assert_eq!(drawer_names(&state), ["b.txt", "a.txt", "c.txt"]);
+        state.file_sort = FileSort::Name;
+        assert_eq!(drawer_names(&state), ["a.txt", "b.txt", "c.txt"]);
+        state.file_sort = FileSort::Folder;
+        assert_eq!(drawer_names(&state), ["c.txt", "a.txt", "b.txt"]);
+    }
+
+    #[test]
+    fn moving_a_file_takes_its_archive_along() {
+        let mut state = three_files();
+        state.active_file = 1;
+        state.move_file(1, 3);
+        assert_eq!(names(&state), ["b.txt", "c.txt", "a.txt", "done.txt"]);
+        assert_eq!(state.files[state.active_file].file_name(), "a.txt");
+        state.move_file(2, 0);
+        assert_eq!(names(&state), ["a.txt", "done.txt", "b.txt", "c.txt"]);
+    }
+
+    #[test]
+    fn moving_a_file_starts_from_the_sorted_order() {
+        let mut state = three_files();
+        state.file_sort = FileSort::Name;
+        // Shown as a, b, c: dropping c on b puts it between a and b.
+        state.move_file(3, 0);
+        assert_eq!(state.file_sort, FileSort::Custom);
+        assert_eq!(drawer_names(&state), ["a.txt", "c.txt", "b.txt"]);
     }
 }

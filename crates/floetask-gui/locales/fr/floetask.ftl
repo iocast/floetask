@@ -38,6 +38,11 @@ file_actions = Actions sur le fichier
 set_archive_file = Définir le fichier d’archive
 open_archive_file = Ouvrir le fichier d’archive
 close_file = Fermer
+sort_files = Trier les fichiers
+file_sort_custom = Ordre personnalisé
+file_sort_custom_hint = Glissez les fichiers pour les ranger
+file_sort_name = Nom
+file_sort_folder = Dossier
 toggle_theme = Basculer clair / sombre
 
 ## Counts

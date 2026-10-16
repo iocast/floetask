@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- Sort the file drawer by name or folder with the sort button next to *Files*, or drag files into your own order; an archive file always stays under (and moves with) its todo file, and `Ctrl+1`…`Ctrl+9` follow the order shown
+
 ## [0.4.0-rc.3] - 2026-10-13
 
 ### Added

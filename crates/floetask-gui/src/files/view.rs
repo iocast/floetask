@@ -1,15 +1,24 @@
 //! The collapsible file drawer on the left. Each todo file is listed with
-//! its archive (done) file directly underneath.
+//! its archive (done) file directly underneath, sorted by the drawer's sort
+//! menu or dragged into a custom order. An archive file always moves with
+//! its todo file.
+//!
+//! iced has no drag and drop, so it is built from mouse areas like the
+//! board's: pressing a file starts a drag, each file reports when the cursor
+//! enters or leaves it, and releasing over another file moves the dragged
+//! one there.
 
-use iced::widget::{Column, button, column, container, row, rule, scrollable, text};
-use iced::{Alignment, Element, Fill};
+use iced::widget::{Column, button, column, container, mouse_area, row, rule, scrollable, space, text};
+use iced::{Alignment, Color, Element, Fill, mouse};
+
+use floetask_application::FileSort;
 
 use crate::app::{Floetask, Message};
 use crate::i18n::tr;
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
-use crate::view::widgets::{caption, icon_button};
+use crate::view::widgets::{caption, icon_button, with_tooltip};
 use crate::{editor, files};
 
 const WIDTH: f32 = crate::layout::FILES_DRAWER_WIDTH;
@@ -33,15 +42,27 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
     .style(theme::primary(colors))
     .on_press_maybe(has_file.then_some(Message::Editor(editor::Message::New)));
 
-    let mut files = Column::new().spacing(2);
-    for index in 0..app.state.files.len() {
-        if is_archive_of_another(app, index) {
-            continue;
-        }
-        files = files.push(file_entry(app, index, colors));
+    let order = app.state.drawer_order();
+    let drop_line = drop_line(app, &order);
+    let mut files = Column::new();
+    for (position, &index) in order.iter().enumerate() {
+        files = files.push(line(drop_line == Some(position), colors));
+        let mut group = column![file_entry(app, index, colors)];
         if let Some(archive) = archive_entry(app, index, colors) {
-            files = files.push(archive);
+            group = group.push(archive);
         }
+        files = files.push(
+            mouse_area(group)
+                .on_enter(Message::Files(files::Message::Hover(index, true)))
+                .on_exit(Message::Files(files::Message::Hover(index, false))),
+        );
+    }
+    files = files.push(line(drop_line == Some(order.len()), colors));
+    let mut files = mouse_area(files)
+        .on_release(Message::Files(files::Message::Release))
+        .on_exit(Message::Files(files::Message::ListLeft));
+    if app.file_drag.is_some_and(|drag| drag.moved) {
+        files = files.interaction(mouse::Interaction::Grabbing);
     }
 
     let footer = column![
@@ -63,7 +84,12 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
     container(
         column![
             new_todo,
-            caption(tr("files"), colors),
+            row![
+                caption(tr("files"), colors),
+                space::horizontal(),
+                sort_menu(app, colors)
+            ]
+            .align_y(Alignment::Center),
             scrollable(files)
                 .height(Fill)
                 .direction(theme::thin_scrollbar())
@@ -90,20 +116,25 @@ fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messa
         .and_then(|parent| parent.file_name())
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let label = button(
-        row![
-            icon(Icon::File, 16.0, if active { colors.primary } else { colors.muted }),
-            column![
-                text(entry.file_name()).size(14),
-                text(folder).size(11).color(colors.muted)
-            ]
-            .spacing(1),
+    let content = row![
+        icon(Icon::File, 16.0, if active { colors.primary } else { colors.muted }),
+        column![
+            text(entry.file_name()).size(14),
+            text(folder).size(11).color(colors.muted)
         ]
-        .spacing(10)
-        .align_y(Alignment::Center),
+        .spacing(1),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    // The press goes to the mouse area, which starts a drag (a release on
+    // the same file selects it); the button around it only draws the hover.
+    let label = button(
+        mouse_area(container(content).width(Fill).padding([6, 8]))
+            .on_press(Message::Files(files::Message::Press(index)))
+            .on_exit(Message::Files(files::Message::EntryLeft)),
     )
     .width(Fill)
-    .padding([6, 8])
+    .padding(0)
     .style(theme::ghost(colors, active))
     .on_press(Message::Files(files::Message::Select(index)));
     let menu = popover(
@@ -220,15 +251,70 @@ fn archive_entry(app: &Floetask, index: usize, colors: Colors) -> Option<Element
     )
 }
 
-/// Archive files that are open are listed under their todo file, not on
-/// their own.
-fn is_archive_of_another(app: &Floetask, index: usize) -> bool {
-    let path = &app.state.files[index].path;
-    app.state
-        .files
-        .iter()
-        .enumerate()
-        .any(|(other, entry)| other != index && entry.done_path.as_ref() == Some(path))
+/// Where the dragged file would land: the gap before the file at this
+/// position, or after the last one. Above the hovered file when moving up,
+/// below it when moving down.
+fn drop_line(app: &Floetask, order: &[usize]) -> Option<usize> {
+    let drag = app.file_drag?;
+    let target = app.file_hover.filter(|&target| target != drag.from)?;
+    let from = order.iter().position(|&index| index == drag.from)?;
+    let to = order.iter().position(|&index| index == target)?;
+    Some(if to < from { to } else { to + 1 })
+}
+
+/// The gap between two files, drawn as a line where a dragged file would
+/// land. It is always there, so the list does not shift during a drag.
+fn line<'a>(shown: bool, colors: Colors) -> Element<'a, Message> {
+    container(space())
+        .width(Fill)
+        .height(2)
+        .style(theme::accent(if shown { colors.primary } else { Color::TRANSPARENT }))
+        .into()
+}
+
+/// The sort button next to the "Files" caption and its menu.
+fn sort_menu(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let open = app.file_sort_menu;
+    let anchor = with_tooltip(
+        button(icon(Icon::Sort, 14.0, if open { colors.primary } else { colors.muted }))
+            .padding(4)
+            .style(theme::ghost(colors, open))
+            .on_press(Message::Files(files::Message::SortMenu(!open))),
+        tr("sort_files"),
+        colors,
+    );
+    let item = |sort: FileSort, label: &'static str, hint: Option<&'static str>| {
+        let selected = app.state.file_sort == sort;
+        let label = text(tr(label))
+            .size(13)
+            .color(if selected { colors.primary } else { colors.text });
+        button(
+            column![label]
+                .push(hint.map(|hint| text(tr(hint)).size(11).color(colors.muted)))
+                .spacing(2),
+        )
+        .width(Fill)
+        .padding([7, 10])
+        .style(theme::ghost(colors, selected))
+        .on_press(Message::Files(files::Message::Sort(sort)))
+    };
+    let menu = container(
+        column![
+            item(FileSort::Custom, "file_sort_custom", Some("file_sort_custom_hint")),
+            item(FileSort::Name, "file_sort_name", None),
+            item(FileSort::Folder, "file_sort_folder", None),
+        ]
+        .spacing(2),
+    )
+    .padding(6)
+    .width(240)
+    .style(theme::card(colors));
+    popover(
+        anchor,
+        open.then(|| menu.into()),
+        Message::Files(files::Message::SortMenu(false)),
+    )
+    .into()
 }
 
 fn wide_button<'a>(glyph: Icon, label: &'a str, message: Message, colors: Colors) -> Element<'a, Message> {

@@ -51,10 +51,11 @@ pub enum Icon {
     List,
     Attach,
     Window,
+    Sort,
 }
 
 impl Icon {
-    const ALL: [Icon; 43] = [
+    const ALL: [Icon; 44] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -98,6 +99,7 @@ impl Icon {
         Icon::List,
         Icon::Attach,
         Icon::Window,
+        Icon::Sort,
     ];
 
     /// The SVG body (elements inside the 24×24 canvas).
@@ -169,6 +171,7 @@ impl Icon {
             Icon::Attach => {
                 r#"<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15 7"/>"#
             }
+            Icon::Sort => r#"<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>"#,
             Icon::Window => {
                 r#"<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M6.5 6.5h.01M9 6.5h.01"/>"#
             }

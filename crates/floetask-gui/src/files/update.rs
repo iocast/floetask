@@ -81,6 +81,63 @@ impl Floetask {
                 Task::none()
             }
             files::Message::ArchiveCompleted => self.archive_completed(),
+            files::Message::SortMenu(open) => {
+                self.file_sort_menu = open;
+                Task::none()
+            }
+            files::Message::Sort(sort) => {
+                self.file_sort_menu = false;
+                self.state.file_sort = sort;
+                self.persist_state()
+            }
+            files::Message::Press(index) => {
+                self.file_menu = None;
+                self.file_drag = Some(files::FileDrag {
+                    from: index,
+                    moved: false,
+                });
+                self.file_hover = Some(index);
+                Task::none()
+            }
+            files::Message::Hover(index, entered) => {
+                if entered {
+                    self.file_hover = Some(index);
+                } else if self.file_hover == Some(index) {
+                    // Leaving one file and entering the next can arrive in
+                    // either order, so only clear our own.
+                    self.file_hover = None;
+                }
+                Task::none()
+            }
+            files::Message::EntryLeft => {
+                if let Some(drag) = &mut self.file_drag {
+                    drag.moved = true;
+                }
+                Task::none()
+            }
+            files::Message::Release => self.drop_file(),
+            files::Message::ListLeft => {
+                self.file_drag = None;
+                self.file_hover = None;
+                Task::none()
+            }
+        }
+    }
+
+    /// Ends a drag. Released on another file, the dragged file takes its
+    /// place in a custom order; released on the file itself without leaving
+    /// it, it was a click and selects the file.
+    fn drop_file(&mut self) -> Task<Message> {
+        let Some(drag) = self.file_drag.take() else {
+            return Task::none();
+        };
+        match self.file_hover {
+            Some(target) if target != drag.from => {
+                self.state.move_file(drag.from, target);
+                self.persist_state()
+            }
+            Some(_) if !drag.moved => self.select_file(drag.from),
+            _ => Task::none(),
         }
     }
 

@@ -1532,3 +1532,90 @@ fn main_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
     assert!(app.state.drawer_open);
     assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Filters));
 }
+
+/// Registers `/test/done.txt` as the archive of the sample file, opened, and
+/// a second todo file `/test/work.txt`.
+fn app_with_files() -> Floetask {
+    let mut app = app();
+    app.state.files[0].done_path = Some(PathBuf::from("/test/done.txt"));
+    for path in ["/test/done.txt", "/test/work.txt"] {
+        app.state
+            .files
+            .push(floetask_application::TodoFileEntry::new(PathBuf::from(path)));
+    }
+    app
+}
+
+fn file_names(app: &Floetask) -> Vec<String> {
+    app.state.files.iter().map(|entry| entry.file_name()).collect()
+}
+
+#[test]
+fn clicking_a_file_in_the_drawer_selects_it() {
+    let mut app = app_with_files();
+    let messages = click(&app, "work.txt");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::Files(files::Message::Press(2))))
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.state.active_file, 2);
+    assert!(app.file_drag.is_none());
+}
+
+#[test]
+fn dragging_a_file_moves_it_with_its_archive() {
+    let mut app = app_with_files();
+    let _ = app.update(Message::Files(files::Message::Press(2)));
+    let _ = app.update(Message::Files(files::Message::EntryLeft));
+    let _ = app.update(Message::Files(files::Message::Hover(0, true)));
+    let _ = app.update(Message::Files(files::Message::Hover(2, false)));
+    snapshot(&app, "file-drag");
+    let _ = app.update(Message::Files(files::Message::Release));
+    assert!(app.file_drag.is_none());
+    assert_eq!(file_names(&app), ["work.txt", "todo.txt", "done.txt"]);
+    assert_eq!(app.state.file_sort, floetask_application::FileSort::Custom);
+    // The active file stays the same file.
+    assert_eq!(app.state.active_file, 1);
+
+    // Released outside the list, a drag moves nothing.
+    let _ = app.update(Message::Files(files::Message::Press(1)));
+    let _ = app.update(Message::Files(files::Message::EntryLeft));
+    let _ = app.update(Message::Files(files::Message::ListLeft));
+    let _ = app.update(Message::Files(files::Message::Release));
+    assert_eq!(file_names(&app), ["work.txt", "todo.txt", "done.txt"]);
+}
+
+#[test]
+fn the_sort_menu_orders_the_drawer_and_the_file_shortcuts() {
+    let mut app = app_with_files();
+    app.state.files.swap(0, 2);
+    app.state.files.swap(1, 2);
+    assert_eq!(file_names(&app), ["work.txt", "todo.txt", "done.txt"]);
+    app.state.active_file = 1;
+    let _ = app.update(Message::Files(files::Message::SortMenu(true)));
+    snapshot(&app, "file-sort-menu");
+    // The simulator cannot click into the floating menu: send its message.
+    let _ = app.update(Message::Files(files::Message::Sort(
+        floetask_application::FileSort::Name,
+    )));
+    assert_eq!(app.state.file_sort, floetask_application::FileSort::Name);
+    assert!(!app.file_sort_menu);
+    // The archive stays under its file instead of sorting first.
+    assert_eq!(app.state.drawer_order(), [1, 0]);
+
+    let ctrl = |digit: &str| {
+        Message::KeyPressed(
+            iced::window::Id::unique(),
+            iced::keyboard::Key::Character(digit.into()),
+            iced::keyboard::Modifiers::COMMAND,
+        )
+    };
+    let _ = app.update(ctrl("2"));
+    assert_eq!(app.state.files[app.state.active_file].file_name(), "work.txt");
+    let _ = app.update(ctrl("1"));
+    assert_eq!(app.state.files[app.state.active_file].file_name(), "todo.txt");
+}

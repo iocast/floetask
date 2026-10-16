@@ -30,6 +30,7 @@ use floetask_domain::listing::{
 use floetask_domain::{Date, TodoDocument, WeekStart};
 
 use crate::board::BoardDrag;
+use crate::files::FileDrag;
 use crate::i18n::{self, tr};
 use crate::note_window::NoteWindow;
 use crate::search;
@@ -98,6 +99,12 @@ pub struct Floetask {
     /// Line whose action bar (copy, archive, delete) is open.
     pub(crate) row_menu: Option<usize>,
     pub(crate) file_menu: Option<usize>,
+    /// The file drawer's sort menu is open.
+    pub(crate) file_sort_menu: bool,
+    /// The file being dragged in the file drawer.
+    pub(crate) file_drag: Option<FileDrag>,
+    /// The file (with its archive) under the mouse in the file drawer.
+    pub(crate) file_hover: Option<usize>,
     pub(crate) dialog: Option<Dialog>,
     /// The second window, editing a note; reused for every note.
     pub(crate) note_window: Option<NoteWindow>,
@@ -179,6 +186,9 @@ impl Floetask {
             selected: None,
             row_menu: None,
             file_menu: None,
+            file_sort_menu: false,
+            file_drag: None,
+            file_hover: None,
             dialog: None,
             note_window: None,
             toasts: Vec::new(),
