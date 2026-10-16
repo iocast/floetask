@@ -84,6 +84,19 @@ impl Language {
         Self::SHIPPED.into_iter().find(|shipped| shipped.code() == language)
     }
 
+    /// The language of the notes editor's own toolbar and status bar, which
+    /// ships its translations. The pseudo language shows English there.
+    pub fn editor(self) -> iced_markdown_editor::Language {
+        use iced_markdown_editor::Language as Editor;
+        match self {
+            Language::English | Language::Pseudo => Editor::English,
+            Language::German => Editor::German,
+            Language::French => Editor::French,
+            Language::Spanish => Editor::Spanish,
+            Language::Italian => Editor::Italian,
+        }
+    }
+
     fn source(self) -> &'static str {
         match self {
             Language::English | Language::Pseudo => include_str!("../../locales/en/floetask.ftl"),

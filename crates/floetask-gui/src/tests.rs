@@ -448,6 +448,26 @@ fn switching_the_language_changes_every_screen_at_once() {
 }
 
 #[test]
+fn the_notes_editor_follows_the_language() {
+    let note_language = |app: &Floetask| match &app.dialog {
+        Some(Dialog::Editor(editor)) => editor.note.state().current_language(),
+        _ => panic!("editor closed"),
+    };
+    let mut app = app();
+    let _ = app.update(Message::Editor(editor::Message::New));
+    assert_eq!(note_language(&app), iced_markdown_editor::Language::English);
+
+    let _ = app.update(Message::Settings(settings::Message::Change(SettingChange::Language(
+        "de".to_owned(),
+    ))));
+    assert_eq!(note_language(&app), iced_markdown_editor::Language::German);
+
+    let _ = app.update(Message::CloseDialog);
+    let _ = app.update(Message::Editor(editor::Message::New));
+    assert_eq!(note_language(&app), iced_markdown_editor::Language::German);
+}
+
+#[test]
 fn renders_both_themes() {
     let mut app = app();
     let _ = app.update(Message::Drawer(drawer::Message::Toggle));

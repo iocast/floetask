@@ -315,11 +315,16 @@ impl Floetask {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         let task = self.dispatch(message);
-        // The notes editor draws its own colours, so it follows the theme
-        // whichever message changed it.
+        // The notes editor draws its own colours and texts, so it follows
+        // the theme and language whichever message changed them.
         let style = crate::theme::markdown_editor(self.colors());
+        let language = crate::i18n::language().editor();
         if let Some(Dialog::Editor(editor)) = &mut self.dialog {
             editor.note.set_style(style);
+            editor.note.set_language(language);
+        }
+        if let Some(window) = &mut self.note_window {
+            window.note.set_language(language);
         }
         task
     }

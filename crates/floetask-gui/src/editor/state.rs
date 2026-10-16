@@ -141,7 +141,8 @@ impl NoteField {
         let state = EditorState::new()
             .paper(Paper::fill())
             .zoom_settings(ZoomSettings::disabled())
-            .style(theme::markdown_editor(colors));
+            .style(theme::markdown_editor(colors))
+            .language(crate::i18n::language().editor());
         let markdown = state.markdown();
         Self {
             state,
@@ -200,6 +201,12 @@ impl NoteField {
         if *self.state.current_style() != style {
             self.state.set_style(style);
         }
+    }
+
+    /// Follows a change of the interface language; the editor translates
+    /// its own toolbar and status bar.
+    pub fn set_language(&mut self, language: iced_markdown_editor::Language) {
+        self.state.set_language(language);
     }
 }
 
