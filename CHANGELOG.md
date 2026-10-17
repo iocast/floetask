@@ -6,9 +6,23 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-17
+
 ### Added
+- Note window: clicking a todo's note opens it in a separate floetask window with the Markdown editor instead of the default app; one window is reused for every note, saves as you type (and on `Ctrl+S` or closing), and can still open the note in the default app; it opens where you left it
+- The add/edit dialog can open its note in the note window, taking along unsaved text
+- Link a Markdown file from disk to a todo instead of creating a note: move it into the notes folder, or keep it where it is and link it by its path (`note:` accepts percent-encoded absolute paths, e.g. `note:C%3A/Users/me/My%20Notes/plan.md`); unlink a note again, the file is kept
+- Release channel in Settings → About: *Stable* offers releases only, *Preview* also offers release candidates, to try the next version early
+- Roll back in Settings → About: install one of the last ten earlier versions of your channel over the current one, e.g. to leave a preview; todo files and settings are kept
+- The interface is translated into German, French, Spanish and Italian; pick the language in Settings → Appearance → Language, it applies without a restart, and *System* follows the OS language (e.g. `de-CH` uses German, unknown languages fall back to English); error messages are translated too, details reported by the OS stay as they are
+- Calendar titles, month and weekday names follow the chosen language; on first start the week begins on the OS region's first day of the week
+- Custom statuses have display names: type "In review" in settings or when adding a board column and floetask derives the key (`status:in-review`); in `config.toml`, `[statuses] order` and `[[boards]] columns` accept `{ key = "in-review", label = "In review" }` next to plain keys, which keep working
 - Sort the file drawer by name or folder with the sort button next to *Files*, or drag files into your own order; an archive file always stays under (and moves with) its todo file, and `Ctrl+1`…`Ctrl+9` follow the order shown
-- The notes editor's toolbar, link bar and status bar follow the interface language (iced-markdown-editor 0.3.1)
+- The notes editor's toolbar, link bar and status bar are translated too and switch with the interface language without a restart
+
+### Changed
+- The notes field in the add/edit dialog is now a WYSIWYG Markdown editor with a formatting toolbar and a Source mode, in floetask's colours; edited notes are saved in canonical Markdown
+- Release candidates are published with an updater manifest, and the app lists releases through the GitHub API
 
 ## [0.4.0-rc.3] - 2026-10-13
 
@@ -86,7 +100,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0-rc.3...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0
 [0.4.0-rc.3]: https://github.com/iocast/floetask/compare/v0.4.0-rc.2...v0.4.0-rc.3
 [0.4.0-rc.2]: https://github.com/iocast/floetask/compare/v0.4.0-rc.1...v0.4.0-rc.2
 [0.4.0-rc.1]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0-rc.1
