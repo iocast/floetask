@@ -54,11 +54,12 @@ floetask is, the notable changes as `•` bullets, website and release page link
 `#todotxt #Productivity #Rust #RustLang #OpenSource`. Mention that it also fits Bluesky only if
 it is at most 300 characters; otherwise say the bullets have to go for Bluesky.
 
-**Ko-fi** - a friendly post of a few short paragraphs in the first person, with no title (Ko-fi
-posts have none), so the first sentence names the version: what floetask is, what is new and why it matters, smaller changes, how to get
-it (download link, or the in-app update for existing users), links to the website and the
-repository, and a closing thank-you to supporters. No hashtags, no Markdown (Ko-fi shows it as
-plain text).
+**Ko-fi** - at most 800 characters, links counted in full. A friendly post of a few short
+paragraphs in the first person, with no title (Ko-fi posts have none), so the first sentence
+names the version: what floetask is, what is new and why it matters, how to get it (download
+link, or the in-app update for existing users), the website link and a short closing thank-you
+to supporters. Smaller changes and the repository link only if they fit. No hashtags, no
+Markdown (Ko-fi shows it as plain text).
 
 Tone: plain and friendly, no hype words ("revolutionary", "game-changing"). At most one or two
 emoji per post.
@@ -73,9 +74,10 @@ python -c "import re,sys; t=sys.stdin.read().rstrip(); print(len(re.sub(r'https?
 EOF
 ```
 
-Emoji count as 2 on X; add that by hand. Shorten until they fit.
+Emoji count as 2 on X; add that by hand. Count the Ko-fi post with plain `len(t)` (links in
+full). Shorten until they fit.
 
 ## 5. Output
 
 Show each version in its own `text` code block, headed with the platform and its count (e.g.
-"X - 198 / 280"). Do not write files, commit, or post anything.
+"X - 198 / 280", "Ko-fi - 774 / 800"). Do not write files, commit, or post anything.
