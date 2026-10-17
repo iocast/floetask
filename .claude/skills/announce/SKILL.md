@@ -54,8 +54,8 @@ floetask is, the notable changes as `•` bullets, website and release page link
 `#todotxt #Productivity #Rust #RustLang #OpenSource`. Mention that it also fits Bluesky only if
 it is at most 300 characters; otherwise say the bullets have to go for Bluesky.
 
-**Ko-fi** - a title line (`Title: ...`) and a friendly post of a few short paragraphs in the
-first person: what floetask is, what is new and why it matters, smaller changes, how to get
+**Ko-fi** - a friendly post of a few short paragraphs in the first person, with no title (Ko-fi
+posts have none), so the first sentence names the version: what floetask is, what is new and why it matters, smaller changes, how to get
 it (download link, or the in-app update for existing users), links to the website and the
 repository, and a closing thank-you to supporters. No hashtags, no Markdown (Ko-fi shows it as
 plain text).
