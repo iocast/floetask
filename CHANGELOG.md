@@ -6,6 +6,11 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-19
+
+### Added
+- Right-click a card on the board or in the calendar to copy it, move it to the done file or delete it, as in the list; the menu opens at the cursor and the card is outlined while it is open
+
 ## [0.4.0] - 2026-10-17
 
 ### Added
@@ -100,7 +105,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/iocast/floetask/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0
 [0.4.0-rc.3]: https://github.com/iocast/floetask/compare/v0.4.0-rc.2...v0.4.0-rc.3
 [0.4.0-rc.2]: https://github.com/iocast/floetask/compare/v0.4.0-rc.1...v0.4.0-rc.2
