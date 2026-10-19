@@ -10,7 +10,8 @@ use floetask_domain::listing::Attribute;
 use crate::editor::DateKey;
 
 pub(crate) use view::{
-    attribute_label, body, collapsible, group_header, looks_like_markdown, meta, status_label, status_name, view,
+    attribute_label, body, card_menu, collapsible, group_header, looks_like_markdown, meta, status_label, status_name,
+    view,
 };
 
 #[derive(Debug, Clone)]

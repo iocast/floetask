@@ -19,7 +19,7 @@ use floetask_domain::listing::ListedTodo;
 use crate::app::{Floetask, Message};
 use crate::editor::DateKey;
 use crate::i18n::{self, tr, trf};
-use crate::list::{body, meta};
+use crate::list::{body, card_menu, meta};
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::widgets::{icon_button, with_tooltip};
@@ -417,12 +417,12 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
             .padding([6, 8])
             .width(Fill)
             .clip(true)
-            .style(theme::board_card(colors, is_dragged(app, entry))),
+            .style(theme::board_card(colors, is_marked(app, entry))),
     )
     .on_press(Message::Calendar(calendar::Message::Press(target, from)))
     .on_exit(Message::Calendar(calendar::Message::CardLeft))
     .interaction(mouse::Interaction::Grab);
-    with_tooltip(card, todo.display_text(), colors)
+    card_menu(app, entry, with_tooltip(card, todo.display_text(), colors))
 }
 
 /// A full todo card for the Week and Day views and the undated panel, the
@@ -471,17 +471,17 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
             .spacing(10)
             .into()
     };
-    mouse_area(
+    let card = mouse_area(
         container(content)
             .padding(if compact { [6, 10] } else { [10, 12] })
             .width(Fill)
             .clip(true)
-            .style(theme::board_card(colors, is_dragged(app, entry))),
+            .style(theme::board_card(colors, is_marked(app, entry))),
     )
     .on_press(Message::Calendar(calendar::Message::Press(target, from)))
     .on_exit(Message::Calendar(calendar::Message::CardLeft))
-    .interaction(mouse::Interaction::Grab)
-    .into()
+    .interaction(mouse::Interaction::Grab);
+    card_menu(app, entry, card)
 }
 
 /// Width of the panel listing todos without a due date.
@@ -540,10 +540,12 @@ fn complete_box<'a>(entry: &ListedTodo, size: f32, colors: Colors) -> Element<'a
         .into()
 }
 
-fn is_dragged(app: &Floetask, entry: &ListedTodo) -> bool {
+/// Whether the todo is being dragged or its menu is open, like on the board.
+fn is_marked(app: &Floetask, entry: &ListedTodo) -> bool {
     app.calendar_drag
         .as_ref()
         .is_some_and(|(target, _)| target.line == entry.line)
+        || app.row_menu == Some(entry.line)
 }
 
 #[cfg(test)]

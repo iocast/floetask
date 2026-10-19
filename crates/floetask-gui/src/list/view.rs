@@ -4,8 +4,8 @@
 //! its attributes underneath, and quick actions that appear on hover.
 
 use iced::widget::{
-    Column, Row, button, checkbox, column, container, markdown, mouse_area, rich_text, row, scrollable, space, span,
-    text,
+    Column, Row, button, checkbox, column, container, markdown, mouse_area, rich_text, row, rule, scrollable, space,
+    span, text,
 };
 use iced::{Alignment, Color, Element, Fill};
 
@@ -24,6 +24,7 @@ use crate::i18n::{self, tr, trf};
 use crate::theme::{self, Colors};
 use crate::view::LIST_ID;
 use crate::view::icons::{Icon, icon};
+use crate::view::popover::popover;
 use crate::view::widgets::{icon_button, with_tooltip};
 use crate::{drawer, list};
 
@@ -465,6 +466,61 @@ fn quick_actions<'a>(todo: &'a Todo, target: &TodoRef, colors: Colors) -> Elemen
         ),
     ]
     .spacing(0)
+    .into()
+}
+
+/// Wraps a board or calendar card so a right-click opens a menu at the
+/// cursor with the list row's copy, move to done file and delete. Cards have
+/// no room for hover actions, and a left press there starts a drag.
+pub(crate) fn card_menu<'a>(
+    app: &Floetask,
+    entry: &'a ListedTodo,
+    card: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let open = app.row_menu == Some(entry.line);
+    let anchor = mouse_area(card).on_right_press(Message::List(list::Message::RowMenu(Some(entry.line))));
+    let menu = open.then(|| row_menu(entry, app.colors()));
+    popover(anchor, menu, Message::List(list::Message::RowMenu(None)))
+        .at_cursor()
+        .into()
+}
+
+fn row_menu<'a>(entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
+    let target = TodoRef::new(entry.line, &entry.todo);
+    let item = |glyph: Icon, label: &'static str, message: list::Message, danger: bool| {
+        let tint = if danger { colors.danger } else { colors.text };
+        button(
+            row![icon(glyph, 15.0, tint), text(tr(label)).size(13).color(tint)]
+                .spacing(10)
+                .align_y(Alignment::Center),
+        )
+        .width(Fill)
+        .padding([7, 10])
+        .style(theme::ghost(colors, false))
+        .on_press(Message::List(message))
+    };
+    container(
+        column![
+            item(
+                Icon::Copy,
+                "copy",
+                list::Message::Copy(entry.todo.raw().to_owned()),
+                false
+            ),
+            item(
+                Icon::Archive,
+                "archive_one",
+                list::Message::ArchiveOne(target.clone()),
+                false
+            ),
+            rule::horizontal(1),
+            item(Icon::Trash, "delete", list::Message::AskDelete(target), true),
+        ]
+        .spacing(2),
+    )
+    .padding(6)
+    .width(220)
+    .style(theme::card(colors))
     .into()
 }
 

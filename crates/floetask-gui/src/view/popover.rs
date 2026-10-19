@@ -1,12 +1,13 @@
 //! A popover: content that floats over everything else, anchored below a
-//! widget, without moving the layout. A click outside closes it.
+//! widget or at the cursor, without moving the layout. A click outside
+//! closes it.
 //!
 //! iced 0.14 has no built-in popover, so this is a small custom widget that
 //! renders the popup through iced's overlay layer, like tooltips and pick
 //! lists do.
 
 use iced::advanced::layout::{self, Layout};
-use iced::advanced::widget::{self, Tree, Widget};
+use iced::advanced::widget::{self, Tree, Widget, tree};
 use iced::advanced::{Clipboard, Shell, mouse, overlay, renderer};
 use iced::{Element, Event, Length, Point, Rectangle, Size, Vector};
 
@@ -18,6 +19,14 @@ pub struct Popover<'a, Message> {
     popup: Option<Element<'a, Message>>,
     on_dismiss: Message,
     align_left: bool,
+    at_cursor: bool,
+}
+
+/// Where the last right-click on the anchor was, from the anchor's top-left
+/// corner. Kept relative so the popup follows the anchor when it scrolls.
+#[derive(Default)]
+struct State {
+    right_click: Option<Vector>,
 }
 
 /// Shows `popup` (when `Some`) under the right edge of `anchor`.
@@ -31,6 +40,7 @@ pub fn popover<'a, Message: Clone + 'a>(
         popup,
         on_dismiss,
         align_left: false,
+        at_cursor: false,
     }
 }
 
@@ -41,9 +51,24 @@ impl<Message> Popover<'_, Message> {
         self.align_left = true;
         self
     }
+
+    /// Opens the popup at the last right-click on the anchor, like a
+    /// context menu.
+    pub fn at_cursor(mut self) -> Self {
+        self.at_cursor = true;
+        self
+    }
 }
 
 impl<'a, Message: Clone + 'a> Widget<Message, iced::Theme, iced::Renderer> for Popover<'a, Message> {
+    fn tag(&self) -> tree::Tag {
+        tree::Tag::of::<State>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(State::default())
+    }
+
     fn size(&self) -> Size<Length> {
         self.anchor.as_widget().size()
     }
@@ -104,6 +129,13 @@ impl<'a, Message: Clone + 'a> Widget<Message, iced::Theme, iced::Renderer> for P
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
+        if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)) = event
+            && let Some(position) = cursor.position_over(layout.bounds())
+        {
+            tree.state.downcast_mut::<State>().right_click = Some(position - layout.bounds().position());
+            // An open popup moves to the new click.
+            shell.invalidate_layout();
+        }
         self.anchor.as_widget_mut().update(
             &mut tree.children[0],
             event,
@@ -137,7 +169,17 @@ impl<'a, Message: Clone + 'a> Widget<Message, iced::Theme, iced::Renderer> for P
         viewport: &Rectangle,
         translation: Vector,
     ) -> Option<overlay::Element<'b, Message, iced::Theme, iced::Renderer>> {
-        let anchor = layout.bounds() + translation;
+        let bounds = layout.bounds() + translation;
+        // At the cursor, the popup hangs from a point instead of the anchor.
+        let click = tree
+            .state
+            .downcast_ref::<State>()
+            .right_click
+            .filter(|_| self.at_cursor);
+        let anchor = match click {
+            Some(offset) => Rectangle::new(bounds.position() + offset, Size::ZERO),
+            None => bounds,
+        };
         let (anchor_tree, rest) = tree.children.split_first_mut()?;
         match (&mut self.popup, rest.first_mut()) {
             (Some(popup), Some(popup_tree)) => Some(overlay::Element::new(Box::new(Popup {
@@ -145,7 +187,7 @@ impl<'a, Message: Clone + 'a> Widget<Message, iced::Theme, iced::Renderer> for P
                 content: popup,
                 tree: popup_tree,
                 on_dismiss: self.on_dismiss.clone(),
-                align_left: self.align_left,
+                align_left: self.align_left || click.is_some(),
             }))),
             _ => self
                 .anchor
@@ -203,6 +245,12 @@ impl<Message: Clone> overlay::Overlay<Message, iced::Theme, iced::Renderer> for 
         self.content
             .as_widget()
             .draw(self.tree, renderer, theme, style, layout, cursor, &layout.bounds());
+    }
+
+    fn operate(&mut self, layout: Layout<'_>, renderer: &iced::Renderer, operation: &mut dyn widget::Operation) {
+        self.content
+            .as_widget_mut()
+            .operate(self.tree, layout, renderer, operation);
     }
 
     fn update(

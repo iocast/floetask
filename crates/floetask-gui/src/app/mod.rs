@@ -396,6 +396,7 @@ impl Floetask {
             self.calendar_anchor = self.today;
         }
         self.state.main_view = view;
+        self.row_menu = None;
         self.drag = None;
         self.calendar_drag = None;
         self.persist_state()

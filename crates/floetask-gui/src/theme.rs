@@ -230,14 +230,15 @@ pub fn calendar_day(colors: Colors, in_month: bool, drop_target: bool) -> impl F
     }
 }
 
-/// A card on the status board. The dragged card is outlined.
-pub fn board_card(colors: Colors, dragged: bool) -> impl Fn(&Theme) -> container::Style {
+/// A card on the status board. The card being dragged or whose menu is open
+/// is outlined.
+pub fn board_card(colors: Colors, marked: bool) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
         background: filled(colors.surface),
         border: Border {
             radius: 10.0.into(),
-            width: if dragged { 2.0 } else { 1.0 },
-            color: if dragged { colors.primary } else { colors.border },
+            width: if marked { 2.0 } else { 1.0 },
+            color: if marked { colors.primary } else { colors.border },
         },
         ..container::Style::default()
     }

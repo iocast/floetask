@@ -1001,6 +1001,106 @@ fn dropping_a_card_back_in_its_column_does_not_open_it() {
     assert!(app.dialog.is_none());
 }
 
+/// Right-clicks the widget showing `label` and returns the messages it produced.
+fn right_click(app: &Floetask, label: &str) -> Vec<Message> {
+    use iced::mouse::{Button, Event};
+
+    let mut ui = simulator(app.view());
+    let bounds = ui
+        .find(label)
+        .unwrap_or_else(|_| panic!("`{label}` is not on screen"))
+        .bounds();
+    ui.point_at(bounds.center());
+    let _ = ui.simulate([
+        iced::Event::Mouse(Event::ButtonPressed(Button::Right)),
+        iced::Event::Mouse(Event::ButtonReleased(Button::Right)),
+    ]);
+    ui.into_messages().collect()
+}
+
+/// Opens the right-click menu of the card showing `label`, then checks it
+/// offers copy, move to done file and delete for that todo.
+fn assert_card_menu(app: &mut Floetask, label: &str) {
+    let line = app.listing.todos().find(|e| e.todo.body() == label).unwrap().line;
+    let messages = right_click(app, label);
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::List(list::Message::RowMenu(Some(l))) if *l == line)),
+        "{messages:?}"
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert!(matches!(&click(app, "Copy")[..], [Message::List(list::Message::Copy(raw))] if raw.contains(label)));
+    assert!(matches!(
+        &click(app, "Move to done file")[..],
+        [Message::List(list::Message::ArchiveOne(target))] if target.line == line
+    ));
+    let messages = click(app, "Delete");
+    assert!(matches!(
+        &messages[..],
+        [Message::List(list::Message::AskDelete(target))] if target.line == line
+    ));
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert!(app.row_menu.is_none());
+    assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+    let _ = app.update(Message::CloseDialog);
+}
+
+#[test]
+fn a_context_menu_opens_at_the_right_click() {
+    use iced::mouse::{Button, Event};
+    use iced::widget::{container, text};
+
+    let anchor = container(text("anchor")).width(300).height(200);
+    let menu = crate::view::popover::popover(anchor, Some(text("menu").into()), ()).at_cursor();
+    let mut ui = iced_test::Simulator::new(menu);
+    let click = iced::Point::new(120.0, 80.0);
+    ui.point_at(click);
+    let _ = ui.simulate([
+        iced::Event::Mouse(Event::ButtonPressed(Button::Right)),
+        iced::Event::Mouse(Event::ButtonReleased(Button::Right)),
+    ]);
+    // Just below the click, not under the anchor's right edge.
+    let bounds = ui.find("menu").unwrap().bounds();
+    assert_eq!(bounds.x, click.x);
+    assert!((click.y..click.y + 10.0).contains(&bounds.y), "{bounds:?}");
+}
+
+#[test]
+fn board_and_calendar_cards_have_a_right_click_menu() {
+    use floetask_application::MainView;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Board));
+    assert!(simulator(app.view()).find("Move to done file").is_err());
+    assert_card_menu(&mut app, "Legal review");
+
+    // A click outside the menu closes it.
+    let _ = app.update(Message::List(list::Message::RowMenu(Some(0))));
+    let mut ui = simulator(app.view());
+    ui.click("Columns").unwrap();
+    let messages: Vec<Message> = ui.into_messages().collect();
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::List(list::Message::RowMenu(None))))
+    );
+
+    // Switching views closes an open menu.
+    let _ = app.update(Message::List(list::Message::RowMenu(Some(0))));
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    assert!(app.row_menu.is_none());
+    let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
+    let _ = app.update(Message::Calendar(calendar::Message::OpenDay(
+        slides.todo.due().unwrap(),
+    )));
+    assert_card_menu(&mut app, "Prepare slides");
+}
+
 #[test]
 fn board_columns_are_set_per_file() {
     let mut app = app();

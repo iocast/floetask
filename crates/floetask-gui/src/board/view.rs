@@ -19,7 +19,7 @@ use floetask_domain::status::key_from_label;
 
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
-use crate::list::{body, collapsible, group_header, meta, status_label, status_name};
+use crate::list::{body, card_menu, collapsible, group_header, meta, status_label, status_name};
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::widgets::{
@@ -235,7 +235,8 @@ fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool, width: Le
 fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
     let target = TodoRef::new(entry.line, todo);
-    let dragged = app.drag.as_ref().is_some_and(|drag| drag.target.line == entry.line);
+    let marked =
+        app.drag.as_ref().is_some_and(|drag| drag.target.line == entry.line) || app.row_menu == Some(entry.line);
 
     let accent_color = match todo.priority() {
         Some(priority) if !todo.is_complete() => colors.priority(priority),
@@ -265,17 +266,17 @@ fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colo
         let details = column![body(app, todo, colors)].extend(meta).spacing(6).width(Fill);
         row![accent, done, details].spacing(10).align_y(Alignment::Start).into()
     };
-    mouse_area(
+    let card = mouse_area(
         container(content)
             .padding(if compact { [6, 10] } else { [10, 12] })
             .width(Fill)
-            .style(theme::board_card(colors, dragged))
+            .style(theme::board_card(colors, marked))
             .clip(true),
     )
     .on_press(Message::Board(board::Message::Press(target, lane)))
     .on_exit(Message::Board(board::Message::CardLeft))
-    .interaction(mouse::Interaction::Grab)
-    .into()
+    .interaction(mouse::Interaction::Grab);
+    card_menu(app, entry, card)
 }
 
 /// Edits the board columns of the active file: reorder, remove, add a
