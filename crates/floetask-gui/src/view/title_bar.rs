@@ -1,17 +1,19 @@
 //! The custom title bar, like Firefox and Zed: file-drawer toggle and logo
 //! on the left, the search field centred, the filter drawer and settings on
 //! the right next to the window buttons. Empty space drags the window; a
-//! double click maximises it.
+//! double click maximises it. While an update is available, an update button
+//! leads the controls on the right.
 
-use iced::widget::{button, center, container, mouse_area, responsive, row, rule, space, stack};
+use iced::widget::{button, center, container, mouse_area, responsive, row, rule, space, stack, text};
 use iced::{Alignment, Element, Fill};
 
 use floetask_application::MainView;
 
 use super::icons::{Icon, icon};
-use super::widgets::icon_button;
+use super::widgets::{icon_button, with_tooltip};
 use crate::app::{Floetask, Message};
-use crate::i18n::tr;
+use crate::i18n::{tr, trf};
+use crate::settings::{SettingsSection, UpdateState};
 use crate::theme::{self, Colors};
 use crate::{drawer, files, search, settings};
 
@@ -46,6 +48,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let right = row![
+        update_button(app, colors),
         view_button(MainView::List, Icon::List, "show_list"),
         view_button(MainView::Board, Icon::Board, "show_board"),
         view_button(MainView::Calendar, Icon::Calendar, "show_calendar"),
@@ -107,6 +110,9 @@ pub(super) fn drag_area() -> Element<'static, Message> {
 /// right.
 const LEFT_CONTROLS: f32 = 92.0;
 const RIGHT_CONTROLS: f32 = 340.0;
+/// Extra room kept on the right while the update button shows; its label is
+/// translated, so this allows for the longest one.
+const UPDATE_BUTTON: f32 = 140.0;
 /// Space kept between the search field and the controls.
 const SEARCH_MARGIN: f32 = 12.0;
 
@@ -117,17 +123,45 @@ fn search_slot(app: &Floetask, width: f32) -> Element<'_, Message> {
     let Some(field) = search::field(app) else {
         return space().into();
     };
+    let right_controls = if matches!(app.update, UpdateState::Available(_)) {
+        RIGHT_CONTROLS + UPDATE_BUTTON
+    } else {
+        RIGHT_CONTROLS
+    };
     let gap_start = LEFT_CONTROLS + SEARCH_MARGIN;
-    let gap = (width - gap_start - RIGHT_CONTROLS - SEARCH_MARGIN).max(0.0);
+    let gap = (width - gap_start - right_controls - SEARCH_MARGIN).max(0.0);
     let centred_x = (width - SEARCH_WIDTH) / 2.0;
     let (x, field_width) =
-        if centred_x >= gap_start && centred_x + SEARCH_WIDTH <= width - RIGHT_CONTROLS - SEARCH_MARGIN {
+        if centred_x >= gap_start && centred_x + SEARCH_WIDTH <= width - right_controls - SEARCH_MARGIN {
             (centred_x, SEARCH_WIDTH)
         } else {
             (gap_start, gap.min(SEARCH_WIDTH))
         };
     row![space().width(x), container(field).width(field_width).center_y(HEIGHT)]
         .height(HEIGHT)
+        .into()
+}
+
+/// The offered update as a highlighted button; it opens Settings → About,
+/// which shows the release notes and installs it. Nothing while there is no
+/// update.
+fn update_button(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let UpdateState::Available(release) = &app.update else {
+        return space().width(0).into();
+    };
+    let label = row![
+        icon(Icon::ArrowDown, 14.0, theme::on_primary(colors)),
+        text(tr("update_button")).size(13)
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center);
+    let content = button(label)
+        .padding([6, 12])
+        .style(theme::primary(colors))
+        .on_press(Message::Settings(settings::Message::OpenAt(SettingsSection::About)));
+    let hint = trf("update_button_hint", &[("version", release.version.as_str().into())]);
+    row![with_tooltip(content, hint, colors), space().width(4)]
+        .align_y(Alignment::Center)
         .into()
 }
 

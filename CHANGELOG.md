@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Changed
+- An available update shows as an *Update* button in the title bar, which opens Settings → About to install it, instead of a toast on start
+
 ## [0.5.0] - 2026-10-21
 
 ### Added

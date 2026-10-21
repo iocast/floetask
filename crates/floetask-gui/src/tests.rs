@@ -1459,6 +1459,31 @@ fn about_page_shows_the_version_and_an_available_update() {
 }
 
 #[test]
+fn update_found_on_start_shows_a_title_bar_button_that_opens_about() {
+    let mut app = app();
+    assert!(simulator(app.view()).find("Update").is_err());
+
+    app.settings.update_channel = floetask_application::UpdateChannel::Preview;
+    let found = app.services.ports.updater.releases();
+    let _ = app.update(Message::Settings(settings::Message::UpdateChecked(false, found)));
+    snapshot(&app, "title-bar-update");
+    // No toast any more: the title bar carries the notice.
+    assert!(app.toasts.is_empty());
+    let messages = click(&app, "Update");
+    let [Message::Settings(settings::Message::OpenAt(section))] = &messages[..] else {
+        panic!("expected OpenAt, got {messages:?}")
+    };
+    assert_eq!(*section, crate::settings::SettingsSection::About);
+
+    let _ = app.update(Message::Settings(settings::Message::OpenAt(*section)));
+    assert!(
+        simulator(app.view())
+            .find("floetask 9.0.0-rc.1 (preview) is available.")
+            .is_ok()
+    );
+}
+
+#[test]
 fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
     use floetask_application::MainView;
     use floetask_domain::calendar::CalendarMode;

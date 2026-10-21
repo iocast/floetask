@@ -30,7 +30,7 @@ The GitHub Actions release workflow (`.github/workflows/release.yml`) runs the s
 
 Settings → About shows the logo, name, version and a one-line description, and the update check:
 
-- **Check for updates on start** (setting, default on): a release build asks for a newer release when it starts and shows a toast if there is one. Failures stay silent.
+- **Check for updates on start** (setting, default on): a release build asks for a newer release when it starts. If there is one, an **Update** button shows in the title bar, left of the view switch; its tooltip names the version and a click opens Settings → About to read the release notes and install it. A manual check that finds one shows the button too. Failures stay silent.
 - **Check now**: the same check on request, with the result on the page (up to date, new version with its release notes, or the error).
 - **Install and restart**: downloads the offered installer, verifies its signature and runs it. Windows uses the setup `.exe` (progress bar only, the app restarts), macOS replaces the `.app`, Linux replaces the AppImage. A `.deb` or `.msi` install updates through its package manager instead.
 - **Release channel** (setting `update_channel`, default `stable`): *Stable* offers releases only. *Preview* also offers release candidates (`vX.Y.Z-rc.N`, published as GitHub pre-releases), so testers get the next version early. A preview build on the stable channel is updated by the next release, which is newer than its candidates; the page says so.

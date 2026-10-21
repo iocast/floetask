@@ -21,6 +21,13 @@ impl Floetask {
                 self.dialog = Some(Dialog::Settings(SettingsDialog::default()));
                 Task::none()
             }
+            settings::Message::OpenAt(section) => {
+                self.dialog = Some(Dialog::Settings(SettingsDialog {
+                    section,
+                    ..SettingsDialog::default()
+                }));
+                Task::none()
+            }
             settings::Message::Section(section) => {
                 if let Some(Dialog::Settings(dialog)) = &mut self.dialog {
                     dialog.section = section;

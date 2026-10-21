@@ -418,6 +418,11 @@ pub fn window_control(colors: Colors, close: bool) -> impl Fn(&Theme, button::St
     }
 }
 
+/// Text and icons on a primary-coloured fill.
+pub fn on_primary(colors: Colors) -> Color {
+    if colors.dark { rgb(0x0b0c0f) } else { Color::WHITE }
+}
+
 pub fn primary(colors: Colors) -> impl Fn(&Theme, button::Status) -> button::Style {
     move |_, status| {
         let base = colors.primary;
@@ -429,7 +434,7 @@ pub fn primary(colors: Colors) -> impl Fn(&Theme, button::Status) -> button::Sty
         };
         button::Style {
             background: filled(background),
-            text_color: if colors.dark { rgb(0x0b0c0f) } else { Color::WHITE },
+            text_color: on_primary(colors),
             border: border::rounded(8),
             ..button::Style::default()
         }

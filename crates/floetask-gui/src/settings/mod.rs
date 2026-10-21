@@ -14,6 +14,9 @@ pub(crate) use view::view;
 #[derive(Debug, Clone)]
 pub enum Message {
     Open,
+    /// Opens the dialog on this page, such as About from the title bar's
+    /// update button.
+    OpenAt(SettingsSection),
     Change(SettingChange),
     ToggleTheme,
     Section(SettingsSection),

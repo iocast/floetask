@@ -8,7 +8,6 @@ use floetask_application::updates::offered;
 
 use super::UpdateState;
 use crate::app::{Floetask, Message};
-use crate::i18n::trf;
 use crate::settings;
 
 impl Floetask {
@@ -41,7 +40,7 @@ impl Floetask {
     }
 
     /// Lists the published releases. The automatic check on start stays
-    /// silent unless it finds an update.
+    /// silent; an update it finds shows as a button in the title bar.
     pub(crate) fn check_for_updates(&mut self, manual: bool) -> Task<Message> {
         let updater = self.services.ports.updater.clone();
         if !updater.is_configured() {
@@ -75,25 +74,14 @@ impl Floetask {
             self.rollback_to = None;
         }
         match offered(&self.published, self.settings.update_channel).cloned() {
-            Some(release) => {
-                // A manual check shows the result on the About page itself.
-                let notice = if manual {
-                    Task::none()
-                } else {
-                    self.toast(trf(
-                        "update_available_toast",
-                        &[("version", release.version.as_str().into())],
-                    ))
-                };
-                self.update = UpdateState::Available(release);
-                notice
-            }
+            // The title bar shows an update button while one is available.
+            Some(release) => self.update = UpdateState::Available(release),
             None => {
                 if manual {
                     self.update = UpdateState::UpToDate;
                 }
-                Task::none()
             }
         }
+        Task::none()
     }
 }
