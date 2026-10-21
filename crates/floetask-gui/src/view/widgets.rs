@@ -1,6 +1,8 @@
 //! Small building blocks shared by the views.
 
-use iced::widget::{button, center, column, container, mouse_area, opaque, row, text, text_input, toggler, tooltip};
+use iced::widget::{
+    button, center, column, container, mouse_area, opaque, row, space, stack, text, text_input, toggler, tooltip,
+};
 use iced::{Alignment, Element, Fill, alignment};
 
 use super::icons::{Icon, icon};
@@ -11,7 +13,7 @@ use crate::theme::{self, Colors};
 /// top of the page. Clicking the backdrop closes the dialog.
 pub fn modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
     let card = container(content).padding(24).max_width(680).style(theme::card(colors));
-    opaque(mouse_area(center(opaque(card)).padding(24).style(theme::backdrop(colors))).on_press(Message::CloseDialog))
+    over_page(center(opaque(card)).padding(24).into(), colors)
 }
 
 /// Margin around a full-window dialog: about a thumb's width, so the app
@@ -26,16 +28,28 @@ pub fn full_modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<
         .width(Fill)
         .height(Fill)
         .style(theme::card(colors));
-    opaque(
-        mouse_area(
-            container(opaque(card))
-                .padding(FULL_MODAL_MARGIN)
-                .width(Fill)
-                .height(Fill)
-                .style(theme::backdrop(colors)),
-        )
-        .on_press(Message::CloseDialog),
+    over_page(
+        container(opaque(card))
+            .padding(FULL_MODAL_MARGIN)
+            .width(Fill)
+            .height(Fill)
+            .into(),
+        colors,
     )
+}
+
+/// Puts a dialog's card layer over the dimmed backdrop. The title bar's
+/// strip still drags the window, so a dialog never pins it in place; the
+/// card sits above the strip where they overlap.
+fn over_page<'a>(card: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
+    let backdrop = mouse_area(
+        container(space().width(Fill).height(Fill))
+            .width(Fill)
+            .height(Fill)
+            .style(theme::backdrop(colors)),
+    )
+    .on_press(Message::CloseDialog);
+    opaque(stack![backdrop, super::title_bar::drag_area(), card])
 }
 
 /// A square icon button with a tooltip. `active` highlights toggled tools;

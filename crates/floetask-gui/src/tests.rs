@@ -1902,3 +1902,28 @@ fn the_overview_board_and_calendar_show_every_file() {
     drop(ui);
     snapshot(&app, "overview-calendar");
 }
+
+#[test]
+fn the_title_bar_moves_the_window_while_a_dialog_is_open() {
+    let press_at = |app: &Floetask, point: iced::Point| -> Vec<Message> {
+        let mut ui = simulator(app.view());
+        ui.point_at(point);
+        let _ = ui.simulate(iced_test::simulator::click());
+        ui.into_messages().collect()
+    };
+    // Below the resize edge, in the title bar's empty middle.
+    let title_bar = iced::Point::new(300.0, 24.0);
+    let backdrop = iced::Point::new(60.0, 400.0);
+
+    let mut app = app();
+    let _ = app.update(Message::Editor(editor::Message::New));
+    let messages = press_at(&app, title_bar);
+    assert!(matches!(&messages[..], [Message::WindowDrag]), "{messages:?}");
+    let messages = press_at(&app, backdrop);
+    assert!(matches!(&messages[..], [Message::CloseDialog]), "{messages:?}");
+
+    let _ = app.update(Message::CloseDialog);
+    let _ = app.update(Message::Settings(settings::Message::Open));
+    let messages = press_at(&app, title_bar);
+    assert!(matches!(&messages[..], [Message::WindowDrag]), "{messages:?}");
+}

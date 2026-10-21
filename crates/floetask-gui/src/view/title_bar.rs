@@ -77,10 +77,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     // The drag area fills everything that is not a control.
-    let drag = mouse_area(space().width(Fill).height(HEIGHT))
-        .on_press(Message::WindowDrag)
-        .on_double_click(Message::WindowToggleMaximize);
-    let bar = row![left, drag, right].height(HEIGHT).align_y(Alignment::Center);
+    let bar = row![left, drag_area(), right].height(HEIGHT).align_y(Alignment::Center);
 
     let middle: Element<'_, Message> = if search::field(app).is_some() {
         responsive(move |size| search_slot(app, size.width)).into()
@@ -92,6 +89,16 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         .width(Fill)
         .height(HEIGHT)
         .style(theme::app(colors))
+        .into()
+}
+
+/// Empty title-bar space: a press moves the window, a double click
+/// maximises it. Dialogs put one over the title bar too, so the window
+/// still moves while they are open.
+pub(super) fn drag_area() -> Element<'static, Message> {
+    mouse_area(space().width(Fill).height(HEIGHT))
+        .on_press(Message::WindowDrag)
+        .on_double_click(Message::WindowToggleMaximize)
         .into()
 }
 
