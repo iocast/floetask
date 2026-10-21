@@ -6,6 +6,14 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-21
+
+### Added
+- Overview of all files: with two or more files, an *Overview* entry tops the file drawer and shows every file's todos at once, grouped by file in the list, one board per file (with its own columns) and one merged calendar; actions write to the todo's own file, the add dialog lets you pick the file for a new todo, and drawer counts and project/context renames span every file
+
+### Fixed
+- Dragging the title bar moves the window while a dialog is open; pressing it used to close the dialog instead
+
 ## [0.4.1] - 2026-10-19
 
 ### Added
@@ -105,7 +113,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.4.1...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/iocast/floetask/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/iocast/floetask/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0
 [0.4.0-rc.3]: https://github.com/iocast/floetask/compare/v0.4.0-rc.2...v0.4.0-rc.3
