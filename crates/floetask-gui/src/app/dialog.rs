@@ -1,17 +1,17 @@
 //! Modal dialogs. Each dialog's own state lives with its feature; this is
 //! the one place that knows which dialog is open.
 
-use floetask_application::TodoRef;
 use floetask_domain::board::BoardColumns;
 use floetask_domain::listing::Attribute;
 
+use super::Target;
 use crate::editor::{DatePicker, Editor};
 use crate::settings::SettingsDialog;
 
 /// An action waiting for the user's confirmation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pending {
-    DeleteTodo(TodoRef),
+    DeleteTodo(Target),
     RemoveFile(usize),
     RemoveValue(Attribute, String),
     DeleteSavedFilter(usize),
@@ -32,7 +32,7 @@ pub enum Dialog {
         input: String,
     },
     RowDate {
-        target: TodoRef,
+        target: Target,
         calendar: DatePicker,
     },
     SaveFilter {

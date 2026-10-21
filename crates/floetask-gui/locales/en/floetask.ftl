@@ -43,6 +43,8 @@ file_sort_custom = Custom order
 file_sort_custom_hint = Drag files to arrange them
 file_sort_name = Name
 file_sort_folder = Folder
+overview = Overview
+overview_hint = All files, grouped by file
 toggle_theme = Switch light / dark
 
 ## Counts
@@ -74,6 +76,8 @@ details = Details
 
 new_todo = New todo
 edit_todo = Edit todo
+editor_file = In { $file }
+editor_add_to = Add to
 editor_placeholder = (A) Call mom +family @phone due:tomorrow
 editor_hint = Ctrl+Enter to save, Esc to close
 add = Add
@@ -250,8 +254,10 @@ hide_category = Hide todos with any value
 show_category = Show todos with this attribute again
 rename = Rename
 rename_title = Rename { $value } everywhere in this file
+rename_title_all = Rename { $value } everywhere in every file
 remove_value = Remove
 remove_value_confirm = Remove { $value } from every todo in this file?
+remove_value_confirm_all = Remove { $value } from every todo in every file?
 renamed =
     { $count ->
         [one] Updated 1 todo

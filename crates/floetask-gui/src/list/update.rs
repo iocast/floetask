@@ -3,12 +3,12 @@
 use iced::Task;
 use iced::widget::operation;
 
-use floetask_application::{NoteService, TodoRef};
+use floetask_application::NoteService;
 use floetask_domain::NoteLink;
 use floetask_domain::listing::ListedTodo;
 use floetask_domain::todo::Todo;
 
-use crate::app::{Dialog, Floetask, Message, Pending};
+use crate::app::{Dialog, Floetask, Message, Pending, Target};
 use crate::editor::{DateKey, DatePicker, Editor};
 use crate::i18n::{tr, trf};
 use crate::{editor, files, list, note_window, view};
@@ -17,31 +17,34 @@ impl Floetask {
     pub(crate) fn update_list(&mut self, message: list::Message) -> Task<Message> {
         match message {
             list::Message::OpenTodo(target) => {
-                let todo = Todo::parse(&target.raw);
+                let todo = Todo::parse(&target.todo.raw);
                 self.row_menu = None;
                 self.dialog = Some(Dialog::Editor(Box::new(Editor::new(
-                    Some(target.clone()),
+                    target.file.clone(),
+                    Some(target.todo.clone()),
                     &todo.editable_text(),
                     self.colors(),
                 ))));
                 let focus = operation::focus(view::EDITOR_ID);
                 // Fill the notes field from the note file, if there is one.
-                match (self.active_path(), todo.note_link().and_then(Result::ok)) {
-                    (Some(path), Some(link)) => {
+                match todo.note_link().and_then(Result::ok) {
+                    Some(link) => {
                         let notes = self.services.notes.clone();
+                        let path = target.file.clone();
                         let load = Task::perform(async move { notes.read(&path, &link) }, move |result| {
                             Message::Editor(editor::Message::NoteLoaded(target.clone(), result))
                         });
                         Task::batch([focus, load])
                     }
-                    _ => focus,
+                    None => focus,
                 }
             }
-            list::Message::ToggleComplete(target) => {
-                self.change_active_file(move |service, path, options| service.toggle_complete(path, &target, options))
-            }
-            list::Message::RowMenu(line) => {
-                self.row_menu = if self.row_menu == line { None } else { line };
+            list::Message::ToggleComplete(Target { file, todo }) => self
+                .change_file(file, move |service, path, options| {
+                    service.toggle_complete(path, &todo, options)
+                }),
+            list::Message::RowMenu(id) => {
+                self.row_menu = if self.row_menu == id { None } else { id };
                 Task::none()
             }
             list::Message::Copy(raw) => {
@@ -53,7 +56,7 @@ impl Floetask {
                 self.row_menu = None;
                 self.dialog = Some(Dialog::Confirm {
                     message: tr("delete_confirm").to_owned(),
-                    detail: Some(Todo::parse(&target.raw).editable_text()),
+                    detail: Some(Todo::parse(&target.todo.raw).editable_text()),
                     pending: Pending::DeleteTodo(target),
                 });
                 Task::none()
@@ -70,18 +73,16 @@ impl Floetask {
                 self.persist_state()
             }
             list::Message::OpenNote(target) => {
-                let Some(path) = self.active_path() else {
-                    return Task::none();
-                };
+                let path = target.file;
                 let service = self.services.notes.clone();
-                let todo = Todo::parse(&target.raw);
+                let todo = Todo::parse(&target.todo.raw);
                 let todo_file = path.clone();
                 Task::perform(async move { service.load_or_create(&path, &todo) }, move |result| {
                     Message::NoteWindow(note_window::Message::Loaded(todo_file.clone(), result))
                 })
             }
             list::Message::OpenDatePicker(target, key) => {
-                let todo = Todo::parse(&target.raw);
+                let todo = Todo::parse(&target.todo.raw);
                 let current = match key {
                     DateKey::Due => todo.due(),
                     DateKey::Threshold => todo.threshold(),
@@ -92,8 +93,8 @@ impl Floetask {
                 });
                 Task::none()
             }
-            list::Message::Hover(line) => {
-                self.hovered = line;
+            list::Message::Hover(id) => {
+                self.hovered = id;
                 Task::none()
             }
         }
@@ -105,7 +106,7 @@ impl Floetask {
         self.listing
             .groups
             .iter()
-            .filter(|group| !self.state.collapsed_list_groups.contains(&group.key()))
+            .filter(|group| !self.state.collapsed_list_groups.contains(&self.list_group_key(group)))
             .flat_map(|group| group.todos.iter())
     }
 
@@ -144,37 +145,41 @@ impl Floetask {
 
     /// Deletes a todo. Its note file is kept; if no other todo links to it
     /// any more, a toast says so.
-    pub(crate) fn delete_todo(&mut self, target: TodoRef) -> Task<Message> {
+    pub(crate) fn delete_todo(&mut self, target: Target) -> Task<Message> {
+        let Target { file, todo } = target;
         let orphan = self
-            .active_document()
-            .and_then(|document| NoteService::orphaned_by_delete(document, &target))
-            .zip(self.active_path())
-            .map(|(link, path)| match link {
-                NoteLink::Folder(name) => format!("{}/{name}", NoteService::folder_name(&path)),
+            .documents
+            .get(&file)
+            .and_then(|document| NoteService::orphaned_by_delete(document, &todo))
+            .map(|link| match link {
+                NoteLink::Folder(name) => format!("{}/{name}", NoteService::folder_name(&file)),
                 NoteLink::External(path) => path,
             });
-        let delete = self.change_active_file(move |service, path, options| service.delete(path, &target, options));
+        let delete = self.change_file(file, move |service, path, options| service.delete(path, &todo, options));
         match orphan {
             Some(name) => Task::batch([delete, self.toast(trf("note_orphaned", &[("note", name.into())]))]),
             None => delete,
         }
     }
 
-    fn archive_one(&mut self, target: TodoRef) -> Task<Message> {
+    /// Moves one todo to the done file of the file it is in, asking for a
+    /// done file first when that file has none.
+    fn archive_one(&mut self, target: Target) -> Task<Message> {
         self.row_menu = None;
-        let Some(entry) = self.state.active_entry().cloned() else {
+        let Some(index) = self.state.files.iter().position(|entry| entry.path == target.file) else {
             return Task::none();
         };
-        let Some(done_path) = entry.done_path else {
-            let index = self.state.active_file;
+        let Some(done_path) = self.state.files[index].done_path.clone() else {
             let notice = self.toast(tr("done_file_needed"));
             return Task::batch([
                 notice,
                 Task::done(Message::Files(files::Message::ChangeDoneFile(index))),
             ]);
         };
-        let archive = self
-            .change_active_file(move |service, path, options| service.archive_one(path, &done_path, &target, options));
+        let Target { file, todo } = target;
+        let archive = self.change_file(file, move |service, path, options| {
+            service.archive_one(path, &done_path, &todo, options)
+        });
         Task::batch([archive, self.toast(tr("archived_one"))])
     }
 }

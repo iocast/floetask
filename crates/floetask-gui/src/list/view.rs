@@ -1,4 +1,4 @@
-//! The grouped todo list.
+//! The grouped todo list. The overview groups it by file instead.
 //!
 //! Each todo is a card: a priority accent, a round checkbox, the text with
 //! its attributes underneath, and quick actions that appear on hover.
@@ -9,7 +9,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Color, Element, Fill};
 
-use floetask_application::{NoteStatus, TodoRef};
+use floetask_application::NoteStatus;
 use floetask_domain::board::BoardColumns;
 use floetask_domain::date::format_iso;
 use floetask_domain::human_date::display_bucket;
@@ -18,7 +18,7 @@ use floetask_domain::status::{StatusSet, label_from_key};
 use floetask_domain::todo::TextSegment;
 use floetask_domain::{Date, NoteLink, Todo};
 
-use crate::app::{Floetask, Message};
+use crate::app::{Floetask, Message, Target};
 use crate::editor::DateKey;
 use crate::i18n::{self, tr, trf};
 use crate::theme::{self, Colors};
@@ -35,9 +35,13 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     let mut groups = Column::new().spacing(if compact { 12 } else { 20 }).padding([4, 4]);
     for group in &app.listing.groups {
         let mut rows = Column::new().spacing(if compact { 4 } else { 6 });
-        let key = group.key();
+        let key = app.list_group_key(group);
         let collapsed = app.state.collapsed_list_groups.contains(&key);
-        if let Some(header) = group_header(app, group.attribute, &group.values, group.todos.len()) {
+        let header = match group.file {
+            Some(file) => Some(file_header(app, file, group.todos.len())),
+            None => group_header(app, group.attribute, &group.values, group.todos.len()),
+        };
+        if let Some(header) = header {
             rows = rows.push(collapsible(
                 header,
                 collapsed,
@@ -121,6 +125,33 @@ pub(crate) fn collapsible<'a>(
         .into()
 }
 
+/// The header of a file's group in the overview: its name, its folder and
+/// how many of its todos are shown. Shared with the overview's board.
+pub(crate) fn file_header<'a>(app: &'a Floetask, file: usize, count: usize) -> Element<'a, Message> {
+    let colors = app.colors();
+    let path = app.listed_file(file);
+    let name = path
+        .and_then(|path| path.file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let folder = path
+        .and_then(|path| path.parent())
+        .map(|parent| parent.display().to_string())
+        .unwrap_or_default();
+    container(
+        row![
+            icon(Icon::File, 15.0, colors.primary),
+            group_title(&name, colors),
+            text(folder).size(12).color(colors.muted),
+            text(count.to_string()).size(13).color(colors.muted),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([6, 6])
+    .into()
+}
+
 /// A group's name in its header: larger than a caption so groups stand out
 /// in a long list.
 fn group_title<'a>(label: &str, colors: Colors) -> Element<'a, Message> {
@@ -142,9 +173,9 @@ fn todo_row<'a>(
 ) -> Element<'a, Message> {
     let colors = app.colors();
     let todo = &entry.todo;
-    let target = TodoRef::new(entry.line, todo);
+    let target = app.target(entry);
     let compact = app.settings.compact;
-    let hovered = app.hovered == Some(entry.line) || app.row_menu == Some(entry.line);
+    let hovered = app.hovered == Some(entry.id()) || app.row_menu == Some(entry.id());
 
     let accent_color = match todo.priority() {
         Some(priority) if !todo.is_complete() => colors.priority(priority),
@@ -178,8 +209,8 @@ fn todo_row<'a>(
         .style(theme::row(colors, hovered, selected));
     mouse_area(card)
         .on_press(Message::List(list::Message::OpenTodo(target)))
-        .on_right_press(Message::List(list::Message::RowMenu(Some(entry.line))))
-        .on_enter(Message::List(list::Message::Hover(Some(entry.line))))
+        .on_right_press(Message::List(list::Message::RowMenu(Some(entry.id()))))
+        .on_enter(Message::List(list::Message::Hover(Some(entry.id()))))
         .on_exit(Message::List(list::Message::Hover(None)))
         .into()
 }
@@ -238,7 +269,7 @@ pub(crate) fn body<'a>(app: &'a Floetask, todo: &'a Todo, colors: Colors) -> Ele
 pub(crate) fn meta<'a>(
     app: &'a Floetask,
     todo: &'a Todo,
-    target: &TodoRef,
+    target: &Target,
     grouped_by: Option<Attribute>,
     show_status: bool,
     colors: Colors,
@@ -402,8 +433,13 @@ pub(crate) fn meta<'a>(
 
 /// Opens the linked note. A note whose file does not exist yet shows as a
 /// broken link and is created on click; an invalid name cannot be opened.
-fn note_button<'a>(app: &Floetask, note: &'a str, target: &TodoRef, colors: Colors) -> Element<'a, Message> {
-    let status = app.note_statuses.get(note).copied().unwrap_or(NoteStatus::Missing);
+fn note_button<'a>(app: &Floetask, note: &'a str, target: &Target, colors: Colors) -> Element<'a, Message> {
+    let status = app
+        .note_statuses
+        .get(&target.file)
+        .and_then(|statuses| statuses.get(note))
+        .copied()
+        .unwrap_or(NoteStatus::Missing);
     // A note kept elsewhere shows its file name; the tooltip has the path.
     let (label, location) = match NoteLink::parse(note) {
         Ok(link @ NoteLink::External(_)) => (link.file_name().to_owned(), link.to_string()),
@@ -434,7 +470,7 @@ fn note_button<'a>(app: &Floetask, note: &'a str, target: &TodoRef, colors: Colo
 }
 
 /// Edit, copy, archive and delete, shown while the row is hovered.
-fn quick_actions<'a>(todo: &'a Todo, target: &TodoRef, colors: Colors) -> Element<'a, Message> {
+fn quick_actions<'a>(todo: &'a Todo, target: &Target, colors: Colors) -> Element<'a, Message> {
     row![
         icon_button(
             Icon::Pencil,
@@ -477,16 +513,16 @@ pub(crate) fn card_menu<'a>(
     entry: &'a ListedTodo,
     card: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    let open = app.row_menu == Some(entry.line);
-    let anchor = mouse_area(card).on_right_press(Message::List(list::Message::RowMenu(Some(entry.line))));
-    let menu = open.then(|| row_menu(entry, app.colors()));
+    let open = app.row_menu == Some(entry.id());
+    let anchor = mouse_area(card).on_right_press(Message::List(list::Message::RowMenu(Some(entry.id()))));
+    let menu = open.then(|| row_menu(app, entry, app.colors()));
     popover(anchor, menu, Message::List(list::Message::RowMenu(None)))
         .at_cursor()
         .into()
 }
 
-fn row_menu<'a>(entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
-    let target = TodoRef::new(entry.line, &entry.todo);
+fn row_menu<'a>(app: &Floetask, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
+    let target = app.target(entry);
     let item = |glyph: Icon, label: &'static str, message: list::Message, danger: bool| {
         let tint = if danger { colors.danger } else { colors.text };
         button(

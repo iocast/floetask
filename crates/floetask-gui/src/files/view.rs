@@ -1,5 +1,6 @@
-//! The collapsible file drawer on the left. Each todo file is listed with
-//! its archive (done) file directly underneath, sorted by the drawer's sort
+//! The collapsible file drawer on the left. With two files or more, an
+//! overview of all of them comes first. Each todo file is listed with its
+//! archive (done) file directly underneath, sorted by the drawer's sort
 //! menu or dragged into a custom order. An archive file always moves with
 //! its todo file.
 //!
@@ -45,6 +46,9 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
     let order = app.state.drawer_order();
     let drop_line = drop_line(app, &order);
     let mut files = Column::new();
+    if order.len() > 1 {
+        files = files.push(overview_entry(app, colors));
+    }
     for (position, &index) in order.iter().enumerate() {
         files = files.push(line(drop_line == Some(position), colors));
         let mut group = column![file_entry(app, index, colors)];
@@ -106,9 +110,35 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
     .into()
 }
 
+/// The overview of every file, above the files themselves.
+fn overview_entry(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let active = app.state.shows_overview();
+    let content = row![
+        icon(Icon::Files, 16.0, if active { colors.primary } else { colors.muted }),
+        column![
+            text(tr("overview")).size(14),
+            text(tr("overview_hint")).size(11).color(colors.muted)
+        ]
+        .spacing(1),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    button(container(content).width(Fill).padding([6, 8]))
+        .width(Fill)
+        .padding(0)
+        .style(theme::ghost(colors, active))
+        .on_press(Message::Files(files::Message::SelectOverview))
+        .into()
+}
+
+/// Whether the drawer marks the file at `index` as the one shown.
+fn is_shown(app: &Floetask, index: usize) -> bool {
+    index == app.state.active_file && !app.state.shows_overview()
+}
+
 fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Message> {
     let entry = &app.state.files[index];
-    let active = index == app.state.active_file;
+    let active = is_shown(app, index);
     let open = app.file_menu == Some(index);
     let folder = entry
         .path
@@ -159,7 +189,7 @@ fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messa
 fn file_menu(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Message> {
     let entry = &app.state.files[index];
     let has_done = entry.done_path.is_some();
-    let can_archive = index == app.state.active_file && has_done && app.listing.counts.completed > 0;
+    let can_archive = is_shown(app, index) && has_done && app.listing.counts.completed > 0;
     let item = |glyph: Icon, label: &'static str, message: Option<Message>, danger: bool| {
         let enabled = message.is_some();
         let tint = match (enabled, danger) {
@@ -223,7 +253,7 @@ fn file_menu(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messag
 fn archive_entry(app: &Floetask, index: usize, colors: Colors) -> Option<Element<'_, Message>> {
     let done = app.state.files[index].done_path.as_ref()?;
     let registered = app.state.files.iter().position(|entry| &entry.path == done);
-    let active = registered == Some(app.state.active_file);
+    let active = registered.is_some_and(|index| is_shown(app, index));
     let name = done
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())

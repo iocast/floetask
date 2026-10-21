@@ -37,6 +37,12 @@ impl Floetask {
             files::Message::Created(Some(path)) => self.create_file(path),
             files::Message::Picked(None) | files::Message::Created(None) => Task::none(),
             files::Message::Select(index) => self.select_file(index),
+            files::Message::SelectOverview => {
+                self.state.overview = true;
+                self.file_menu = None;
+                self.after_file_switch();
+                self.persist_state()
+            }
             files::Message::ToggleDrawer => {
                 self.file_menu = None;
                 self.toggle_panel(crate::layout::Panel::Files)
@@ -169,7 +175,7 @@ impl Floetask {
             Ok(document) => {
                 let unchanged = self.documents.get(&path) == Some(&document);
                 self.documents.insert(path.clone(), document);
-                if !unchanged && self.active_path().as_ref() == Some(&path) {
+                if !unchanged && self.is_shown(&path) {
                     self.refresh();
                 }
                 Task::none()
@@ -202,9 +208,15 @@ impl Floetask {
         }
     }
 
+    /// Whether the file at `path` is on screen: the active file, or one of
+    /// the overview's.
+    fn is_shown(&self, path: &Path) -> bool {
+        self.shown_paths().iter().any(|shown| shown == path)
+    }
+
     fn document_saved(&mut self, path: PathBuf, document: TodoDocument) -> Task<Message> {
         self.documents.insert(path.clone(), document);
-        if self.active_path().as_ref() == Some(&path) {
+        if self.is_shown(&path) {
             self.refresh();
         }
         Task::none()
@@ -245,6 +257,7 @@ impl Floetask {
             return Task::none();
         }
         self.state.active_file = index;
+        self.state.overview = false;
         self.file_menu = None;
         self.after_file_switch();
         self.persist_state()
@@ -266,10 +279,15 @@ impl Floetask {
         self.refresh();
     }
 
+    /// Moves the active file's completed todos to its done file. The
+    /// overview has no active file to archive.
     fn archive_completed(&mut self) -> Task<Message> {
         let Some(entry) = self.state.active_entry().cloned() else {
             return Task::none();
         };
+        if self.state.shows_overview() {
+            return Task::none();
+        }
         let Some(done_path) = entry.done_path.clone() else {
             let index = self.state.active_file;
             let notice = self.toast(tr("done_file_needed"));
@@ -302,9 +320,20 @@ impl Floetask {
         &self,
         change: impl FnOnce(&TodoFileService, &Path, &FileOptions) -> Result<TodoDocument, AppError> + Send + 'static,
     ) -> Task<Message> {
-        let Some(path) = self.active_path() else {
-            return Task::none();
-        };
+        match self.active_path() {
+            Some(path) => self.change_file(path, change),
+            None => Task::none(),
+        }
+    }
+
+    /// Runs a change on the file at `path` in the background and shows the
+    /// resulting document. Changes to a todo go to the file it is in, which
+    /// in the overview need not be the active one.
+    pub(crate) fn change_file(
+        &self,
+        path: PathBuf,
+        change: impl FnOnce(&TodoFileService, &Path, &FileOptions) -> Result<TodoDocument, AppError> + Send + 'static,
+    ) -> Task<Message> {
         let service = self.services.todo_files.clone();
         let options = self.file_options();
         let target = path.clone();

@@ -1,7 +1,11 @@
 //! Filters, view toggles, sorting, and renaming or removing a value.
 
+use std::path::PathBuf;
+
 use iced::Task;
 
+use floetask_application::AppError;
+use floetask_domain::TodoDocument;
 use floetask_domain::listing::Attribute;
 
 use super::ViewToggle;
@@ -37,7 +41,14 @@ impl Floetask {
             }
             drawer::Message::AskRemoveValue(attribute, value) => {
                 self.dialog = Some(Dialog::Confirm {
-                    message: trf("remove_value_confirm", &[("value", tag(attribute, &value).into())]),
+                    message: trf(
+                        if self.state.shows_overview() {
+                            "remove_value_confirm_all"
+                        } else {
+                            "remove_value_confirm"
+                        },
+                        &[("value", tag(attribute, &value).into())],
+                    ),
                     detail: None,
                     pending: Pending::RemoveValue(attribute, value),
                 });
@@ -75,44 +86,41 @@ impl Floetask {
         self.persist_state()
     }
 
+    /// Renames a value in every shown file: the active one, or all of the
+    /// overview's.
     pub(crate) fn rename_value(&mut self, attribute: Attribute, from: String, to: String) -> Task<Message> {
-        let Some(path) = self.active_path() else {
-            return Task::none();
-        };
-        let service = self.services.todo_files.clone();
-        let options = self.file_options();
         self.rename_filters(attribute, &from, Some(to.trim()));
-        Task::perform(
-            async move {
-                service
-                    .rename_attribute(&path, attribute, &from, &to, &options)
-                    .map(|r| (path, r))
-            },
-            |result| match result {
-                Ok((path, outcome)) => Message::Files(files::Message::SavedCount(path, Ok(outcome), "renamed")),
-                Err(error) => Message::Failed(error),
-            },
-        )
+        Task::batch(self.shown_paths().into_iter().map(|path| {
+            let service = self.services.todo_files.clone();
+            let options = self.file_options();
+            let (from, to) = (from.clone(), to.clone());
+            Task::perform(
+                async move {
+                    service
+                        .rename_attribute(&path, attribute, &from, &to, &options)
+                        .map(|r| (path, r))
+                },
+                saved_count,
+            )
+        }))
     }
 
+    /// Removes a value from every shown file, like `rename_value`.
     pub(crate) fn remove_value(&mut self, attribute: Attribute, value: String) -> Task<Message> {
-        let Some(path) = self.active_path() else {
-            return Task::none();
-        };
-        let service = self.services.todo_files.clone();
-        let options = self.file_options();
         self.rename_filters(attribute, &value, None);
-        Task::perform(
-            async move {
-                service
-                    .remove_attribute(&path, attribute, &value, &options)
-                    .map(|r| (path, r))
-            },
-            |result| match result {
-                Ok((path, outcome)) => Message::Files(files::Message::SavedCount(path, Ok(outcome), "renamed")),
-                Err(error) => Message::Failed(error),
-            },
-        )
+        Task::batch(self.shown_paths().into_iter().map(|path| {
+            let service = self.services.todo_files.clone();
+            let options = self.file_options();
+            let value = value.clone();
+            Task::perform(
+                async move {
+                    service
+                        .remove_attribute(&path, attribute, &value, &options)
+                        .map(|r| (path, r))
+                },
+                saved_count,
+            )
+        }))
     }
 
     /// Keeps active drawer filters pointing at a renamed or removed value.
@@ -125,6 +133,14 @@ impl Floetask {
                 .for_each(|f| f.value = to.to_owned()),
             None => filters.retain(|f| !(f.attribute == attribute && f.value == from)),
         }
+    }
+}
+
+/// Reports a rename or removal in one file.
+fn saved_count(result: Result<(PathBuf, (TodoDocument, usize)), AppError>) -> Message {
+    match result {
+        Ok((path, outcome)) => Message::Files(files::Message::SavedCount(path, Ok(outcome), "renamed")),
+        Err(error) => Message::Failed(error),
     }
 }
 

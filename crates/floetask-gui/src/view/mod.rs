@@ -138,7 +138,8 @@ fn overlay_panel<'a>(app: &'a Floetask, shown: &crate::layout::Panels) -> Option
 fn body(app: &Floetask) -> Element<'_, Message> {
     match app.active_document() {
         None => empty::no_file(app),
-        Some(document) if document.todo_count() == 0 => empty::no_todos(app),
+        // The listing counts every shown file, all of the overview's too.
+        Some(_) if app.listing.counts.total == 0 => empty::no_todos(app),
         Some(_) if app.state.main_view == MainView::Board => board::view(app),
         Some(_) if app.state.main_view == MainView::Calendar => calendar::view(app),
         Some(_) if app.listing.counts.visible == 0 => empty::nothing_visible(app),

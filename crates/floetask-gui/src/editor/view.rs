@@ -67,7 +67,11 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
             }
         });
 
-    let mut content = Column::new().spacing(16).push(title(heading)).push(input);
+    let mut content = Column::new().spacing(16).push(title(heading));
+    if app.state.shows_overview() {
+        content = content.push(file_line(app, editor, colors));
+    }
+    let mut content = content.push(input);
     if has_suggestions {
         content = content.push(suggestions(editor, colors));
     }
@@ -114,6 +118,56 @@ fn suggestions(editor: &Editor, colors: Colors) -> Element<'_, Message> {
     .wrap()
     .vertical_spacing(6)
     .into()
+}
+
+/// Which file the todo is in, shown in the overview where files mix. A new
+/// todo picks its file here; it starts with the active one.
+fn file_line<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
+    let choices = file_choices(app);
+    let current = choices.iter().find(|choice| choice.1 == editor.file).cloned();
+    let glyph = icon(Icon::File, 14.0, colors.muted);
+    if editor.target.is_some() {
+        let name = current.map(|choice| choice.0).unwrap_or_default();
+        return row![
+            glyph,
+            text(trf("editor_file", &[("file", name.into())]))
+                .size(13)
+                .color(colors.muted)
+        ]
+        .spacing(6)
+        .align_y(Alignment::Center)
+        .into();
+    }
+    row![
+        glyph,
+        text(tr("editor_add_to")).size(13).color(colors.muted),
+        pick_list(choices, current, |choice| Message::Editor(editor::Message::File(
+            choice.1
+        )))
+        .text_size(13),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+/// The overview's files for the file picker, in drawer order. A name that
+/// several files share gets its folder added, so each choice is clear.
+fn file_choices(app: &Floetask) -> Vec<FileChoice> {
+    let files = app.state.overview_files();
+    let names: Vec<String> = files.iter().map(|entry| entry.file_name()).collect();
+    files
+        .iter()
+        .zip(&names)
+        .map(|(entry, name)| {
+            let shared = names.iter().filter(|other| *other == name).count() > 1;
+            let label = match entry.path.parent() {
+                Some(folder) if shared => format!("{name} ({})", folder.display()),
+                _ => name.clone(),
+            };
+            FileChoice(label, entry.path.clone())
+        })
+        .collect()
 }
 
 fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
@@ -272,7 +326,7 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
 
     let mut section = column![header].spacing(8);
     if let Some(picked) = &editor.pending_link {
-        section = section.push(link_question(app, picked, colors));
+        section = section.push(link_question(&editor.file, picked, colors));
     }
     // While the note window has this note, the dialog leaves it alone.
     let field: Element<'a, Message> = if app.dialog_note_in_window() {
@@ -306,10 +360,7 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
     };
 
     // Say where the notes go once there is something to save.
-    let folder = app
-        .active_path()
-        .map(|path| NoteService::folder_name(&path))
-        .unwrap_or_default();
+    let folder = NoteService::folder_name(&editor.file);
     let saved_to = |link: &NoteLink| match link {
         NoteLink::Folder(name) => trf("note_saved_to", &[("path", format!("{folder}/{name}").into())]),
         NoteLink::External(path) => trf("note_saved_to", &[("path", path.as_str().into())]),
@@ -327,15 +378,12 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
 
 /// Asks what to do with a picked file outside the notes folder: move it in
 /// with the other notes, or link it where it is.
-fn link_question<'a>(app: &Floetask, picked: &Path, colors: Colors) -> Element<'a, Message> {
+fn link_question<'a>(todo_file: &Path, picked: &Path, colors: Colors) -> Element<'a, Message> {
     let file_name = picked
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let folder = app
-        .active_path()
-        .map(|path| NoteService::folder_name(&path))
-        .unwrap_or_default();
+    let folder = NoteService::folder_name(todo_file);
     container(
         column![
             text(trf(
@@ -411,6 +459,16 @@ impl std::fmt::Display for PriorityChoice {
 struct StatusChoice(String, String);
 
 impl std::fmt::Display for StatusChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// File option for the pick list: its label and its path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FileChoice(String, std::path::PathBuf);
+
+impl std::fmt::Display for FileChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }

@@ -1,5 +1,6 @@
-//! The calendar view: the active file's todos on a day, week or month
-//! calendar by due date (`features/todo-notes/18-calendar.md`).
+//! The calendar view: the active file's todos, or the overview's, on a day,
+//! week or month calendar by due date (`features/todo-notes/18-calendar.md`).
+//! In the overview each full card names its file.
 //!
 //! Dragging works like on the board: pressing a todo starts a drag, every
 //! day reports when the cursor enters or leaves it, and releasing anywhere
@@ -10,7 +11,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
-use floetask_application::{MonthOverflow, TodoRef};
+use floetask_application::MonthOverflow;
 use floetask_domain::Date;
 use floetask_domain::calendar::{CalendarMode, CalendarSpan, todos_by_day, undated};
 use floetask_domain::date::Datelike;
@@ -396,7 +397,7 @@ fn drop_zone<'a>(
 fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let from = Some(date);
     let todo = &entry.todo;
-    let target = TodoRef::new(entry.line, todo);
+    let target = app.target(entry);
     let accent = match todo.priority() {
         Some(priority) if !todo.is_complete() => colors.priority(priority),
         _ => Color::TRANSPARENT,
@@ -407,7 +408,7 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
         .color(if todo.is_complete() { colors.muted } else { colors.text });
     let content = row![
         container(space()).width(3).height(16).style(theme::accent(accent)),
-        complete_box(entry, 13.0, colors),
+        complete_box(app, entry, 13.0, colors),
         label
     ]
     .spacing(8)
@@ -429,12 +430,26 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
 /// size of a board card. `from` is the day it sits on, `None` in the panel.
 fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
-    let target = TodoRef::new(entry.line, todo);
+    let target = app.target(entry);
     let accent = match todo.priority() {
         Some(priority) if !todo.is_complete() => colors.priority(priority),
         _ => Color::TRANSPARENT,
     };
     let mut extras: Vec<Element<'a, Message>> = meta(app, todo, &target, None, true, colors).into_iter().collect();
+    // The overview mixes files on one day: say which file a todo is in.
+    if app.state.shows_overview()
+        && let Some(name) = target.file.file_name()
+    {
+        extras.push(
+            row![
+                icon(Icon::File, 12.0, colors.muted),
+                text(name.to_string_lossy().into_owned()).size(12).color(colors.muted)
+            ]
+            .spacing(4)
+            .align_y(Alignment::Center)
+            .into(),
+        );
+    }
     if from.is_none() {
         extras.push(
             button(
@@ -460,14 +475,14 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
     let content: Element<'a, Message> = if compact {
         let line = row![
             accent,
-            complete_box(entry, 16.0, colors),
+            complete_box(app, entry, 16.0, colors),
             container(body(app, todo, colors)).width(Fill)
         ]
         .spacing(8);
         column![line].extend(extras).spacing(6).into()
     } else {
         let details = column![body(app, todo, colors)].extend(extras).spacing(6).width(Fill);
-        row![accent, complete_box(entry, 16.0, colors), details]
+        row![accent, complete_box(app, entry, 16.0, colors), details]
             .spacing(10)
             .into()
     };
@@ -531,8 +546,8 @@ fn undated_panel(app: &Floetask) -> Element<'_, Message> {
 
 /// The round checkbox that completes a todo, as in the list and on the board.
 /// It takes the click, so ticking it does not start a drag.
-fn complete_box<'a>(entry: &ListedTodo, size: f32, colors: Colors) -> Element<'a, Message> {
-    let target = TodoRef::new(entry.line, &entry.todo);
+fn complete_box<'a>(app: &Floetask, entry: &ListedTodo, size: f32, colors: Colors) -> Element<'a, Message> {
+    let target = app.target(entry);
     checkbox(entry.todo.is_complete())
         .on_toggle(move |_| Message::List(list::Message::ToggleComplete(target.clone())))
         .size(size)
@@ -544,8 +559,8 @@ fn complete_box<'a>(entry: &ListedTodo, size: f32, colors: Colors) -> Element<'a
 fn is_marked(app: &Floetask, entry: &ListedTodo) -> bool {
     app.calendar_drag
         .as_ref()
-        .is_some_and(|(target, _)| target.line == entry.line)
-        || app.row_menu == Some(entry.line)
+        .is_some_and(|(target, _)| *target == app.target(entry))
+        || app.row_menu == Some(entry.id())
 }
 
 #[cfg(test)]

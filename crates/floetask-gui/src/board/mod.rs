@@ -4,8 +4,9 @@
 mod update;
 mod view;
 
-use floetask_application::TodoRef;
 use floetask_domain::listing::LaneId;
+
+use crate::app::Target;
 
 pub(crate) use view::{columns_dialog, view};
 
@@ -16,7 +17,7 @@ pub enum Message {
     /// Collapses or expands the board group with this key.
     ToggleGroup(String),
     /// A card was pressed in a lane: start dragging it.
-    Press(TodoRef, LaneId),
+    Press(Target, LaneId),
     /// The mouse entered (`true`) or left a lane.
     Hover(LaneId, bool),
     /// The cursor left a card: a press there became a drag.
@@ -34,7 +35,7 @@ pub enum Message {
 /// A card being dragged on the board.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardDrag {
-    pub target: TodoRef,
+    pub target: Target,
     /// Lane the card was picked up from.
     pub from: LaneId,
     /// The cursor left the card since the press, so releasing it is a drop,

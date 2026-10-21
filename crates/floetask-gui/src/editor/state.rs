@@ -17,6 +17,9 @@ use crate::theme::{self, Colors};
 /// The add/edit dialog.
 #[derive(Debug)]
 pub struct Editor {
+    /// The todo file the todo is in, or is added to. Its notes live next
+    /// to it.
+    pub file: PathBuf,
     /// `None` when adding a new todo.
     pub target: Option<TodoRef>,
     pub content: text_editor::Content,
@@ -35,8 +38,9 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(target: Option<TodoRef>, text: &str, colors: Colors) -> Self {
+    pub fn new(file: PathBuf, target: Option<TodoRef>, text: &str, colors: Colors) -> Self {
         Self {
+            file,
             target,
             content: text_editor::Content::with_text(text),
             suggestions: Vec::new(),

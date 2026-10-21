@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use iced::widget::text_editor;
 
-use floetask_application::{AppError, TodoRef};
+use floetask_application::AppError;
 use floetask_domain::{Date, NoteLink, Priority, RecurrenceUnit};
 
 pub(crate) use date_picker::row_dialog;
@@ -30,6 +30,8 @@ pub enum Message {
     DismissSuggestions,
     Priority(Option<Priority>),
     Status(String),
+    /// Picks the file a new todo is added to, in the overview.
+    File(PathBuf),
     OpenDatePicker(DateKey),
     CloseDatePicker,
     /// Shows the previous or next months in the open date picker, here or
@@ -44,7 +46,7 @@ pub enum Message {
     ApplyPomodoros(bool),
     NoteAction(iced_markdown_editor::Action),
     /// The note file of the todo being edited, read from disk (`None`: missing).
-    NoteLoaded(TodoRef, Result<Option<String>, AppError>),
+    NoteLoaded(crate::app::Target, Result<Option<String>, AppError>),
     /// Asks for a Markdown file on disk to link instead of creating one.
     PickNoteFile,
     NoteFilePicked(Option<PathBuf>),

@@ -81,8 +81,8 @@ impl Floetask {
             (None, None) if self.calendar_undated_hover && !moved => {
                 self.update(Message::List(list::Message::OpenTodo(target)))
             }
-            (_, Some(day)) => self.change_active_file(move |service, path, options| {
-                service.set_date(path, &target, "due", Some(day), options)
+            (_, Some(day)) => self.change_file(target.file, move |service, path, options| {
+                service.set_date(path, &target.todo, "due", Some(day), options)
             }),
             _ => Task::none(),
         }

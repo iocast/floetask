@@ -85,7 +85,7 @@ pub fn todos_by_day<'a>(
     for entry in todos {
         if let Some(due) = entry.todo.due()
             && span.contains(due)
-            && seen.insert(entry.line)
+            && seen.insert(entry.id())
         {
             days.entry(due).or_default().push(entry);
         }
@@ -99,7 +99,7 @@ pub fn undated<'a>(todos: impl IntoIterator<Item = &'a ListedTodo>) -> Vec<&'a L
     let mut seen = BTreeSet::new();
     todos
         .into_iter()
-        .filter(|entry| entry.todo.due().is_none() && !entry.todo.is_complete() && seen.insert(entry.line))
+        .filter(|entry| entry.todo.due().is_none() && !entry.todo.is_complete() && seen.insert(entry.id()))
         .collect()
 }
 
@@ -115,6 +115,7 @@ mod tests {
 
     fn listed(line: usize, text: &str) -> ListedTodo {
         ListedTodo {
+            file: 0,
             line,
             todo: Todo::parse(text),
         }

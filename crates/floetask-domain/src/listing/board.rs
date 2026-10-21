@@ -16,9 +16,12 @@ pub struct Lane {
 }
 
 /// One board: a row of columns. When the list is grouped, each group gets
-/// its own board, like swimlanes.
+/// its own board, like swimlanes; in an overview, each file does.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardGroup {
+    /// The document of an overview's board (see `overview_board`); `None`
+    /// when one file is shown.
+    pub file: Option<usize>,
     /// The grouping attribute, `None` when the board is not grouped.
     pub attribute: Option<Attribute>,
     /// Header values, as in the list; empty for todos without the attribute.
@@ -27,7 +30,8 @@ pub struct BoardGroup {
 }
 
 impl BoardGroup {
-    /// A stable name for the group (see `group_key`).
+    /// A stable name for the group (see `group_key`). An overview's file
+    /// boards are better named by their path, which only the caller knows.
     pub fn key(&self) -> String {
         group_key(self.attribute, &self.values)
     }
@@ -40,7 +44,8 @@ pub struct LaneId {
     pub lane: usize,
 }
 
-/// The status board of one file, one board per group.
+/// The status board of one file, one board per group, or of an overview,
+/// one board per file.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Board {
     pub groups: Vec<BoardGroup>,
@@ -69,9 +74,11 @@ impl Board {
         })
     }
 
-    /// Whether the board is split into groups.
+    /// Whether the board is split into groups or files.
     pub fn is_grouped(&self) -> bool {
-        self.groups.iter().any(|group| group.attribute.is_some())
+        self.groups
+            .iter()
+            .any(|group| group.attribute.is_some() || group.file.is_some())
     }
 }
 
@@ -127,6 +134,7 @@ pub fn build_board(
         .todos()
         .filter(|entry| shown(entry.todo))
         .map(|entry| ListedTodo {
+            file: 0,
             line: entry.line,
             todo: entry.todo.clone(),
         })
@@ -152,6 +160,7 @@ pub fn build_board(
     let mut groups: Vec<BoardGroup> = groups
         .into_iter()
         .map(|(attribute, values, todos)| BoardGroup {
+            file: None,
             attribute,
             values,
             lanes: into_lanes(todos, columns),
@@ -167,6 +176,37 @@ pub fn build_board(
             group.lanes.pop();
         }
     }
+    Board { groups }
+}
+
+/// Stacks the boards of several files into one, one board per file in the
+/// order given, each with its own columns. Every board should be built
+/// ungrouped. Files without a card are left out.
+pub fn overview_board(boards: impl IntoIterator<Item = Board>) -> Board {
+    let groups = boards
+        .into_iter()
+        .enumerate()
+        .flat_map(|(file, board)| {
+            board.groups.into_iter().map(move |group| BoardGroup {
+                file: Some(file),
+                attribute: None,
+                values: Vec::new(),
+                lanes: group
+                    .lanes
+                    .into_iter()
+                    .map(|lane| Lane {
+                        column: lane.column,
+                        todos: lane
+                            .todos
+                            .into_iter()
+                            .map(|entry| ListedTodo { file, ..entry })
+                            .collect(),
+                    })
+                    .collect(),
+            })
+        })
+        .filter(|group| group.lanes.iter().any(|lane| !lane.todos.is_empty()))
+        .collect();
     Board { groups }
 }
 
@@ -333,6 +373,21 @@ x 2026-10-01 Sent invoice
         assert!(!flat.is_grouped());
         let todo_lane: Vec<_> = flat.groups[0].lanes[0].todos.iter().map(|t| t.todo.body()).collect();
         assert_eq!(todo_lane, ["Urgent plain", "Plain task"]);
+    }
+
+    #[test]
+    fn an_overview_stacks_one_board_per_file_with_its_own_columns() {
+        let all = board(&BoardColumns::default(), &Query::Empty);
+        let hidden = board(&BoardColumns::default(), &Query::Literal("nothing matches".into()));
+        let two = board(&BoardColumns::from_keys(["todo", "doing"]), &Query::Empty);
+        let overview = overview_board([all, hidden, two]);
+        assert!(overview.is_grouped());
+        let files: Vec<_> = overview.groups.iter().map(|group| group.file).collect();
+        assert_eq!(files, [Some(0), Some(2)], "a file without cards is left out");
+        assert_eq!(overview.groups[0].lanes.len(), 5);
+        assert_eq!(overview.groups[1].lanes.len(), 3);
+        let card = &overview.groups[1].lanes[1].todos[0];
+        assert_eq!((card.todo.body(), card.id()), ("Write report", (2, 1)));
     }
 
     #[test]

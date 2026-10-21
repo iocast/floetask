@@ -223,9 +223,10 @@ impl Floetask {
 
     /// Reads the dialog's note back from disk if it is the file at `path`.
     fn reload_dialog_note(&self, path: &Path) -> Task<Message> {
-        let (Some(Dialog::Editor(editor)), Some(todo_file)) = (&self.dialog, self.active_path()) else {
+        let Some(Dialog::Editor(editor)) = &self.dialog else {
             return Task::none();
         };
+        let todo_file = editor.file.clone();
         let Some(Ok(link)) = editor.note_target() else {
             return Task::none();
         };
@@ -246,12 +247,10 @@ impl Floetask {
     /// dialog then leaves it to the window, so the two never overwrite
     /// each other.
     pub(crate) fn dialog_note_in_window(&self) -> bool {
-        let (Some(Dialog::Editor(editor)), Some(window), Some(todo_file)) =
-            (&self.dialog, &self.note_window, self.active_path())
-        else {
+        let (Some(Dialog::Editor(editor)), Some(window)) = (&self.dialog, &self.note_window) else {
             return false;
         };
-        matches!(editor.note_target(), Some(Ok(link)) if NoteService::link_path(&todo_file, &link) == window.path())
+        matches!(editor.note_target(), Some(Ok(link)) if NoteService::link_path(&editor.file, &link) == window.path())
     }
 
     /// Saves the note window on exit, while there is no time for a task.

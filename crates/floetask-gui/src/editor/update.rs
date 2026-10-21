@@ -32,7 +32,8 @@ impl Floetask {
             editor::Message::NoteLoaded(target, result) => match result {
                 Ok(Some(text)) => {
                     if let Some(Dialog::Editor(editor)) = &mut self.dialog
-                        && editor.target.as_ref() == Some(&target)
+                        && editor.file == target.file
+                        && editor.target.as_ref() == Some(&target.todo)
                     {
                         editor.load_note(&text);
                     }
@@ -43,14 +44,14 @@ impl Floetask {
             },
             editor::Message::PickNoteFile => {
                 let folder = self
-                    .active_path()
+                    .editor_file()
                     .map(|path| path.with_file_name(NoteService::folder_name(&path)));
                 Task::perform(pick_note_file(folder), |path| {
                     Message::Editor(editor::Message::NoteFilePicked(path))
                 })
             }
             editor::Message::NoteFilePicked(picked) => {
-                let (Some(picked), Some(todo_file)) = (picked, self.active_path()) else {
+                let (Some(picked), Some(todo_file)) = (picked, self.editor_file()) else {
                     return Task::none();
                 };
                 // A file already in the notes folder links as it is; any
@@ -66,7 +67,7 @@ impl Floetask {
                 }
             }
             editor::Message::MovePickedNote => {
-                let (Some(picked), Some(todo_file)) = (self.take_pending_link(), self.active_path()) else {
+                let (Some(picked), Some(todo_file)) = (self.take_pending_link(), self.editor_file()) else {
                     return Task::none();
                 };
                 let notes = self.services.notes.clone();
@@ -144,6 +145,15 @@ impl Floetask {
                     }
                     editor::Message::Status(status) => {
                         rewrite(editor, |todo| todo.with_status(Some(&status)));
+                        Task::none()
+                    }
+                    // Only a new todo can go to another file. A picked note
+                    // waiting to be moved was meant for the old file's folder.
+                    editor::Message::File(file) if editor.target.is_none() => {
+                        if editor.file != file {
+                            editor.file = file;
+                            editor.pending_link = None;
+                        }
                         Task::none()
                     }
                     editor::Message::OpenDatePicker(key) => {
@@ -226,10 +236,23 @@ impl Floetask {
         }
     }
 
+    /// Opens the dialog for a new todo, added to the active file (in the
+    /// overview too: the file last selected).
     pub(crate) fn open_new_editor(&mut self, text: &str) -> Task<Message> {
+        let Some(file) = self.active_path() else {
+            return Task::none();
+        };
         self.row_menu = None;
-        self.dialog = Some(Dialog::Editor(Box::new(Editor::new(None, text, self.colors()))));
+        self.dialog = Some(Dialog::Editor(Box::new(Editor::new(file, None, text, self.colors()))));
         operation::focus(view::EDITOR_ID)
+    }
+
+    /// The todo file of the open add/edit dialog.
+    pub(crate) fn editor_file(&self) -> Option<PathBuf> {
+        match &self.dialog {
+            Some(Dialog::Editor(editor)) => Some(editor.file.clone()),
+            _ => None,
+        }
     }
 
     fn take_pending_link(&mut self) -> Option<PathBuf> {
@@ -242,10 +265,10 @@ impl Floetask {
     /// Points the todo's `note:` at an existing file and shows that note in
     /// place of the notes typed so far, which belonged to the old link.
     fn link_note(&mut self, link: NoteLink) -> Task<Message> {
-        let path = self.active_path();
-        let (Some(Dialog::Editor(editor)), Some(path)) = (&mut self.dialog, path) else {
+        let Some(Dialog::Editor(editor)) = &mut self.dialog else {
             return Task::none();
         };
+        let path = editor.file.clone();
         rewrite(editor, |todo| todo.with_note_link(Some(&link)));
         let notes = self.services.notes.clone();
         Task::perform(
@@ -260,9 +283,10 @@ impl Floetask {
     /// Opens the dialog's note in the note window. A todo without `note:`
     /// gets a new note named after its text first, as saving would do.
     fn hand_note_to_window(&mut self) -> Task<Message> {
-        let (Some(Dialog::Editor(editor)), Some(todo_file)) = (&self.dialog, self.active_path()) else {
+        let Some(Dialog::Editor(editor)) = &self.dialog else {
             return Task::none();
         };
+        let todo_file = editor.file.clone();
         let target = match editor.note_target().transpose() {
             Ok(target) => target,
             Err(error) => return self.toast_error(i18n::error_text(&error.into())),
@@ -290,10 +314,10 @@ impl Floetask {
     /// Moves the dialog's note into the note window. Text typed in the
     /// dialog but not saved goes along and is saved from there.
     fn note_handed_over(&mut self, link: NoteLink, on_disk: Option<String>) -> Task<Message> {
-        let todo_file = self.active_path();
-        let (Some(Dialog::Editor(editor)), Some(todo_file)) = (&mut self.dialog, todo_file) else {
+        let Some(Dialog::Editor(editor)) = &mut self.dialog else {
             return Task::none();
         };
+        let todo_file = editor.file.clone();
         if editor.note_target().is_none() {
             rewrite(editor, |todo| todo.with_note_link(Some(&link)));
         }
@@ -327,9 +351,7 @@ impl Floetask {
             Ok(note) => note,
             Err(error) => return self.toast_error(i18n::error_text(&error.into())),
         };
-        let Some(path) = self.active_path() else {
-            return Task::none();
-        };
+        let path = editor.file.clone();
         let target = editor.target.clone();
         self.dialog = None;
         let (todo_files, notes) = (self.services.todo_files.clone(), self.services.notes.clone());
@@ -357,9 +379,10 @@ impl Floetask {
 
     fn pick_date(&mut self, date: Option<floetask_domain::Date>) -> Task<Message> {
         match self.dialog.take() {
-            Some(Dialog::RowDate { target, calendar }) => self.change_active_file(move |service, path, options| {
-                service.set_date(path, &target, calendar.key.key(), date, options)
-            }),
+            Some(Dialog::RowDate { target, calendar }) => self
+                .change_file(target.file, move |service, path, options| {
+                    service.set_date(path, &target.todo, calendar.key.key(), date, options)
+                }),
             Some(Dialog::Editor(mut editor)) => {
                 if let Some(calendar) = editor.calendar.take() {
                     rewrite(&mut editor, |todo| todo.with_date_extension(calendar.key.key(), date));

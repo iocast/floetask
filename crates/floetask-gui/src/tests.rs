@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use floetask_application::ports::*;
 use floetask_application::{
-    AppError, AppState, ColorOverrides, NoteStatus, Ports, SavedFilter, Services, Settings, TodoRef, WatcherOptions,
+    AppError, AppState, ColorOverrides, NoteStatus, Ports, SavedFilter, Services, Settings, WatcherOptions,
 };
 use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
@@ -18,7 +18,7 @@ use floetask_domain::{Date, TodoDocument};
 
 use iced::widget::text_editor;
 
-use crate::app::{Dialog, Floetask, Message, Startup};
+use crate::app::{Dialog, Floetask, Message, Startup, Target};
 use crate::drawer::ViewToggle;
 use crate::editor::NoteSave;
 use crate::settings::SettingChange;
@@ -593,8 +593,8 @@ fn notes_link_open_and_warn_when_orphaned() {
     let runtime = runtime();
     let _tokio = runtime.enter();
     let mut app = app();
-    assert_eq!(app.note_statuses["slides"], NoteStatus::Present);
-    assert_eq!(app.note_statuses["shopping"], NoteStatus::Missing);
+    assert_eq!(app.note_statuses[Path::new(TODO_PATH)]["slides"], NoteStatus::Present);
+    assert_eq!(app.note_statuses[Path::new(TODO_PATH)]["shopping"], NoteStatus::Missing);
     snapshot(&app, "notes");
 
     // A broken link still opens: the note is created, then shown as present.
@@ -602,7 +602,7 @@ fn notes_link_open_and_warn_when_orphaned() {
     let [Message::List(list::Message::OpenNote(target))] = &messages[..] else {
         panic!("expected OpenNote, got {messages:?}")
     };
-    let todo = floetask_domain::Todo::parse(&target.raw);
+    let todo = floetask_domain::Todo::parse(&target.todo.raw);
     drive(
         &runtime,
         &mut app,
@@ -612,10 +612,12 @@ fn notes_link_open_and_warn_when_orphaned() {
         app.services.ports.files.read(&note_path("shopping.md")).unwrap(),
         "# Buy milk\n"
     );
-    assert_eq!(app.note_statuses["shopping"], NoteStatus::Present);
+    assert_eq!(app.note_statuses[Path::new(TODO_PATH)]["shopping"], NoteStatus::Present);
 
     // Deleting the only todo linking a note warns and keeps the file.
-    let _ = app.update(Message::List(list::Message::AskDelete(TodoRef::new(2, &todo))));
+    let _ = app.update(Message::List(list::Message::AskDelete(Target::new(
+        TODO_PATH, 2, &todo,
+    ))));
     let _ = app.update(Message::ConfirmDialog);
     assert!(
         app.toasts
@@ -677,7 +679,7 @@ fn editing_a_todo_loads_and_saves_its_note() {
         .todos()
         .find(|entry| entry.todo.note() == Some("slides"))
         .unwrap();
-    let target = TodoRef::new(slides.line, &slides.todo);
+    let target = app.target(slides);
     let _ = app.update(Message::List(list::Message::OpenTodo(target.clone())));
     let _ = app.update(Message::Editor(editor::Message::NoteLoaded(
         target,
@@ -773,7 +775,7 @@ fn the_note_window_saves_edits_and_is_reused() {
             .todos()
             .find(|entry| entry.todo.note() == Some(note))
             .unwrap();
-        TodoRef::new(entry.line, &entry.todo)
+        app.target(entry)
     };
 
     let open = Message::List(list::Message::OpenNote(target(&app, "slides")));
@@ -942,7 +944,7 @@ fn dragging_a_card_moves_it_to_another_column() {
     let _ = app.update(Message::ToggleMainView);
     let messages = click(&app, "Buy milk");
     assert!(messages.iter().any(
-        |m| matches!(m, Message::Board(board::Message::Press(target, id)) if target.line == 2 && *id == lane(0, 0))
+        |m| matches!(m, Message::Board(board::Message::Press(target, id)) if target.todo.line == 2 && *id == lane(0, 0))
     ));
     // Keep the button held: drop the release the click also produced.
     for message in messages
@@ -963,7 +965,7 @@ fn dragging_a_card_moves_it_to_another_column() {
     // The drop runs the move in the background; run it here and feed the result back.
     let moved = app.services.todo_files.move_to_column(
         Path::new(TODO_PATH),
-        &target,
+        &target.todo,
         &floetask_domain::board::Column::Status("doing".to_owned()),
         &app.file_options(),
     );
@@ -1021,12 +1023,12 @@ fn right_click(app: &Floetask, label: &str) -> Vec<Message> {
 /// Opens the right-click menu of the card showing `label`, then checks it
 /// offers copy, move to done file and delete for that todo.
 fn assert_card_menu(app: &mut Floetask, label: &str) {
-    let line = app.listing.todos().find(|e| e.todo.body() == label).unwrap().line;
+    let id = app.listing.todos().find(|e| e.todo.body() == label).unwrap().id();
     let messages = right_click(app, label);
     assert!(
         messages
             .iter()
-            .any(|m| matches!(m, Message::List(list::Message::RowMenu(Some(l))) if *l == line)),
+            .any(|m| matches!(m, Message::List(list::Message::RowMenu(Some(l))) if *l == id)),
         "{messages:?}"
     );
     for message in messages {
@@ -1035,12 +1037,12 @@ fn assert_card_menu(app: &mut Floetask, label: &str) {
     assert!(matches!(&click(app, "Copy")[..], [Message::List(list::Message::Copy(raw))] if raw.contains(label)));
     assert!(matches!(
         &click(app, "Move to done file")[..],
-        [Message::List(list::Message::ArchiveOne(target))] if target.line == line
+        [Message::List(list::Message::ArchiveOne(target))] if target.todo.line == id.1
     ));
     let messages = click(app, "Delete");
     assert!(matches!(
         &messages[..],
-        [Message::List(list::Message::AskDelete(target))] if target.line == line
+        [Message::List(list::Message::AskDelete(target))] if target.todo.line == id.1
     ));
     for message in messages {
         let _ = app.update(message);
@@ -1080,7 +1082,7 @@ fn board_and_calendar_cards_have_a_right_click_menu() {
     assert_card_menu(&mut app, "Legal review");
 
     // A click outside the menu closes it.
-    let _ = app.update(Message::List(list::Message::RowMenu(Some(0))));
+    let _ = app.update(Message::List(list::Message::RowMenu(Some((0, 0)))));
     let mut ui = simulator(app.view());
     ui.click("Columns").unwrap();
     let messages: Vec<Message> = ui.into_messages().collect();
@@ -1091,7 +1093,7 @@ fn board_and_calendar_cards_have_a_right_click_menu() {
     );
 
     // Switching views closes an open menu.
-    let _ = app.update(Message::List(list::Message::RowMenu(Some(0))));
+    let _ = app.update(Message::List(list::Message::RowMenu(Some((0, 0)))));
     let _ = app.update(Message::ShowMainView(MainView::Calendar));
     assert!(app.row_menu.is_none());
     let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
@@ -1214,7 +1216,7 @@ fn grouping_gives_each_group_its_own_board() {
     // Dropping on the same column of another group changes nothing.
     let call_mom = app.board.groups[0].lanes[0].todos[0].clone();
     assert_eq!(call_mom.todo.body(), "Call mom");
-    let target = TodoRef::new(call_mom.line, &call_mom.todo);
+    let target = app.target(&call_mom);
     let _ = app.update(Message::Board(board::Message::Press(target, lane(0, 0))));
     let _ = app.update(Message::Board(board::Message::Hover(lane(2, 0), true)));
     let _ = app.update(Message::Board(board::Message::Release));
@@ -1479,7 +1481,7 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
 
     // Pressing and releasing on the same day is a click: it opens the todo.
     let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
-    let target = TodoRef::new(slides.line, &slides.todo);
+    let target = app.target(slides);
     let due = slides.todo.due().unwrap();
     let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), Some(due))));
     let _ = app.update(Message::Calendar(calendar::Message::Release));
@@ -1502,7 +1504,7 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
     assert!(app.calendar_drag.is_none());
     let moved = app.services.todo_files.set_date(
         Path::new(TODO_PATH),
-        &target,
+        &target.todo,
         "due",
         Some(next_day),
         &app.file_options(),
@@ -1534,7 +1536,7 @@ fn calendar_checkbox_completes_a_todo_without_dragging_it() {
     let _ = ui.simulate(iced_test::simulator::click());
     let messages: Vec<Message> = ui.into_messages().collect();
     assert!(
-        matches!(messages.first(), Some(Message::List(list::Message::ToggleComplete(target))) if target.line == line),
+        matches!(messages.first(), Some(Message::List(list::Message::ToggleComplete(target))) if target.todo.line == line),
         "{messages:?}"
     );
     assert!(
@@ -1564,7 +1566,7 @@ fn undated_panel_lists_todos_without_due_date_and_plans_them() {
 
     // A click on a card in the panel opens it.
     let legal = app.listing.todos().find(|e| e.todo.body() == "Legal review").unwrap();
-    let target = TodoRef::new(legal.line, &legal.todo);
+    let target = app.target(legal);
     let _ = app.update(Message::Calendar(calendar::Message::Press(target.clone(), None)));
     let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
@@ -1583,10 +1585,13 @@ fn undated_panel_lists_todos_without_due_date_and_plans_them() {
     let _ = app.update(Message::Calendar(calendar::Message::Hover(day, true)));
     let _ = app.update(Message::Calendar(calendar::Message::Release));
     assert!(app.calendar_drag.is_none());
-    let moved = app
-        .services
-        .todo_files
-        .set_date(Path::new(TODO_PATH), &target, "due", Some(day), &app.file_options());
+    let moved = app.services.todo_files.set_date(
+        Path::new(TODO_PATH),
+        &target.todo,
+        "due",
+        Some(day),
+        &app.file_options(),
+    );
     let _ = app.update(Message::Files(files::Message::Saved(PathBuf::from(TODO_PATH), moved)));
     let legal = app.listing.todos().find(|e| e.todo.body() == "Legal review").unwrap();
     assert_eq!(legal.todo.due(), Some(day));
@@ -1738,4 +1743,162 @@ fn the_sort_menu_orders_the_drawer_and_the_file_shortcuts() {
     assert_eq!(app.state.files[app.state.active_file].file_name(), "work.txt");
     let _ = app.update(ctrl("1"));
     assert_eq!(app.state.files[app.state.active_file].file_name(), "todo.txt");
+}
+
+const WORK_PATH: &str = "/test/work.txt";
+/// A second file. Its second line is due the same day as the second line of
+/// `SAMPLE`, so the overview has two todos with the same line number.
+const WORK: &str = "\
+Plan offsite +work note:offsite
+(A) Review budget status:doing due:2026-10-06
+";
+
+/// `SAMPLE` and `work.txt`, both loaded, with the overview shown from the
+/// file drawer. `todo.txt` stays the active file.
+fn overview_app() -> Floetask {
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+    files.write(Path::new(WORK_PATH), WORK, false).unwrap();
+    app.state
+        .files
+        .push(floetask_application::TodoFileEntry::new(PathBuf::from(WORK_PATH)));
+    let _ = app.update(Message::Files(files::Message::Loaded(
+        PathBuf::from(WORK_PATH),
+        Ok(TodoDocument::parse(WORK, &[])),
+    )));
+    let messages = click(&app, "Overview");
+    assert!(
+        matches!(&messages[..], [Message::Files(files::Message::SelectOverview)]),
+        "{messages:?}"
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    app
+}
+
+/// The target of the listed todo with this text.
+fn target_of(app: &Floetask, body: &str) -> Target {
+    let entry = app.listing.todos().find(|entry| entry.todo.body() == body).unwrap();
+    app.target(entry)
+}
+
+#[test]
+fn the_overview_lists_every_file_grouped_by_file() {
+    let mut app = overview_app();
+    assert!(app.state.shows_overview());
+    assert_eq!(app.title(), "Overview - floetask");
+    let files: Vec<_> = app.listing.groups.iter().map(|group| group.file).collect();
+    assert_eq!(files, [Some(0), Some(1)]);
+    assert_eq!(app.listed_files, [PathBuf::from(TODO_PATH), PathBuf::from(WORK_PATH)]);
+    let mut ui = simulator(app.view());
+    for text in ["Prepare slides", "Review budget", "Plan offsite", "work.txt"] {
+        assert!(ui.find(text).is_ok(), "missing {text}");
+    }
+    drop(ui);
+    // Notes are checked next to their own file.
+    assert_eq!(app.note_statuses[Path::new(WORK_PATH)]["offsite"], NoteStatus::Missing);
+    snapshot(&app, "overview");
+
+    // A file's group collapses on its own, under its path.
+    let key = format!("file:{WORK_PATH}");
+    let _ = app.update(Message::List(list::Message::ToggleGroup(key.clone())));
+    assert!(app.state.collapsed_list_groups.contains(&key));
+    assert!(app.selectable_todos().all(|entry| entry.file == 0));
+
+    // Selecting a file leaves the overview.
+    let _ = app.update(Message::Files(files::Message::Select(1)));
+    assert!(!app.state.shows_overview());
+    assert!(app.listing.todos().all(|entry| entry.todo.body() != "Prepare slides"));
+}
+
+#[test]
+fn actions_in_the_overview_change_the_file_the_todo_is_in() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = overview_app();
+    let files = app.services.ports.files.clone();
+
+    // Line 0 of work.txt, not line 0 of todo.txt.
+    let offsite = target_of(&app, "Plan offsite");
+    assert_eq!((offsite.file.as_path(), offsite.todo.line), (Path::new(WORK_PATH), 0));
+    drive(
+        &runtime,
+        &mut app,
+        Message::List(list::Message::ToggleComplete(offsite)),
+    );
+    assert!(files.read(Path::new(WORK_PATH)).unwrap().starts_with("x "));
+    assert_eq!(files.read(Path::new(TODO_PATH)).unwrap(), SAMPLE);
+    assert!(app.listing.todos().any(|e| e.file == 1 && e.todo.is_complete()));
+
+    // The dialog edits the todo's own file and says which one it is.
+    let budget = target_of(&app, "Review budget");
+    let _ = app.update(Message::List(list::Message::OpenTodo(budget.clone())));
+    assert_eq!(editor(&app).file, Path::new(WORK_PATH));
+    assert!(simulator(app.view()).find("In work.txt").is_ok());
+    let _ = app.update(Message::CloseDialog);
+    // A new todo starts in the active file, and can go to another one.
+    let _ = app.update(Message::Editor(editor::Message::New));
+    assert_eq!(editor(&app).file, Path::new(TODO_PATH));
+    assert!(simulator(app.view()).find("Add to").is_ok());
+    snapshot(&app, "overview-new-todo");
+    let _ = app.update(Message::Editor(editor::Message::File(PathBuf::from(WORK_PATH))));
+    assert_eq!(editor(&app).file, Path::new(WORK_PATH));
+    if let Some(Dialog::Editor(editor)) = &mut app.dialog {
+        editor.set_text("Book venue +work");
+    }
+    drive(&runtime, &mut app, Message::Editor(editor::Message::Save));
+    assert!(files.read(Path::new(WORK_PATH)).unwrap().contains("Book venue +work"));
+    assert_eq!(files.read(Path::new(TODO_PATH)).unwrap(), SAMPLE);
+
+    // A todo being edited stays in its file.
+    let _ = app.update(Message::List(list::Message::OpenTodo(target_of(&app, "Call mom"))));
+    let _ = app.update(Message::Editor(editor::Message::File(PathBuf::from(WORK_PATH))));
+    assert_eq!(editor(&app).file, Path::new(TODO_PATH));
+    assert!(simulator(app.view()).find("Add to").is_err());
+    let _ = app.update(Message::CloseDialog);
+
+    let _ = app.update(Message::List(list::Message::AskDelete(budget)));
+    drive(&runtime, &mut app, Message::ConfirmDialog);
+    assert!(!files.read(Path::new(WORK_PATH)).unwrap().contains("Review budget"));
+    assert_eq!(files.read(Path::new(TODO_PATH)).unwrap(), SAMPLE);
+}
+
+#[test]
+fn the_overview_board_and_calendar_show_every_file() {
+    use floetask_application::MainView;
+
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = overview_app();
+
+    // One board per file; the columns are edited from each file.
+    let _ = app.update(Message::ShowMainView(MainView::Board));
+    let files: Vec<_> = app.board.groups.iter().map(|group| group.file).collect();
+    assert_eq!(files, [Some(0), Some(1)]);
+    assert!(simulator(app.view()).find("Columns").is_err());
+    snapshot(&app, "overview-board");
+
+    // Dragging a card writes to its own file.
+    let offsite = target_of(&app, "Plan offsite");
+    let _ = app.update(Message::Board(board::Message::Press(offsite, lane(1, 0))));
+    let _ = app.update(Message::Board(board::Message::CardLeft));
+    let _ = app.update(Message::Board(board::Message::Hover(lane(1, 1), true)));
+    drive(&runtime, &mut app, Message::Board(board::Message::Release));
+    let work = app.services.ports.files.read(Path::new(WORK_PATH)).unwrap();
+    assert!(
+        work.starts_with("Plan offsite +work note:offsite status:doing"),
+        "{work}"
+    );
+
+    // Both files' todos on the same line and day show on the calendar.
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let _ = app.update(Message::Calendar(calendar::Message::OpenDay(
+        parse_iso("2026-10-06").unwrap(),
+    )));
+    let mut ui = simulator(app.view());
+    assert!(ui.find("Prepare slides").is_ok());
+    assert!(ui.find("Review budget").is_ok());
+    drop(ui);
+    snapshot(&app, "overview-calendar");
 }

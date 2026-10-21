@@ -1,6 +1,7 @@
 //! The status board: one column per status, todos as cards that can be
 //! dragged to another column. When the list is grouped, every group gets its
-//! own board, stacked like swimlanes under the group's header.
+//! own board, stacked like swimlanes under the group's header; in the
+//! overview, every file does, with its own columns.
 //!
 //! iced has no drag and drop, so it is built from mouse areas: pressing a
 //! card starts a drag, each column reports when the cursor enters or leaves
@@ -12,14 +13,13 @@ use iced::widget::{
 };
 use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
-use floetask_application::TodoRef;
 use floetask_domain::board::{BoardColumns, Column as BoardColumn, DONE_COLUMN};
 use floetask_domain::listing::{BoardGroup, Lane, LaneId, ListedTodo, board_grouping};
 use floetask_domain::status::key_from_label;
 
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
-use crate::list::{body, card_menu, collapsible, group_header, meta, status_label, status_name};
+use crate::list::{body, card_menu, collapsible, file_header, group_header, meta, status_label, status_name};
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::widgets::{
@@ -48,20 +48,23 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     .spacing(8)
     .align_y(Alignment::Center);
     let group_switch = with_tooltip(group_switch, tr("board_group_hint"), colors);
-    let toolbar = row![
-        space().width(Fill),
-        group_switch,
-        button(
-            row![icon(Icon::Board, 14.0, colors.text), text(tr("board_columns")).size(13)]
-                .spacing(6)
-                .align_y(Alignment::Center)
-        )
-        .padding([6, 10])
-        .style(theme::ghost(colors, false))
-        .on_press(Message::Board(board::Message::OpenColumns)),
-    ]
-    .spacing(12)
-    .align_y(Alignment::Center);
+    let columns = button(
+        row![icon(Icon::Board, 14.0, colors.text), text(tr("board_columns")).size(13)]
+            .spacing(6)
+            .align_y(Alignment::Center),
+    )
+    .padding([6, 10])
+    .style(theme::ghost(colors, false))
+    .on_press(Message::Board(board::Message::OpenColumns));
+    // The overview is grouped by file, and each file's columns are edited
+    // from that file.
+    let toolbar = if app.state.shows_overview() {
+        row![]
+    } else {
+        row![space().width(Fill), group_switch, columns]
+            .spacing(12)
+            .align_y(Alignment::Center)
+    };
     // Columns share the width of the board area, so opening the drawer
     // narrows them. Below a readable width they keep that width and the
     // board scrolls sideways instead.
@@ -83,7 +86,14 @@ const LANE_SPACING: f32 = 12.0;
 fn boards(app: &Floetask, width: f32) -> Element<'_, Message> {
     let colors = app.colors();
     let scrollbar = || scrollable::Scrollbar::new().width(4).scroller_width(4);
-    let count = app.board.groups.first().map_or(0, |group| group.lanes.len()) as f32;
+    // The overview's boards can have different columns: the widest decides.
+    let count = app
+        .board
+        .groups
+        .iter()
+        .map(|group| group.lanes.len())
+        .max()
+        .unwrap_or(0) as f32;
     // Padding plus room for a vertical scrollbar.
     let needed = count * MIN_LANE_WIDTH + (count - 1.0).max(0.0) * LANE_SPACING + 24.0;
     let fits = width >= needed;
@@ -140,10 +150,14 @@ fn boards(app: &Floetask, width: f32) -> Element<'_, Message> {
 fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup, width: Length) -> Element<'a, Message> {
     let colors = app.colors();
     let count = group.lanes.iter().map(|lane| lane.todos.len()).sum();
-    let key = group.key();
+    let key = board_group_key(app, group);
     let collapsed = app.state.collapsed_board_groups.contains(&key);
     let mut content = column![].spacing(8);
-    if let Some(header) = group_header(app, group.attribute, &group.values, count) {
+    let header = match group.file {
+        Some(file) => Some(file_header(app, file, count)),
+        None => group_header(app, group.attribute, &group.values, count),
+    };
+    if let Some(header) = header {
         content = content.push(collapsible(
             header,
             collapsed,
@@ -155,6 +169,15 @@ fn swimlane<'a>(app: &'a Floetask, index: usize, group: &'a BoardGroup, width: L
         content = content.push(lanes(app, index, group, false, width));
     }
     content.into()
+}
+
+/// The name a board group's collapsed state is kept under. An overview's
+/// file boards are named by path, like the list's file groups.
+fn board_group_key(app: &Floetask, group: &BoardGroup) -> String {
+    match group.file.and_then(|file| app.listed_file(file)) {
+        Some(path) => format!("file:{}", path.display()),
+        None => group.key(),
+    }
 }
 
 /// The columns of one board, each `width` wide. `fill` stretches them to
@@ -234,9 +257,8 @@ fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool, width: Le
 
 fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
-    let target = TodoRef::new(entry.line, todo);
-    let marked =
-        app.drag.as_ref().is_some_and(|drag| drag.target.line == entry.line) || app.row_menu == Some(entry.line);
+    let target = app.target(entry);
+    let marked = app.drag.as_ref().is_some_and(|drag| drag.target == target) || app.row_menu == Some(entry.id());
 
     let accent_color = match todo.priority() {
         Some(priority) if !todo.is_complete() => colors.priority(priority),

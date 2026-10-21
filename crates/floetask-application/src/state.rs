@@ -97,6 +97,9 @@ impl Default for WindowState {
 pub struct AppState {
     pub files: Vec<TodoFileEntry>,
     pub active_file: usize,
+    /// The overview of every file is shown instead of the active file, which
+    /// still takes new todos.
+    pub overview: bool,
     /// The order of the file drawer.
     pub file_sort: FileSort,
     #[serde(with = "crate::persist::sorting")]
@@ -129,6 +132,7 @@ impl Default for AppState {
         Self {
             files: Vec::new(),
             active_file: 0,
+            overview: false,
             file_sort: FileSort::default(),
             sorting: Sorting::default(),
             view: ViewOptions::default(),
@@ -156,8 +160,24 @@ impl AppState {
         self.files.get(self.active_file)
     }
 
-    /// Registers a file (if new) and makes it active.
+    /// Whether the overview is shown: it is turned on and there are at
+    /// least two files to list.
+    pub fn shows_overview(&self) -> bool {
+        self.overview && self.drawer_order().len() > 1
+    }
+
+    /// The files an overview lists: those the drawer lists, in its order.
+    /// Archive files of another file are left out, like in the drawer.
+    pub fn overview_files(&self) -> Vec<&TodoFileEntry> {
+        self.drawer_order()
+            .into_iter()
+            .map(|index| &self.files[index])
+            .collect()
+    }
+
+    /// Registers a file (if new) and makes it active, leaving the overview.
     pub fn open_file(&mut self, path: PathBuf) {
+        self.overview = false;
         match self.files.iter().position(|entry| entry.path == path) {
             Some(index) => self.active_file = index,
             None => {
@@ -326,6 +346,25 @@ mod tests {
         assert_eq!(drawer_names(&state), ["a.txt", "b.txt", "c.txt"]);
         state.file_sort = FileSort::Folder;
         assert_eq!(drawer_names(&state), ["c.txt", "a.txt", "b.txt"]);
+    }
+
+    #[test]
+    fn the_overview_lists_the_drawer_files_once_there_are_two() {
+        let mut state = AppState::default();
+        state.open_file("/a/one.txt".into());
+        state.overview = true;
+        assert!(!state.shows_overview(), "one file needs no overview");
+        let mut state = three_files();
+        state.overview = true;
+        assert!(state.shows_overview());
+        let names: Vec<_> = state
+            .overview_files()
+            .into_iter()
+            .map(TodoFileEntry::file_name)
+            .collect();
+        assert_eq!(names, ["b.txt", "a.txt", "c.txt"]);
+        state.open_file("/x/c.txt".into());
+        assert!(!state.shows_overview(), "opening a file leaves the overview");
     }
 
     #[test]

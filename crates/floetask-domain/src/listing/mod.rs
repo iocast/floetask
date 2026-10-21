@@ -1,6 +1,7 @@
 //! How a todo file becomes the list on screen: visibility toggles,
 //! attribute filters, search, sorting and grouping, plus the attribute
-//! counts shown in the drawer.
+//! counts shown in the drawer. An overview lists several files at once,
+//! one group or board per file.
 
 mod attribute;
 mod board;
@@ -12,8 +13,8 @@ mod visibility;
 use crate::date::{Date, WeekStart};
 
 pub use attribute::Attribute;
-pub use board::{Board, BoardGroup, BoardLayout, Lane, LaneId, board_grouping, build_board};
-pub use build::{Counts, Group, ListedTodo, TodoListing, build_listing, group_key};
+pub use board::{Board, BoardGroup, BoardLayout, Lane, LaneId, board_grouping, build_board, overview_board};
+pub use build::{Counts, Group, ListedTodo, TodoListing, build_listing, build_overview, group_key};
 pub use drawer::{AttributeSummary, AttributeValue, known_names, summarize_attributes};
 pub use sorting::{SortCriterion, Sorting};
 pub use visibility::{AttributeFilter, ViewOptions};

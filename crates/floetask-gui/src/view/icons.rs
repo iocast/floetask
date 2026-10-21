@@ -41,6 +41,8 @@ pub enum Icon {
     Sidebar,
     DotsVertical,
     File,
+    /// Two files, one behind the other: the overview of every file.
+    Files,
     FilePlus,
     Note,
     NoteBroken,
@@ -55,7 +57,7 @@ pub enum Icon {
 }
 
 impl Icon {
-    const ALL: [Icon; 44] = [
+    const ALL: [Icon; 45] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -89,6 +91,7 @@ impl Icon {
         Icon::Sidebar,
         Icon::DotsVertical,
         Icon::File,
+        Icon::Files,
         Icon::FilePlus,
         Icon::Note,
         Icon::NoteBroken,
@@ -153,6 +156,9 @@ impl Icon {
                 r#"<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>"#
             }
             Icon::File => r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/>"#,
+            Icon::Files => {
+                r#"<path d="M13 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9zM13 6v3h3M8 3h7l5 5v9"/>"#
+            }
             Icon::FilePlus => {
                 r#"<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6"/>"#
             }

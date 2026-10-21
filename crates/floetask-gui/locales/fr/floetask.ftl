@@ -43,6 +43,8 @@ file_sort_custom = Ordre personnalisé
 file_sort_custom_hint = Glissez les fichiers pour les ranger
 file_sort_name = Nom
 file_sort_folder = Dossier
+overview = Vue d’ensemble
+overview_hint = Tous les fichiers, groupés par fichier
 toggle_theme = Basculer clair / sombre
 
 ## Counts
@@ -77,6 +79,8 @@ details = Détails
 
 new_todo = Nouvelle tâche
 edit_todo = Modifier la tâche
+editor_file = Dans { $file }
+editor_add_to = Ajouter à
 editor_placeholder = (A) Appeler maman +famille @téléphone due:tomorrow
 editor_hint = Ctrl+Entrée pour enregistrer, Échap pour fermer
 add = Ajouter
@@ -250,8 +254,10 @@ hide_category = Masquer les tâches ayant une valeur
 show_category = Afficher à nouveau les tâches avec cet attribut
 rename = Renommer
 rename_title = Renommer { $value } partout dans ce fichier
+rename_title_all = Renommer { $value } partout dans tous les fichiers
 remove_value = Retirer
 remove_value_confirm = Retirer { $value } de toutes les tâches de ce fichier ?
+remove_value_confirm_all = Retirer { $value } de toutes les tâches de tous les fichiers ?
 renamed =
     { $count ->
         [one] { $count } tâche mise à jour

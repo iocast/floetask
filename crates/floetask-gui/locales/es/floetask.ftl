@@ -43,6 +43,8 @@ file_sort_custom = Orden propio
 file_sort_custom_hint = Arrastra los archivos para ordenarlos
 file_sort_name = Nombre
 file_sort_folder = Carpeta
+overview = Vista general
+overview_hint = Todos los archivos, agrupados por archivo
 toggle_theme = Cambiar claro / oscuro
 
 ## Counts
@@ -77,6 +79,8 @@ details = Detalles
 
 new_todo = Nueva tarea
 edit_todo = Editar tarea
+editor_file = En { $file }
+editor_add_to = Añadir a
 editor_placeholder = (A) Llamar a mamá +familia @teléfono due:tomorrow
 editor_hint = Ctrl+Intro para guardar, Esc para cerrar
 add = Añadir
@@ -250,8 +254,10 @@ hide_category = Ocultar tareas con algún valor
 show_category = Volver a mostrar tareas con este atributo
 rename = Renombrar
 rename_title = Renombrar { $value } en todo este archivo
+rename_title_all = Renombrar { $value } en todos los archivos
 remove_value = Quitar
 remove_value_confirm = ¿Quitar { $value } de todas las tareas de este archivo?
+remove_value_confirm_all = ¿Quitar { $value } de todas las tareas de todos los archivos?
 renamed =
     { $count ->
         [one] { $count } tarea actualizada

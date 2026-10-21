@@ -24,8 +24,8 @@ use floetask_application::{
     Settings, ThemePreference,
 };
 use floetask_domain::listing::{
-    AttributeSummary, Board, BoardLayout, DateContext, LaneId, TodoListing, build_board, build_listing, known_names,
-    summarize_attributes,
+    AttributeSummary, Board, BoardLayout, DateContext, Group, LaneId, ListedTodo, TodoListing, build_board,
+    build_listing, build_overview, known_names, overview_board, summarize_attributes,
 };
 use floetask_domain::{Date, TodoDocument, WeekStart};
 
@@ -48,6 +48,24 @@ pub struct Startup {
     pub open: Option<PathBuf>,
 }
 
+/// A todo the user acted on and the file it is in. The overview mixes
+/// files, so every action on a todo names its file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Target {
+    pub file: PathBuf,
+    pub todo: TodoRef,
+}
+
+#[cfg(test)]
+impl Target {
+    pub fn new(file: impl Into<PathBuf>, line: usize, todo: &floetask_domain::Todo) -> Self {
+        Self {
+            file: file.into(),
+            todo: TodoRef::new(line, todo),
+        }
+    }
+}
+
 /// A short message at the bottom of the window.
 #[derive(Debug, Clone)]
 pub struct Toast {
@@ -63,10 +81,14 @@ pub struct Floetask {
     pub(crate) color_overrides: ColorOverrides,
     pub(crate) system_dark: bool,
     pub(crate) today: Date,
-    /// Every registered file, loaded. The active one is shown.
+    /// Every registered file, loaded. The active one is shown, or all of
+    /// them in the overview.
     pub(crate) documents: HashMap<PathBuf, TodoDocument>,
+    /// The files shown: the active one, or the overview's. A listed todo's
+    /// `file` indexes this.
+    pub(crate) listed_files: Vec<PathBuf>,
     pub(crate) listing: TodoListing,
-    /// The active file on the status board.
+    /// The shown files on the status board.
     pub(crate) board: Board,
     /// The card being dragged on the board.
     pub(crate) drag: Option<BoardDrag>,
@@ -75,7 +97,7 @@ pub struct Floetask {
     /// The day the calendar is centred on.
     pub(crate) calendar_anchor: Date,
     /// A todo being dragged on the calendar, with the day it came from.
-    pub(crate) calendar_drag: Option<(TodoRef, Option<Date>)>,
+    pub(crate) calendar_drag: Option<(Target, Option<Date>)>,
     /// The cursor left the calendar todo since it was pressed, so releasing
     /// it is a drop, never a click.
     pub(crate) calendar_drag_moved: bool,
@@ -90,14 +112,16 @@ pub struct Floetask {
     pub(crate) projects: BTreeSet<String>,
     pub(crate) contexts: BTreeSet<String>,
     pub(crate) markdown: HashMap<String, markdown::Content>,
-    /// Whether each `note:` value in the active file points at a file.
-    pub(crate) note_statuses: HashMap<String, NoteStatus>,
+    /// Whether each `note:` value of a shown file points at a file, by
+    /// todo file.
+    pub(crate) note_statuses: HashMap<PathBuf, HashMap<String, NoteStatus>>,
     pub(crate) search: SearchState,
     pub(crate) saved_filters: Vec<SavedFilter>,
     /// Index into the flattened visible list.
     pub(crate) selected: Option<usize>,
-    /// Line whose action bar (copy, archive, delete) is open.
-    pub(crate) row_menu: Option<usize>,
+    /// The todo (`ListedTodo::id`) whose menu (copy, archive, delete) is
+    /// open.
+    pub(crate) row_menu: Option<(usize, usize)>,
     pub(crate) file_menu: Option<usize>,
     /// The file drawer's sort menu is open.
     pub(crate) file_sort_menu: bool,
@@ -116,8 +140,8 @@ pub struct Floetask {
     /// The main window, for dragging, resizing and the window buttons.
     pub(crate) window: Option<window::Id>,
     pub(crate) maximized: bool,
-    /// Line of the todo under the mouse.
-    pub(crate) hovered: Option<usize>,
+    /// The todo (`ListedTodo::id`) under the mouse.
+    pub(crate) hovered: Option<(usize, usize)>,
     /// Bumped whenever the set of watched files changes.
     pub(crate) watch_generation: u64,
     /// The release check on the About page.
@@ -165,6 +189,7 @@ impl Floetask {
             system_dark: false,
             today,
             documents: HashMap::new(),
+            listed_files: Vec::new(),
             listing: TodoListing::default(),
             board: Board::default(),
             drag: None,
@@ -244,6 +269,7 @@ impl Floetask {
 
     pub fn title(&self) -> String {
         match self.state.active_entry() {
+            _ if self.state.shows_overview() => format!("{} - floetask", tr("overview")),
             Some(entry) => format!("{} - floetask", entry.file_name()),
             None => "floetask".to_owned(),
         }
@@ -439,45 +465,89 @@ impl Floetask {
             .and_then(|entry| self.documents.get(&entry.path))
     }
 
-    /// Recomputes everything derived from the active document and the view
+    /// The files to show: every file of the overview, else the active one.
+    pub(crate) fn shown_paths(&self) -> Vec<PathBuf> {
+        if self.state.shows_overview() {
+            self.state
+                .overview_files()
+                .into_iter()
+                .map(|entry| entry.path.clone())
+                .collect()
+        } else {
+            self.active_path().into_iter().collect()
+        }
+    }
+
+    /// The target of a listed todo, in the file it was listed from.
+    pub(crate) fn target(&self, entry: &ListedTodo) -> Target {
+        Target {
+            file: self.listed_files.get(entry.file).cloned().unwrap_or_default(),
+            todo: TodoRef::new(entry.line, &entry.todo),
+        }
+    }
+
+    /// The path of a listed file, by its index in the listing.
+    pub(crate) fn listed_file(&self, file: usize) -> Option<&Path> {
+        self.listed_files.get(file).map(PathBuf::as_path)
+    }
+
+    /// The name a list group's collapsed state is kept under. An overview's
+    /// file groups are named by path, so they survive reordering the files.
+    pub(crate) fn list_group_key(&self, group: &Group) -> String {
+        match group.file.and_then(|file| self.listed_file(file)) {
+            Some(path) => format!("file:{}", path.display()),
+            None => group.key(),
+        }
+    }
+
+    /// Recomputes everything derived from the shown documents and the view
     /// settings. Called after every change that can affect the list.
     pub(crate) fn refresh(&mut self) {
         let dates = self.date_context();
         let empty = TodoDocument::empty();
-        let document = self.active_document().unwrap_or(&empty);
-        let listing = build_listing(
-            document,
+        let paths = self.shown_paths();
+        let documents: Vec<&TodoDocument> = paths
+            .iter()
+            .map(|path| self.documents.get(path).unwrap_or(&empty))
+            .collect();
+        let (view, sorting, query, statuses) = (
             &self.state.view,
             &self.state.sorting,
             &self.search.query,
-            &dates,
             &self.settings.statuses,
         );
-        let summaries = summarize_attributes(
-            document,
-            &self.state.view,
-            &self.search.query,
-            &dates,
-            &self.settings.statuses,
-        );
-        let board = build_board(
-            document,
-            &self.state.view,
-            &self.state.sorting,
-            &self.search.query,
-            &dates,
-            &self.settings.statuses,
-            &BoardLayout {
+        let board_of = |document: &TodoDocument, layout: BoardLayout| {
+            build_board(document, view, sorting, query, &dates, statuses, &layout)
+        };
+        let (listing, board) = if self.state.shows_overview() {
+            let listing = build_overview(&documents, view, sorting, query, &dates, statuses);
+            // Each file keeps its own columns; the files are the groups.
+            let boards = paths.iter().zip(&documents).map(|(path, document)| {
+                let layout = BoardLayout {
+                    columns: self.settings.board_columns(path),
+                    grouped: false,
+                };
+                board_of(document, layout)
+            });
+            (listing, overview_board(boards))
+        } else {
+            let document = documents.first().copied().unwrap_or(&empty);
+            let layout = BoardLayout {
                 columns: self.active_board_columns(),
                 grouped: self.state.board_grouped,
-            },
-        );
-        let (projects, contexts) = known_names(document);
-        // A few file checks, one per distinct note; cheap enough to run here.
-        let note_statuses = match self.active_path() {
-            Some(path) => self.services.notes.statuses(&path, document),
-            None => HashMap::new(),
+            };
+            let listing = build_listing(document, view, sorting, query, &dates, statuses);
+            (listing, board_of(document, layout))
         };
+        let summaries = summarize_attributes(&documents, view, query, &dates, statuses);
+        let (projects, contexts) = known_names(&documents);
+        // A few file checks, one per distinct note; cheap enough to run here.
+        let note_statuses = paths
+            .iter()
+            .zip(&documents)
+            .map(|(path, document)| (path.clone(), self.services.notes.statuses(path, document)))
+            .collect();
+        self.listed_files = paths;
         self.listing = listing;
         self.board = board;
         self.note_statuses = note_statuses;

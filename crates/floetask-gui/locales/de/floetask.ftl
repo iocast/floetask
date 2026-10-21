@@ -43,6 +43,8 @@ file_sort_custom = Eigene Reihenfolge
 file_sort_custom_hint = Dateien zum Ordnen ziehen
 file_sort_name = Name
 file_sort_folder = Ordner
+overview = Übersicht
+overview_hint = Alle Dateien, nach Datei gruppiert
 toggle_theme = Hell / dunkel umschalten
 
 ## Counts
@@ -74,6 +76,8 @@ details = Details
 
 new_todo = Neue Aufgabe
 edit_todo = Aufgabe bearbeiten
+editor_file = In { $file }
+editor_add_to = Hinzufügen zu
 editor_placeholder = (A) Mama anrufen +familie @telefon due:tomorrow
 editor_hint = Strg+Enter zum Speichern, Esc zum Schließen
 add = Hinzufügen
@@ -247,8 +251,10 @@ hide_category = Aufgaben mit einem Wert ausblenden
 show_category = Aufgaben mit diesem Attribut wieder zeigen
 rename = Umbenennen
 rename_title = { $value } in dieser Datei überall umbenennen
+rename_title_all = { $value } in allen Dateien überall umbenennen
 remove_value = Entfernen
 remove_value_confirm = { $value } aus jeder Aufgabe dieser Datei entfernen?
+remove_value_confirm_all = { $value } aus jeder Aufgabe aller Dateien entfernen?
 renamed =
     { $count ->
         [one] 1 Aufgabe aktualisiert

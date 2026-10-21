@@ -1,5 +1,5 @@
 //! The file drawer: opening, watching, switching and archiving todo files,
-//! and writing changes to the active one.
+//! the overview of all of them, and writing changes to the files.
 
 mod update;
 mod view;
@@ -15,7 +15,7 @@ pub(crate) use view::drawer;
 pub enum Message {
     Loaded(PathBuf, Result<TodoDocument, AppError>),
     Changed(PathBuf),
-    /// Result of a change written to the active file.
+    /// Result of a change written to a file.
     Saved(PathBuf, Result<TodoDocument, AppError>),
     /// Result of a change that also reports how many todos it touched.
     SavedCount(PathBuf, Result<(TodoDocument, usize), AppError>, &'static str),
@@ -24,6 +24,8 @@ pub enum Message {
     Picked(Option<PathBuf>),
     Created(Option<PathBuf>),
     Select(usize),
+    /// Shows the overview of every file.
+    SelectOverview,
     Menu(Option<usize>),
     OpenDoneFile(usize),
     ToggleDrawer,

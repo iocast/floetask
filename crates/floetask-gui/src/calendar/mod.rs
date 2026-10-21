@@ -4,9 +4,10 @@
 mod update;
 mod view;
 
-use floetask_application::TodoRef;
 use floetask_domain::Date;
 use floetask_domain::calendar::CalendarMode;
+
+use crate::app::Target;
 
 pub(crate) use view::view;
 
@@ -20,7 +21,7 @@ pub enum Message {
     OpenDay(Date),
     /// A todo is pressed on a day, or in the undated panel (`None`): the
     /// start of a drag or a click.
-    Press(TodoRef, Option<Date>),
+    Press(Target, Option<Date>),
     /// Shows or hides the panel of todos without a due date.
     ToggleUndated,
     /// The cursor entered or left the undated panel.

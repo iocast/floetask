@@ -299,7 +299,11 @@ pub fn rename_dialog<'a>(
         .style(theme::input(colors));
     column![
         title(trf(
-            "rename_title",
+            if app.state.shows_overview() {
+                "rename_title_all"
+            } else {
+                "rename_title"
+            },
             &[("value", attribute_label(app, attribute, from).into())]
         )),
         field,

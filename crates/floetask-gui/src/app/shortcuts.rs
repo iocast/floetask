@@ -4,9 +4,9 @@
 use iced::Task;
 use iced::keyboard::{Key, Modifiers, key::Named};
 
-use floetask_application::{MainView, TodoRef};
+use floetask_application::MainView;
 
-use super::{Floetask, Message};
+use super::{Floetask, Message, Target};
 use crate::drawer::ViewToggle;
 use crate::{drawer, editor, files, list, note_window, search, settings};
 
@@ -120,10 +120,10 @@ impl Floetask {
         Task::none()
     }
 
-    fn on_selected(&mut self, action: fn(TodoRef) -> Message) -> Task<Message> {
+    fn on_selected(&mut self, action: fn(Target) -> Message) -> Task<Message> {
         match self.selected_todo() {
             Some(entry) => {
-                let target = TodoRef::new(entry.line, &entry.todo);
+                let target = self.target(entry);
                 self.update(action(target))
             }
             None => Task::none(),

@@ -6,7 +6,7 @@ use floetask_domain::board::BoardColumns;
 use floetask_domain::status::key_from_label;
 
 use super::BoardDrag;
-use crate::app::{Dialog, Floetask, Message};
+use crate::app::{Dialog, Floetask, Message, Target};
 use crate::{board, list};
 
 impl Floetask {
@@ -141,7 +141,9 @@ impl Floetask {
         if self.board.lane(drag.from).and_then(|from| from.column.as_ref()) == Some(&column) {
             return Task::none();
         }
-        let target = drag.target;
-        self.change_active_file(move |service, path, options| service.move_to_column(path, &target, &column, options))
+        let Target { file, todo } = drag.target;
+        self.change_file(file, move |service, path, options| {
+            service.move_to_column(path, &todo, &column, options)
+        })
     }
 }

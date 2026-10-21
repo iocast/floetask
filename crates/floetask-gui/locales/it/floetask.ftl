@@ -43,6 +43,8 @@ file_sort_custom = Ordine personalizzato
 file_sort_custom_hint = Trascina i file per ordinarli
 file_sort_name = Nome
 file_sort_folder = Cartella
+overview = Panoramica
+overview_hint = Tutti i file, raggruppati per file
 toggle_theme = Passa a chiaro / scuro
 
 ## Counts
@@ -74,6 +76,8 @@ details = Dettagli
 
 new_todo = Nuova attività
 edit_todo = Modifica attività
+editor_file = In { $file }
+editor_add_to = Aggiungi a
 editor_placeholder = (A) Chiamare la mamma +famiglia @telefono due:tomorrow
 editor_hint = Ctrl+Invio per salvare, Esc per chiudere
 add = Aggiungi
@@ -247,8 +251,10 @@ hide_category = Nascondi le attività con un valore
 show_category = Mostra di nuovo le attività con questo attributo
 rename = Rinomina
 rename_title = Rinomina { $value } in tutto questo file
+rename_title_all = Rinomina { $value } in tutti i file
 remove_value = Rimuovi
 remove_value_confirm = Rimuovere { $value } da tutte le attività di questo file?
+remove_value_confirm_all = Rimuovere { $value } da tutte le attività di tutti i file?
 renamed =
     { $count ->
         [one] { $count } attività aggiornata
