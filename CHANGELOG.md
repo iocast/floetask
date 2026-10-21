@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-21
+
 ### Changed
 - An available update shows as an *Update* button in the title bar, which opens Settings → About to install it, instead of a toast on start
 
@@ -116,7 +118,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/iocast/floetask/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/iocast/floetask/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/iocast/floetask/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/iocast/floetask/compare/v0.3.1...v0.4.0
