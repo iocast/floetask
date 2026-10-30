@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Removed
+- The zoom slider in Settings → Appearance; the window always shows at 100 %, and `zoom_percent` in `config.toml` is ignored
+
 ## [0.5.1] - 2026-10-21
 
 ### Changed

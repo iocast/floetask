@@ -81,7 +81,6 @@ impl Floetask {
             SettingChange::CheckForUpdates(on) => s.check_for_updates = on,
             SettingChange::UpdateChannel(channel) => s.update_channel = channel,
             SettingChange::NotificationThreshold(days) => s.notification_threshold_days = days,
-            SettingChange::Zoom(percent) => s.zoom_percent = percent,
             SettingChange::Theme(theme) => s.theme = theme,
             SettingChange::WeekStart(week_start) => {
                 s.week_start = week_start;

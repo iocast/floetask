@@ -85,7 +85,6 @@ pub struct Settings {
     pub update_channel: UpdateChannel,
     /// Notify about todos due within this many days (0 = today only).
     pub notification_threshold_days: u8,
-    pub zoom_percent: u16,
     pub theme: ThemePreference,
     #[serde(with = "crate::persist::week_start")]
     pub week_start: WeekStart,
@@ -118,7 +117,6 @@ impl Default for Settings {
             check_for_updates: true,
             update_channel: UpdateChannel::Stable,
             notification_threshold_days: 2,
-            zoom_percent: 100,
             theme: ThemePreference::System,
             week_start: WeekStart::Monday,
             month_overflow: MonthOverflow::More,
@@ -132,7 +130,6 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub const ZOOM_RANGE: std::ops::RangeInclusive<u16> = 50..=150;
     pub const NOTIFICATION_THRESHOLD_MAX: u8 = 10;
 
     /// The board columns of a todo file.
@@ -152,10 +149,6 @@ impl Settings {
 
     /// Clamps values a hand-edited config file may have out of range.
     pub fn normalized(mut self) -> Self {
-        self.zoom_percent = self
-            .zoom_percent
-            .clamp(*Self::ZOOM_RANGE.start(), *Self::ZOOM_RANGE.end());
-        self.zoom_percent -= self.zoom_percent % 10;
         self.notification_threshold_days = self.notification_threshold_days.min(Self::NOTIFICATION_THRESHOLD_MAX);
         self
     }

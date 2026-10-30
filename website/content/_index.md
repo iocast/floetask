@@ -129,7 +129,7 @@ text = "Keep several todo.txt files open and archive completed work to done.txt.
 [[extra.features]]
 icon = "palette"
 title = "Light, dark, yours"
-text = "Light and dark themes that follow your system, custom colours, zoom, a compact layout and keyboard shortcuts for every action."
+text = "Light and dark themes that follow your system, custom colours, a compact layout and keyboard shortcuts for every action."
 
 [[extra.screenshots]]
 file = "list.png"
@@ -153,7 +153,7 @@ caption = "Markdown notes, saved next to your todo.txt."
 
 [[extra.screenshots]]
 file = "settings.png"
-caption = "Settings: theme, language, zoom and compact mode."
+caption = "Settings: theme, language and compact mode."
 
 [[extra.screenshots]]
 file = "dark-editor.png"

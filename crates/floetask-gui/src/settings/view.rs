@@ -300,18 +300,11 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         },
         |overflow| Message::Settings(settings::Message::Change(SettingChange::MonthOverflow(overflow))),
     );
-    let zoom = slider(Settings::ZOOM_RANGE, s.zoom_percent, |percent| {
-        Message::Settings(settings::Message::Change(SettingChange::Zoom(percent)))
-    })
-    .step(10u16)
-    .width(CONTROL_WIDTH)
-    .into();
     page(
         "section_appearance",
         vec![
             setting("theme", tr("theme").to_owned(), theme_choice, colors),
             setting("language", tr("language").to_owned(), language, colors),
-            setting("zoom", trf("zoom", &[("percent", s.zoom_percent.into())]), zoom, colors),
             switch_setting("compact", s.compact, SettingChange::Compact, colors),
             setting(
                 "month_overflow",

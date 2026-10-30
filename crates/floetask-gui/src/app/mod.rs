@@ -279,10 +279,6 @@ impl Floetask {
         self.colors().theme()
     }
 
-    pub fn scale_factor(&self) -> f32 {
-        f32::from(self.settings.zoom_percent) / 100.0
-    }
-
     /// The side panels to draw: the open ones, minus those the main view
     /// needs the room of (see `layout`).
     pub(crate) fn shown_panels(&self) -> crate::layout::Panels {
@@ -291,7 +287,7 @@ impl Floetask {
             filters: self.state.drawer_open && self.active_document().is_some(),
             undated: self.calendar_undated_open && self.state.main_view == floetask_application::MainView::Calendar,
         };
-        let width = self.state.window.width / self.scale_factor();
+        let width = self.state.window.width;
         crate::layout::fit(open, width, crate::layout::MAIN_MIN_WIDTH)
     }
 

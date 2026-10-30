@@ -74,7 +74,6 @@ pub fn run(startup: Startup) -> iced::Result {
     )
     .title(app::Floetask::window_title)
     .theme(|app: &app::Floetask, _| app.theme())
-    .scale_factor(|app: &app::Floetask, _| app.scale_factor())
     .subscription(app::Floetask::subscription);
     // The notes editor measures text with its own fonts; without them the
     // caret would not line up with the text.

@@ -78,7 +78,6 @@ notifications = true
 check_for_updates = true
 update_channel = "preview"
 notification_threshold_days = 3
-zoom_percent = 110
 theme = "dark"
 week_start = "sunday"
 month_overflow = "scroll"
@@ -104,7 +103,6 @@ columns = ["doing", "done"]
         assert!(settings.append_creation_date && settings.compact);
         assert_eq!(settings.update_channel, UpdateChannel::Preview);
         assert_eq!(settings.notification_threshold_days, 3);
-        assert_eq!(settings.zoom_percent, 110);
         assert_eq!(settings.theme, ThemePreference::Dark);
         assert_eq!(settings.week_start, WeekStart::Sunday);
         assert_eq!(settings.month_overflow, MonthOverflow::Scroll);
@@ -166,9 +164,12 @@ columns = ["doing", "done"]
     fn partial_file_fills_defaults_and_clamps() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
-        std::fs::write(&path, "zoom_percent = 300\n[watcher]\npolling = true\n").unwrap();
+        std::fs::write(&path, "notification_threshold_days = 30\n[watcher]\npolling = true\n").unwrap();
         let settings = TomlSettingsStore::new(path).load().unwrap();
-        assert_eq!(settings.zoom_percent, 150);
+        assert_eq!(
+            settings.notification_threshold_days,
+            Settings::NOTIFICATION_THRESHOLD_MAX
+        );
         assert!(settings.watcher.polling);
         assert_eq!(settings.watcher.debounce_ms, 100);
         assert!(settings.safe_writes);
