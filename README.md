@@ -59,7 +59,6 @@ bulk_creation = false           # one todo per line in the add dialog
 compact = false
 notifications = true
 notification_threshold_days = 2 # 0-10
-zoom_percent = 100              # 50-150
 theme = "system"                # system, light, dark
 week_start = "monday"           # monday, saturday, sunday (first start: from your region)
 month_overflow = "more"         # full calendar month cells: more (+N more), scroll
@@ -137,7 +136,7 @@ The interface speaks English, German, French, Spanish and Italian. It follows th
 
 ## Status against [FEATURES.md](features/FEATURES.md)
 
-Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files in a file drawer with per-file menus, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, `note:` links to notes files (see [note-extension.md](features/todo-notes/note-extension.md)), empty states, compact mode and zoom, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and the interface in English, German, French, Spanish and Italian (Fluent files, localised calendar dates).
+Implemented: the todo.txt model with exact round-trip and multi-line todos (DLE), completion with `pri:`, recurrence (strict, business days, threshold gap), safe writes, a debounced file watcher with polling option, multiple files in a file drawer with per-file menus, drag and drop, done files and archiving, grouped and sorted list with counts, Markdown and explicit link opening, `note:` links to notes files (see [note-extension.md](features/todo-notes/note-extension.md)), empty states, compact mode, the add/edit dialog with autocomplete and pickers, bulk creation, the drawer (attributes, filters, sorting, rename/remove, hide category), the search language and saved filters, due-date notifications with de-duplication and suppression, the settings dialog, system/light/dark themes and the colour file, natural-language and human-friendly dates, keyboard shortcuts, and the interface in English, German, French, Spanish and Italian (Fluent files, localised calendar dates).
 
 Not done yet:
 

@@ -7,7 +7,7 @@ Settings dialog (`Ctrl+,`). A sidebar on the left lists the sections (Todos, Dat
 | Todos | append creation date, bulk todo creation |
 | Dates | convert relative dates, human-friendly dates, week start |
 | Statuses | the global status list (below) |
-| Appearance | theme, language, zoom, compact mode, disable animations |
+| Appearance | theme, language, compact mode, disable animations |
 | Notifications | notifications, notification threshold |
 | Files | safe writes; shows where the settings file is |
 
@@ -30,7 +30,6 @@ All settings:
 | Compact mode | toggle | off |
 | Notifications | toggle | on |
 | Notification threshold | slider 0–10 days | 2 |
-| Zoom | slider 50–150 % | 100 |
 | Colour theme | system / light / dark | system |
 | Week start | Mon / Sat / Sun | Mon |
 | Language | select | system |

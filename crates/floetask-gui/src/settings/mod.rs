@@ -44,7 +44,6 @@ pub enum SettingChange {
     CheckForUpdates(bool),
     UpdateChannel(UpdateChannel),
     NotificationThreshold(u8),
-    Zoom(u16),
     Theme(ThemePreference),
     WeekStart(WeekStart),
     MonthOverflow(MonthOverflow),

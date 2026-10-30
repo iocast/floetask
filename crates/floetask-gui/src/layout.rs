@@ -37,7 +37,7 @@ pub struct Panels {
 }
 
 /// The open panels that fit next to a view needing `min_main` pixels in a
-/// window `width` pixels wide (logical, after zoom).
+/// window `width` pixels wide (logical).
 pub fn fit(panels: Panels, width: f32, min_main: f32) -> Panels {
     let needed = |p: Panels| {
         let side = |open: bool, size: f32| if open { size + PANEL_SPACING } else { 0.0 };
