@@ -19,7 +19,7 @@ use floetask_domain::status::key_from_label;
 
 use crate::app::{Floetask, Message};
 use crate::i18n::{tr, trf};
-use crate::list::{body, card_menu, collapsible, file_header, group_header, meta, status_label, status_name};
+use crate::list::{add_area, body, card_menu, collapsible, file_header, group_header, meta, status_label, status_name};
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::widgets::{
@@ -241,18 +241,28 @@ fn lane<'a>(app: &'a Floetask, id: LaneId, lane: &'a Lane, fill: bool, width: Le
 
     let target = app.drag.as_ref().is_some_and(|drag| drag.from != id) && app.board_hover == Some(id);
     let droppable = lane.column.is_some();
+    let selected = app.selected_lane == Some(id);
     let mut frame = container(content)
         .padding(10)
         .width(width)
-        .style(theme::lane(colors, target && droppable))
+        .style(theme::lane(colors, selected || target && droppable))
         .clip(true);
     if fill {
         frame = frame.height(Fill);
     }
-    mouse_area(frame)
+    let zone = mouse_area(frame)
         .on_enter(Message::Board(board::Message::Hover(id, true)))
-        .on_exit(Message::Board(board::Message::Hover(id, false)))
-        .into()
+        .on_exit(Message::Board(board::Message::Hover(id, false)));
+    // A double-click or the right-click menu adds a todo to this lane.
+    add_area(
+        app,
+        zone,
+        app.lane_menu == Some(id),
+        Message::Board(board::Message::LaneMenu(Some(id))),
+        Message::Board(board::Message::LaneMenu(None)),
+        Message::Board(board::Message::SelectLane(id)),
+        Message::Board(board::Message::NewTodo(id)),
+    )
 }
 
 fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {

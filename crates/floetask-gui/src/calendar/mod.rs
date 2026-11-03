@@ -19,6 +19,13 @@ pub enum Message {
     Today,
     /// Opens one day in Day mode.
     OpenDay(Date),
+    /// Opens the add dialog for a todo due on this day: a double-click on
+    /// the day, or its right-click menu.
+    NewTodo(Date),
+    /// Opens the right-click menu of a day, or closes it (`None`).
+    DayMenu(Option<Date>),
+    /// A click on a day's free space selects it, outlined.
+    SelectDay(Date),
     /// A todo is pressed on a day, or in the undated panel (`None`): the
     /// start of a drag or a click.
     Press(Target, Option<Date>),

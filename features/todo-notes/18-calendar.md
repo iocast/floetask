@@ -27,6 +27,8 @@ A third way to show the active file, next to the list and the status board: todo
 
 - Clicking a todo opens the edit dialog.
 - Right-clicking a todo opens the list's context menu at the cursor: **Copy**, **Move to done file** and **Delete** (§3).
+- Double-clicking a day's free space, or **New todo** in its right-click menu, opens the add dialog with `due:` set to that day. The cursor stands before the date, so the description is typed in front of it.
+- Clicking or right-clicking a day's free space selects it: it is outlined like a drop target until a click anywhere else (another day moves the outline there), a right-click on a todo or `Escape` clears it.
 - Each entry has a checkbox that completes or reopens the todo, as in the list and on the board; ticking it does not start a drag.
 - Dragging a todo to another day sets its `due:` to that day; only the `due:` token changes (round-trip rules, §1.3).
 - The title bar switches between list, board and calendar; `Ctrl+Alt+C` toggles between the calendar and the list.

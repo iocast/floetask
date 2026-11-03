@@ -14,7 +14,7 @@ use floetask_application::{
 };
 use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
-use floetask_domain::{Date, TodoDocument};
+use floetask_domain::{Date, Todo, TodoDocument};
 
 use iced::widget::text_editor;
 
@@ -1951,4 +1951,186 @@ fn the_title_bar_moves_the_window_while_a_dialog_is_open() {
     let _ = app.update(Message::Settings(settings::Message::Open));
     let messages = press_at(&app, title_bar);
     assert!(matches!(&messages[..], [Message::WindowDrag]), "{messages:?}");
+}
+
+/// Double-clicks the widget showing `label`.
+fn double_click(app: &Floetask, label: &str) -> Vec<Message> {
+    use iced::mouse::{Button, Event};
+
+    let mut ui = simulator(app.view());
+    let bounds = ui
+        .find(label)
+        .unwrap_or_else(|_| panic!("`{label}` is not on screen"))
+        .bounds();
+    ui.point_at(bounds.center());
+    let click = [
+        iced::Event::Mouse(Event::ButtonPressed(Button::Left)),
+        iced::Event::Mouse(Event::ButtonReleased(Button::Left)),
+    ];
+    let _ = ui.simulate(click.iter().chain(&click).cloned());
+    ui.into_messages().collect()
+}
+
+/// The text of the open add/edit dialog, after typing `typed` at its cursor.
+fn new_todo_text(app: &mut Floetask, typed: &str) -> String {
+    let _ = app.update(Message::Editor(editor::Message::Action(text_editor::Action::Edit(
+        text_editor::Edit::Paste(Arc::new(typed.to_owned())),
+    ))));
+    let Some(Dialog::Editor(editor)) = &app.dialog else {
+        panic!("the add dialog is not open")
+    };
+    assert!(editor.target.is_none(), "the dialog edits a todo instead of adding one");
+    Todo::from_user_text(&editor.text()).raw().to_owned()
+}
+
+#[test]
+fn a_calendar_day_adds_a_todo_due_that_day() {
+    use floetask_application::MainView;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let day = floetask_domain::date::parse_iso("2026-10-08").unwrap();
+    let _ = app.update(Message::Calendar(calendar::Message::OpenDay(day)));
+
+    // A double-click on the day's free space opens the add dialog.
+    let messages = double_click(&app, "Nothing due this day.");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::Calendar(calendar::Message::NewTodo(d)) if *d == day)),
+        "{messages:?}"
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert_eq!(new_todo_text(&mut app, "Book tickets"), "Book tickets due:2026-10-08");
+    let _ = app.update(Message::CloseDialog);
+
+    // So does the day's right-click menu. (The file drawer has a button
+    // with the same label.)
+    app.state.files_drawer_open = false;
+    for message in right_click(&app, "Nothing due this day.") {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.day_menu, Some(day));
+    assert_eq!(app.selected_day, Some(day));
+    for message in click(&app, "New todo") {
+        let _ = app.update(message);
+    }
+    assert!(app.day_menu.is_none());
+    assert_eq!(new_todo_text(&mut app, "Call the vet"), "Call the vet due:2026-10-08");
+}
+
+#[test]
+fn a_clicked_day_or_lane_is_outlined_until_escape() {
+    use floetask_application::MainView;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let day = floetask_domain::date::parse_iso("2026-10-08").unwrap();
+    let _ = app.update(Message::Calendar(calendar::Message::OpenDay(day)));
+    for message in click(&app, "Nothing due this day.") {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.selected_day, Some(day));
+    snapshot(&app, "calendar-day-selected");
+    let _ = app.update(Message::KeyPressed(
+        iced::window::Id::unique(),
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+        Default::default(),
+    ));
+    assert!(app.selected_day.is_none());
+
+    // On the board, a click on a column header selects the column, a
+    // right-click selects it too, and pressing a card clears it.
+    let _ = app.update(Message::ShowMainView(MainView::Board));
+    for message in click(&app, "DOING") {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.selected_lane, Some(lane(0, 1)));
+    for message in right_click(&app, "WAITING") {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.selected_lane, Some(lane(0, 2)));
+    assert_eq!(app.lane_menu, Some(lane(0, 2)));
+    snapshot(&app, "board-lane-selected");
+    let legal = app.listing.todos().find(|e| e.todo.body() == "Legal review").unwrap();
+    let target = app.target(legal);
+    let _ = app.update(Message::Board(board::Message::Press(target, lane(0, 2))));
+    assert!(app.selected_lane.is_none());
+}
+
+#[test]
+fn a_click_outside_or_a_todo_menu_clears_the_outline() {
+    use floetask_application::MainView;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Board));
+
+    // The press that selects a lane reaches the app after the lane's own
+    // message and keeps it; the next press elsewhere clears it.
+    let _ = app.update(Message::Board(board::Message::SelectLane(lane(0, 1))));
+    let _ = app.update(Message::MousePressed);
+    assert_eq!(app.selected_lane, Some(lane(0, 1)));
+    let _ = app.update(Message::MousePressed);
+    assert!(app.selected_lane.is_none());
+
+    // Selecting another lane moves the outline instead of clearing it.
+    let _ = app.update(Message::Board(board::Message::SelectLane(lane(0, 1))));
+    let _ = app.update(Message::MousePressed);
+    let _ = app.update(Message::Board(board::Message::SelectLane(lane(0, 2))));
+    let _ = app.update(Message::MousePressed);
+    assert_eq!(app.selected_lane, Some(lane(0, 2)));
+
+    // Right-clicking a todo clears it.
+    for message in right_click(&app, "Legal review") {
+        let _ = app.update(message);
+    }
+    assert!(app.row_menu.is_some());
+    assert!(app.selected_lane.is_none());
+
+    // Same for a calendar day.
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let day = floetask_domain::date::parse_iso("2026-10-08").unwrap();
+    let _ = app.update(Message::Calendar(calendar::Message::DayMenu(Some(day))));
+    let _ = app.update(Message::MousePressed);
+    assert_eq!(app.selected_day, Some(day));
+    // A click outside closes the menu and clears the outline.
+    let _ = app.update(Message::Calendar(calendar::Message::DayMenu(None)));
+    let _ = app.update(Message::MousePressed);
+    assert!(app.selected_day.is_none());
+    assert!(app.day_menu.is_none());
+}
+
+#[test]
+fn a_board_lane_adds_a_todo_with_its_status_and_group() {
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+
+    let messages = double_click(&app, "DOING");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::Board(board::Message::NewTodo(id)) if *id == lane(0, 1))),
+        "{messages:?}"
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert_eq!(new_todo_text(&mut app, "Draft agenda"), "Draft agenda status:doing");
+    let _ = app.update(Message::CloseDialog);
+
+    // Grouped by project, a lane also gives its group's project.
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(2, -1)));
+    let _ = app.update(Message::Drawer(drawer::Message::MoveSort(1, -1)));
+    assert!(app.board.is_grouped());
+    let work = app.board.groups.iter().position(|g| g.values == ["work"]).unwrap();
+    for message in right_click(&app, "WAITING") {
+        let _ = app.update(message);
+    }
+    assert!(app.lane_menu.is_some());
+    let _ = app.update(Message::Board(board::Message::LaneMenu(None)));
+    let _ = app.update(Message::Board(board::Message::NewTodo(lane(work, 2))));
+    assert!(app.lane_menu.is_none());
+    assert_eq!(new_todo_text(&mut app, "Ask legal"), "Ask legal +work status:waiting");
 }

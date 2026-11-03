@@ -15,6 +15,9 @@ pub enum Message {
     /// A key no widget took, in the window it was pressed in.
     KeyPressed(window::Id, keyboard::Key, keyboard::Modifiers),
     ModifiersChanged(keyboard::Modifiers),
+    /// A left or right mouse press anywhere, after the widgets handled it:
+    /// one that did not select a calendar day or board lane clears it.
+    MousePressed,
     Quit,
     WindowReady(Option<window::Id>),
     WindowDrag,

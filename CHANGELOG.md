@@ -6,6 +6,11 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- Double-click a day in the calendar, or right-click it and pick *New todo*, to add a todo due that day
+- Double-click a board column, or right-click it and pick *New todo*, to add a todo with that column's status and, on a board grouped by project, context or priority, the group's value
+- Clicking or right-clicking a calendar day or a board column outlines it, so you can see which one a new todo goes to
+
 ### Removed
 - The zoom slider in Settings → Appearance; the window always shows at 100 %, and `zoom_percent` in `config.toml` is ignored
 

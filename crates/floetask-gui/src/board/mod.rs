@@ -16,6 +16,13 @@ pub enum Message {
     Grouped(bool),
     /// Collapses or expands the board group with this key.
     ToggleGroup(String),
+    /// Opens the add dialog for a todo in this lane: a double-click on the
+    /// lane, or its right-click menu.
+    NewTodo(LaneId),
+    /// Opens the right-click menu of a lane, or closes it (`None`).
+    LaneMenu(Option<LaneId>),
+    /// A click on a lane's free space selects it, outlined.
+    SelectLane(LaneId),
     /// A card was pressed in a lane: start dragging it.
     Press(Target, LaneId),
     /// The mouse entered (`true`) or left a lane.

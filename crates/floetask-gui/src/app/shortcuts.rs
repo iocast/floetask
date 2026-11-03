@@ -102,9 +102,13 @@ impl Floetask {
         if self.panel_overlay.take().is_some() {
             return Task::none();
         }
-        if self.row_menu.is_some() || self.file_menu.is_some() {
-            self.row_menu = None;
+        if self.row_menu.is_some() || self.day_menu.is_some() || self.lane_menu.is_some() || self.file_menu.is_some() {
+            self.close_card_menus();
             self.file_menu = None;
+            return Task::none();
+        }
+        if self.selected_day.is_some() || self.selected_lane.is_some() {
+            self.clear_area_selection();
             return Task::none();
         }
         if self.search.saved_open {

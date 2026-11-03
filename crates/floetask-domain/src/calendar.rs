@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::date::{Date, WeekStart, add_days, add_months, end_of_month, first_of_month, start_of_week};
 use crate::listing::ListedTodo;
+use crate::todo::Todo;
 
 /// How much time the calendar shows at once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -93,6 +94,11 @@ pub fn todos_by_day<'a>(
     days
 }
 
+/// The todo a new one added on `day` starts from: due that day.
+pub fn new_todo_on(day: Date) -> Todo {
+    Todo::parse("").with_date_extension("due", Some(day))
+}
+
 /// The open todos without a due date, which no calendar day shows, each
 /// once and in the order they come in. Completed ones need no planning.
 pub fn undated<'a>(todos: impl IntoIterator<Item = &'a ListedTodo>) -> Vec<&'a ListedTodo> {
@@ -107,7 +113,6 @@ pub fn undated<'a>(todos: impl IntoIterator<Item = &'a ListedTodo>) -> Vec<&'a L
 mod tests {
     use super::*;
     use crate::date::parse_iso;
-    use crate::todo::Todo;
 
     fn d(s: &str) -> Date {
         parse_iso(s).unwrap()
@@ -119,6 +124,11 @@ mod tests {
             line,
             todo: Todo::parse(text),
         }
+    }
+
+    #[test]
+    fn a_new_todo_on_a_day_is_due_that_day() {
+        assert_eq!(new_todo_on(d("2026-10-06")).raw(), "due:2026-10-06");
     }
 
     #[test]

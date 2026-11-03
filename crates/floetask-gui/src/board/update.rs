@@ -1,5 +1,7 @@
 //! Dragging cards between columns and editing a file's columns.
 
+use std::path::Path;
+
 use iced::Task;
 
 use floetask_domain::board::BoardColumns;
@@ -15,6 +17,7 @@ impl Floetask {
             board::Message::Grouped(on) => {
                 self.state.board_grouped = on;
                 self.drag = None;
+                self.selected_lane = None;
                 self.refresh();
                 self.persist_state()
             }
@@ -22,7 +25,35 @@ impl Floetask {
                 self.state.toggle_board_group(&key);
                 self.persist_state()
             }
+            board::Message::NewTodo(lane) => {
+                // An overview's boards are files: add to that lane's file.
+                let file = self
+                    .board
+                    .groups
+                    .get(lane.group)
+                    .and_then(|group| group.file)
+                    .and_then(|file| self.listed_file(file))
+                    .map(Path::to_path_buf);
+                let prefill = self.board.new_todo(lane);
+                self.select_lane(lane);
+                self.open_new_editor(file, &prefill)
+            }
+            board::Message::LaneMenu(lane) => {
+                let menu = if self.lane_menu == lane { None } else { lane };
+                self.close_card_menus();
+                self.lane_menu = menu;
+                if let Some(lane) = lane {
+                    self.select_lane(lane);
+                }
+                Task::none()
+            }
+            board::Message::SelectLane(lane) => {
+                self.close_card_menus();
+                self.select_lane(lane);
+                Task::none()
+            }
             board::Message::Press(target, lane) => {
+                self.selected_lane = None;
                 self.drag = Some(BoardDrag {
                     target,
                     from: lane,

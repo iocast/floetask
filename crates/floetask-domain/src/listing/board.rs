@@ -2,6 +2,7 @@ use super::build::{group_by, group_key};
 use super::{Attribute, DateContext, ListedTodo, Sorting, ViewOptions};
 use crate::board::{BoardColumns, Column};
 use crate::document::TodoDocument;
+use crate::priority::Priority;
 use crate::search::Query;
 use crate::status::StatusSet;
 use crate::todo::Todo;
@@ -79,6 +80,32 @@ impl Board {
         self.groups
             .iter()
             .any(|group| group.attribute.is_some() || group.file.is_some())
+    }
+
+    /// The todo a new one added to a lane starts from, so it lands where it
+    /// was added: the column's status and, on a board grouped by priority,
+    /// projects or contexts, the group's values. Done and "other" set no
+    /// status, and date groups no date: their headers are buckets such as
+    /// `next week`, not days.
+    pub fn new_todo(&self, id: LaneId) -> Todo {
+        let Some(group) = self.groups.get(id.group) else {
+            return Todo::parse("");
+        };
+        let tags: Vec<String> = match group.attribute {
+            Some(Attribute::Projects) => group.values.iter().map(|name| format!("+{name}")).collect(),
+            Some(Attribute::Contexts) => group.values.iter().map(|name| format!("@{name}")).collect(),
+            _ => Vec::new(),
+        };
+        let mut todo = Todo::parse(&tags.join(" "));
+        if group.attribute == Some(Attribute::Priority)
+            && let Some(priority) = group.values.first().and_then(|value| value.chars().next())
+        {
+            todo = todo.with_priority(Priority::new(priority));
+        }
+        match group.lanes.get(id.lane).and_then(|lane| lane.column.as_ref()) {
+            Some(Column::Status(status)) => todo.with_status(Some(status)),
+            _ => todo,
+        }
     }
 }
 
@@ -373,6 +400,45 @@ x 2026-10-01 Sent invoice
         assert!(!flat.is_grouped());
         let todo_lane: Vec<_> = flat.groups[0].lanes[0].todos.iter().map(|t| t.todo.body()).collect();
         assert_eq!(todo_lane, ["Urgent plain", "Plain task"]);
+    }
+
+    #[test]
+    fn a_new_todo_takes_the_lane_status_and_the_group_values() {
+        let columns = BoardColumns::from_keys(["todo", "doing", "done"]);
+        let flat = board(&columns, &Query::Empty);
+        let raw = |board: &Board, group, lane| board.new_todo(LaneId { group, lane }).raw().to_owned();
+        assert_eq!(raw(&flat, 0, 0), "");
+        assert_eq!(raw(&flat, 0, 1), "status:doing");
+        assert_eq!(raw(&flat, 0, 2), "");
+        assert_eq!(raw(&flat, 0, 3), "");
+        assert_eq!(raw(&flat, 9, 0), "");
+
+        let mut by_priority = Sorting::default();
+        by_priority.criteria.retain(|c| c.attribute != Attribute::Status);
+        let grouped = board_sorted(&columns, &Query::Empty, &by_priority, true);
+        assert_eq!(raw(&grouped, 0, 1), "(A) status:doing");
+        assert_eq!(raw(&grouped, 2, 1), "status:doing");
+
+        let projects = Board {
+            groups: vec![BoardGroup {
+                file: None,
+                attribute: Some(Attribute::Projects),
+                values: vec!["work".to_owned(), "home".to_owned()],
+                lanes: vec![Lane {
+                    column: Some(Column::Status("waiting".to_owned())),
+                    todos: Vec::new(),
+                }],
+            }],
+        };
+        assert_eq!(raw(&projects, 0, 0), "+work +home status:waiting");
+        let mut contexts = projects.clone();
+        contexts.groups[0].attribute = Some(Attribute::Contexts);
+        contexts.groups[0].values = vec!["phone".to_owned()];
+        assert_eq!(raw(&contexts, 0, 0), "@phone status:waiting");
+        let mut dates = projects;
+        dates.groups[0].attribute = Some(Attribute::Due);
+        dates.groups[0].values = vec!["next week".to_owned()];
+        assert_eq!(raw(&dates, 0, 0), "status:waiting");
     }
 
     #[test]

@@ -521,6 +521,47 @@ pub(crate) fn card_menu<'a>(
         .into()
 }
 
+/// Wraps a calendar day or a board lane so a click on its free space selects
+/// it (`select`), a double-click adds a todo there (`new`), and a right-click
+/// opens a menu at the cursor offering the same. Cards inside keep their own
+/// clicks and menu.
+pub(crate) fn add_area<'a>(
+    app: &Floetask,
+    area: impl Into<Element<'a, Message>>,
+    menu_open: bool,
+    open_menu: Message,
+    close_menu: Message,
+    select: Message,
+    new: Message,
+) -> Element<'a, Message> {
+    let colors = app.colors();
+    let anchor = mouse_area(area)
+        .on_press(select)
+        .on_double_click(new.clone())
+        .on_right_press(open_menu);
+    let menu = menu_open.then(|| {
+        container(
+            button(
+                row![
+                    icon(Icon::Plus, 15.0, colors.text),
+                    text(tr("new_todo")).size(13).color(colors.text)
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+            )
+            .width(Fill)
+            .padding([7, 10])
+            .style(theme::ghost(colors, false))
+            .on_press(new),
+        )
+        .padding(6)
+        .width(220)
+        .style(theme::card(colors))
+        .into()
+    });
+    popover(anchor, menu, close_menu).at_cursor().into()
+}
+
 fn row_menu<'a>(app: &Floetask, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let target = app.target(entry);
     let item = |glyph: Icon, label: &'static str, message: list::Message, danger: bool| {

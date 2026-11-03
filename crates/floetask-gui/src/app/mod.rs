@@ -122,6 +122,18 @@ pub struct Floetask {
     /// The todo (`ListedTodo::id`) whose menu (copy, archive, delete) is
     /// open.
     pub(crate) row_menu: Option<(usize, usize)>,
+    /// The calendar day whose menu (new todo) is open.
+    pub(crate) day_menu: Option<Date>,
+    /// The board lane whose menu (new todo) is open.
+    pub(crate) lane_menu: Option<LaneId>,
+    /// The calendar day last clicked or right-clicked, outlined.
+    pub(crate) selected_day: Option<Date>,
+    /// The board lane last clicked or right-clicked, outlined.
+    pub(crate) selected_lane: Option<LaneId>,
+    /// The last mouse press selected a day or lane. iced handles the
+    /// widgets' messages before `MousePressed`, so that press must not
+    /// clear the selection it just made.
+    pub(crate) area_selected_by_press: bool,
     pub(crate) file_menu: Option<usize>,
     /// The file drawer's sort menu is open.
     pub(crate) file_sort_menu: bool,
@@ -210,6 +222,11 @@ impl Floetask {
             saved_filters: Vec::new(),
             selected: None,
             row_menu: None,
+            day_menu: None,
+            lane_menu: None,
+            selected_day: None,
+            selected_lane: None,
+            area_selected_by_press: false,
             file_menu: None,
             file_sort_menu: false,
             file_drag: None,
@@ -363,6 +380,10 @@ impl Floetask {
                 self.modifiers = modifiers;
                 Task::none()
             }
+            Message::MousePressed => {
+                self.mouse_pressed();
+                Task::none()
+            }
             Message::Quit => self.quit(),
             Message::WindowReady(..)
             | Message::WindowDrag
@@ -418,13 +439,50 @@ impl Floetask {
             self.calendar_anchor = self.today;
         }
         self.state.main_view = view;
-        self.row_menu = None;
+        self.close_card_menus();
+        self.clear_area_selection();
         self.drag = None;
         self.calendar_drag = None;
         self.persist_state()
     }
 
     // Shared helpers used by the handlers.
+
+    /// Closes the right-click menus of todo cards, calendar days and board
+    /// lanes; at most one of them is open.
+    pub(crate) fn close_card_menus(&mut self) {
+        self.row_menu = None;
+        self.day_menu = None;
+        self.lane_menu = None;
+    }
+
+    /// Removes the outline of a selected calendar day or board lane.
+    pub(crate) fn clear_area_selection(&mut self) {
+        self.selected_day = None;
+        self.selected_lane = None;
+    }
+
+    /// Outlines a calendar day (and no lane) after a press on it.
+    pub(crate) fn select_day(&mut self, day: Date) {
+        self.selected_day = Some(day);
+        self.selected_lane = None;
+        self.area_selected_by_press = true;
+    }
+
+    /// Outlines a board lane (and no day) after a press on it.
+    pub(crate) fn select_lane(&mut self, lane: LaneId) {
+        self.selected_lane = Some(lane);
+        self.selected_day = None;
+        self.area_selected_by_press = true;
+    }
+
+    /// A press anywhere else than on a day or lane clears the outline: a
+    /// click outside it, on a card, or a right-click on a todo.
+    fn mouse_pressed(&mut self) {
+        if !std::mem::take(&mut self.area_selected_by_press) {
+            self.clear_area_selection();
+        }
+    }
 
     pub(crate) fn colors(&self) -> Colors {
         let dark = match self.settings.theme {

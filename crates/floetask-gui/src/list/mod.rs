@@ -10,8 +10,8 @@ use crate::app::Target;
 use crate::editor::DateKey;
 
 pub(crate) use view::{
-    attribute_label, body, card_menu, collapsible, file_header, group_header, looks_like_markdown, meta, status_label,
-    status_name, view,
+    add_area, attribute_label, body, card_menu, collapsible, file_header, group_header, looks_like_markdown, meta,
+    status_label, status_name, view,
 };
 
 #[derive(Debug, Clone)]

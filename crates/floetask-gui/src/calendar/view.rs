@@ -20,7 +20,7 @@ use floetask_domain::listing::ListedTodo;
 use crate::app::{Floetask, Message};
 use crate::editor::DateKey;
 use crate::i18n::{self, tr, trf};
-use crate::list::{body, card_menu, meta};
+use crate::list::{add_area, body, card_menu, meta};
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::widgets::{icon_button, with_tooltip};
@@ -375,7 +375,9 @@ fn day<'a>(app: &'a Floetask, date: Date, todos: Option<&Vec<&'a ListedTodo>>) -
     drop_zone(app, date, container(content).padding(10).width(Fill).height(Fill), true)
 }
 
-/// A day that takes dropped todos, outlined while one is dragged over it.
+/// A day that takes dropped todos, outlined while one is dragged over it or
+/// while it is selected. A double-click or its right-click menu adds a todo
+/// due that day.
 fn drop_zone<'a>(
     app: &Floetask,
     date: Date,
@@ -383,12 +385,20 @@ fn drop_zone<'a>(
     in_month: bool,
 ) -> Element<'a, Message> {
     let colors = app.colors();
-    let target =
-        app.calendar_drag.as_ref().is_some_and(|(_, from)| *from != Some(date)) && app.calendar_hover == Some(date);
-    mouse_area(content.style(theme::calendar_day(colors, in_month, target)))
+    let target = app.selected_day == Some(date)
+        || app.calendar_drag.as_ref().is_some_and(|(_, from)| *from != Some(date)) && app.calendar_hover == Some(date);
+    let zone = mouse_area(content.style(theme::calendar_day(colors, in_month, target)))
         .on_enter(Message::Calendar(calendar::Message::Hover(date, true)))
-        .on_exit(Message::Calendar(calendar::Message::Hover(date, false)))
-        .into()
+        .on_exit(Message::Calendar(calendar::Message::Hover(date, false)));
+    add_area(
+        app,
+        zone,
+        app.day_menu == Some(date),
+        Message::Calendar(calendar::Message::DayMenu(Some(date))),
+        Message::Calendar(calendar::Message::DayMenu(None)),
+        Message::Calendar(calendar::Message::SelectDay(date)),
+        Message::Calendar(calendar::Message::NewTodo(date)),
+    )
 }
 
 /// A todo in a month cell: a smaller version of the board card on one line,

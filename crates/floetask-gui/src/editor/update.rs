@@ -1,7 +1,7 @@
 //! Editing a todo in the dialog, its note, and picking dates.
 
 use iced::Task;
-use iced::widget::operation;
+use iced::widget::{operation, text_editor};
 
 use std::path::{Path, PathBuf};
 
@@ -20,7 +20,7 @@ use crate::{editor, files, view};
 impl Floetask {
     pub(crate) fn update_editor(&mut self, message: editor::Message) -> Task<Message> {
         match message {
-            editor::Message::New => self.open_new_editor(""),
+            editor::Message::New => self.open_new_editor(None, &Todo::parse("")),
             editor::Message::PickerMonth(months) => {
                 if let Some(calendar) = self.active_calendar() {
                     calendar.shift_month(months);
@@ -236,14 +236,25 @@ impl Floetask {
         }
     }
 
-    /// Opens the dialog for a new todo, added to the active file (in the
-    /// overview too: the file last selected).
-    pub(crate) fn open_new_editor(&mut self, text: &str) -> Task<Message> {
-        let Some(file) = self.active_path() else {
+    /// Opens the dialog for a new todo, added to `file` or else the active
+    /// file (in the overview too: the file last selected). The text starts
+    /// with `prefill`'s attributes, such as the due date of the calendar day
+    /// it was added on, after the cursor, so the user types the description
+    /// in front of them.
+    pub(crate) fn open_new_editor(&mut self, file: Option<PathBuf>, prefill: &Todo) -> Task<Message> {
+        let Some(file) = file.or_else(|| self.active_path()) else {
             return Task::none();
         };
-        self.row_menu = None;
-        self.dialog = Some(Dialog::Editor(Box::new(Editor::new(file, None, text, self.colors()))));
+        self.close_card_menus();
+        let text = match prefill.editable_text() {
+            tags if tags.is_empty() => tags,
+            tags => format!(" {tags}"),
+        };
+        let mut editor = Editor::new(file, None, &text, self.colors());
+        editor
+            .content
+            .perform(text_editor::Action::Move(text_editor::Motion::DocumentStart));
+        self.dialog = Some(Dialog::Editor(Box::new(editor)));
         operation::focus(view::EDITOR_ID)
     }
 

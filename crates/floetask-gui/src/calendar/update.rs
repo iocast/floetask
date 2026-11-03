@@ -3,7 +3,7 @@
 
 use iced::Task;
 
-use floetask_domain::calendar::{CalendarMode, step};
+use floetask_domain::calendar::{CalendarMode, new_todo_on, step};
 
 use crate::app::{Floetask, Message};
 use crate::{calendar, list};
@@ -28,7 +28,26 @@ impl Floetask {
                 self.state.calendar_mode = CalendarMode::Day;
                 self.persist_state()
             }
+            calendar::Message::NewTodo(day) => {
+                self.select_day(day);
+                self.open_new_editor(None, &new_todo_on(day))
+            }
+            calendar::Message::DayMenu(day) => {
+                let menu = if self.day_menu == day { None } else { day };
+                self.close_card_menus();
+                self.day_menu = menu;
+                if let Some(day) = day {
+                    self.select_day(day);
+                }
+                Task::none()
+            }
+            calendar::Message::SelectDay(day) => {
+                self.close_card_menus();
+                self.select_day(day);
+                Task::none()
+            }
             calendar::Message::Press(target, day) => {
+                self.selected_day = None;
                 self.calendar_drag = Some((target, day));
                 self.calendar_drag_moved = false;
                 self.calendar_hover = day;

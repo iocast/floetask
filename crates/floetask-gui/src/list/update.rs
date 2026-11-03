@@ -44,7 +44,10 @@ impl Floetask {
                     service.toggle_complete(path, &todo, options)
                 }),
             list::Message::RowMenu(id) => {
-                self.row_menu = if self.row_menu == id { None } else { id };
+                let id = if self.row_menu == id { None } else { id };
+                self.close_card_menus();
+                self.clear_area_selection();
+                self.row_menu = id;
                 Task::none()
             }
             list::Message::Copy(raw) => {

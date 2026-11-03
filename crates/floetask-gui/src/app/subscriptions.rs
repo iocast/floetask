@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use iced::futures::{SinkExt, StreamExt};
-use iced::{Subscription, event, keyboard, window};
+use iced::{Subscription, event, keyboard, mouse, window};
 
 use floetask_application::WatcherOptions;
 use floetask_application::ports::FileWatcher;
@@ -27,6 +27,9 @@ pub(super) fn all(app: &Floetask) -> Subscription<Message> {
             }
             (iced::Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)), event::Status::Ignored) => {
                 Some(Message::ModifiersChanged(modifiers))
+            }
+            (iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left | mouse::Button::Right)), _) => {
+                Some(Message::MousePressed)
             }
             (
                 iced::Event::Window(
