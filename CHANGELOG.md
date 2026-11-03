@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-03
+
 ### Added
 - Double-click a day in the calendar, or right-click it and pick *New todo*, to add a todo due that day
 - Double-click a board column, or right-click it and pick *New todo*, to add a todo with that column's status and, on a board grouped by project, context or priority, the group's value
@@ -126,7 +128,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.5.1...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/iocast/floetask/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/iocast/floetask/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/iocast/floetask/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/iocast/floetask/compare/v0.4.0...v0.4.1
