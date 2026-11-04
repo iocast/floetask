@@ -6,6 +6,12 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-04
+
+### Added
+- Move a todo to another file: drag it from the list, board or calendar onto a file in the file drawer, or right-click it and pick *Move to file…*; a note in its notes folder moves along, a note linked by its path stays where it is
+- A dragged todo, in the list, on the board or in the calendar, follows the pointer as a small card
+
 ## [0.5.2] - 2026-11-03
 
 ### Added
@@ -128,7 +134,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.5.2...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/iocast/floetask/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/iocast/floetask/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/iocast/floetask/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/iocast/floetask/compare/v0.4.1...v0.5.0
