@@ -22,7 +22,8 @@ pub fn confirm<'a>(app: &'a Floetask, message: &'a str, detail: Option<&'a str>)
         .into()
 }
 
-pub(crate) fn raw_text(content: &str, colors: Colors) -> Element<'_, Message> {
+/// A todo line in monospace, as stored in the file.
+pub(crate) fn raw_text<'a>(content: impl text::IntoFragment<'a>, colors: Colors) -> Element<'a, Message> {
     container(text(content).size(13).font(iced::Font::MONOSPACE))
         .padding(12)
         .width(Fill)

@@ -31,6 +31,7 @@ archived =
        *[other] Archived { $count } todos
     }
 archived_one = Todo archived
+moved_to_file = Moved to { $file }
 new = New
 toggle_files = Show or hide files
 files = Files
@@ -68,6 +69,10 @@ delete_confirm = Delete this todo?
 edit = Edit
 open_link = Open link
 archive_one = Move to done file
+move_to_file = Move to file…
+move_to_file_title = Move to another file
+move_to_file_label = Move to
+move = Move
 due_label = due
 threshold_label = threshold
 details = Details

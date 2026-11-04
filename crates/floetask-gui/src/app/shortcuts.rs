@@ -88,7 +88,9 @@ impl Floetask {
     }
 
     fn escape(&mut self) -> Task<Message> {
-        if self.drag.take().is_some() || self.file_drag.take().is_some() {
+        if self.dragged_todo().is_some() || self.drag.is_some() || self.file_drag.is_some() {
+            self.end_todo_drags();
+            self.file_drag = None;
             return Task::none();
         }
         if let Some(super::Dialog::Editor(editor)) = &self.dialog

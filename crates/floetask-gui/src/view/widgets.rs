@@ -5,6 +5,8 @@ use iced::widget::{
 };
 use iced::{Alignment, Element, Fill, alignment};
 
+use floetask_application::TodoFileEntry;
+
 use super::icons::{Icon, icon};
 use crate::app::Message;
 use crate::theme::{self, Colors};
@@ -198,4 +200,32 @@ pub fn status_name_field<'a>(
     ]
     .spacing(4)
     .into()
+}
+
+/// A file in a file pick list: its label and its path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FileChoice(pub String, pub std::path::PathBuf);
+
+impl std::fmt::Display for FileChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// Pick list choices for these files, in the given order. A name that
+/// several files share gets its folder added, so each choice is clear.
+pub(crate) fn file_choices(files: &[&TodoFileEntry]) -> Vec<FileChoice> {
+    let names: Vec<String> = files.iter().map(|entry| entry.file_name()).collect();
+    files
+        .iter()
+        .zip(&names)
+        .map(|(entry, name)| {
+            let shared = names.iter().filter(|other| *other == name).count() > 1;
+            let label = match entry.path.parent() {
+                Some(folder) if shared => format!("{name} ({})", folder.display()),
+                _ => name.clone(),
+            };
+            FileChoice(label, entry.path.clone())
+        })
+        .collect()
 }

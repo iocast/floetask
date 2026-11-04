@@ -423,7 +423,8 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    let card = mouse_area(
+    let awaits_drag = app.awaits_drag(&target);
+    let mut card = mouse_area(
         container(content)
             .padding([6, 8])
             .width(Fill)
@@ -431,8 +432,10 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
             .style(theme::board_card(colors, is_marked(app, entry))),
     )
     .on_press(Message::Calendar(calendar::Message::Press(target, from)))
-    .on_exit(Message::Calendar(calendar::Message::CardLeft))
     .interaction(mouse::Interaction::Grab);
+    if awaits_drag {
+        card = card.on_exit(Message::Calendar(calendar::Message::CardLeft));
+    }
     card_menu(app, entry, with_tooltip(card, todo.display_text(), colors))
 }
 
@@ -496,7 +499,8 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
             .spacing(10)
             .into()
     };
-    let card = mouse_area(
+    let awaits_drag = app.awaits_drag(&target);
+    let mut card = mouse_area(
         container(content)
             .padding(if compact { [6, 10] } else { [10, 12] })
             .width(Fill)
@@ -504,8 +508,10 @@ fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors
             .style(theme::board_card(colors, is_marked(app, entry))),
     )
     .on_press(Message::Calendar(calendar::Message::Press(target, from)))
-    .on_exit(Message::Calendar(calendar::Message::CardLeft))
     .interaction(mouse::Interaction::Grab);
+    if awaits_drag {
+        card = card.on_exit(Message::Calendar(calendar::Message::CardLeft));
+    }
     card_menu(app, entry, card)
 }
 

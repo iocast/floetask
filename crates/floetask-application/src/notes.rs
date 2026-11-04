@@ -3,7 +3,8 @@
 //! picked, either moved into the notes folder or left where it is.
 //!
 //! Note files are never deleted: completing and deleting a todo leave them
-//! where they are, archiving moves notes-folder notes along with the todo.
+//! where they are, archiving or moving a todo to another file moves its
+//! notes-folder note along with it.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -189,7 +190,9 @@ impl NoteService {
 }
 
 /// Carries the notes of todos that move to another todo file (archiving to
-/// the done file) into that file's notes folder, so their links keep working.
+/// the done file, or moving to another file) into that file's notes folder,
+/// so their links keep working. Notes linked by an absolute path are not in
+/// a notes folder and never move.
 #[derive(Debug, Default)]
 pub(crate) struct NoteTransfer {
     copies: Vec<(PathBuf, PathBuf)>,
@@ -201,8 +204,9 @@ impl NoteTransfer {
     /// Decides where each moving todo's note goes and retags a todo whose
     /// note has to take a free name because the target folder already holds
     /// a different file under its name. A note still linked from a todo in
-    /// `staying` is copied, not moved. Missing or invalid notes are left as
-    /// they are.
+    /// `staying` is copied, not moved. Missing, invalid and external notes
+    /// are left as they are, and so is every note when both files share a
+    /// notes folder (`todo.txt` and `todo.md`).
     pub(crate) fn plan(
         files: &dyn FileSystem,
         from: &Path,
@@ -211,6 +215,9 @@ impl NoteTransfer {
         staying: &TodoDocument,
     ) -> (Vec<Todo>, NoteTransfer) {
         let mut transfer = NoteTransfer::default();
+        if NoteService::folder(from) == NoteService::folder(to) {
+            return (moving, transfer);
+        }
         let mut renamed: HashMap<NoteName, NoteName> = HashMap::new();
         let todos = moving
             .into_iter()

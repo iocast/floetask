@@ -18,6 +18,9 @@ pub enum Message {
     /// A left or right mouse press anywhere, after the widgets handled it:
     /// one that did not select a calendar day or board lane clears it.
     MousePressed,
+    /// The left mouse button was released anywhere, after the widgets
+    /// handled it: a todo drag no drop target took ends there.
+    MouseReleased,
     Quit,
     WindowReady(Option<window::Id>),
     WindowDrag,

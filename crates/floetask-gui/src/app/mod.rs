@@ -32,6 +32,7 @@ use floetask_domain::{Date, TodoDocument, WeekStart};
 use crate::board::BoardDrag;
 use crate::files::FileDrag;
 use crate::i18n::{self, tr};
+use crate::list::RowDrag;
 use crate::note_window::NoteWindow;
 use crate::search;
 use crate::search::SearchState;
@@ -92,6 +93,8 @@ pub struct Floetask {
     pub(crate) board: Board,
     /// The card being dragged on the board.
     pub(crate) drag: Option<BoardDrag>,
+    /// The row being dragged in the list.
+    pub(crate) list_drag: Option<RowDrag>,
     /// Board column under the mouse.
     pub(crate) board_hover: Option<LaneId>,
     /// The day the calendar is centred on.
@@ -205,6 +208,7 @@ impl Floetask {
             listing: TodoListing::default(),
             board: Board::default(),
             drag: None,
+            list_drag: None,
             board_hover: None,
             calendar_anchor: today,
             calendar_drag: None,
@@ -384,6 +388,10 @@ impl Floetask {
                 self.mouse_pressed();
                 Task::none()
             }
+            Message::MouseReleased => {
+                self.end_todo_drags();
+                Task::none()
+            }
             Message::Quit => self.quit(),
             Message::WindowReady(..)
             | Message::WindowDrag
@@ -441,8 +449,7 @@ impl Floetask {
         self.state.main_view = view;
         self.close_card_menus();
         self.clear_area_selection();
-        self.drag = None;
-        self.calendar_drag = None;
+        self.end_todo_drags();
         self.persist_state()
     }
 
@@ -478,6 +485,54 @@ impl Floetask {
 
     /// A press anywhere else than on a day or lane clears the outline: a
     /// click outside it, on a card, or a right-click on a todo.
+    /// The todo being dragged in the list, on the board or on the calendar,
+    /// once the cursor has left it, so a release is a drop and not a click.
+    pub(crate) fn dragged_todo(&self) -> Option<&Target> {
+        let list = self
+            .list_drag
+            .as_ref()
+            .filter(|drag| drag.moved)
+            .map(|drag| &drag.target);
+        let board = self.drag.as_ref().filter(|drag| drag.moved).map(|drag| &drag.target);
+        let calendar = self
+            .calendar_drag
+            .as_ref()
+            .filter(|_| self.calendar_drag_moved)
+            .map(|(target, _)| target);
+        list.or(board).or(calendar)
+    }
+
+    /// This todo is pressed but not yet dragged: only then does leaving it
+    /// matter, since that turns the press into a drag. Other todos send
+    /// nothing when the cursor passes, as each message rebuilds the whole
+    /// window, which makes a drag stutter.
+    pub(crate) fn awaits_drag(&self, target: &Target) -> bool {
+        let list = self
+            .list_drag
+            .as_ref()
+            .is_some_and(|drag| !drag.moved && drag.target == *target);
+        let board = self
+            .drag
+            .as_ref()
+            .is_some_and(|drag| !drag.moved && drag.target == *target);
+        let calendar = !self.calendar_drag_moved
+            && self
+                .calendar_drag
+                .as_ref()
+                .is_some_and(|(pressed, _)| pressed == target);
+        list || board || calendar
+    }
+
+    /// Ends every todo drag without a drop: the list's, the board's and the
+    /// calendar's. Released over no drop target, a drag must not linger and
+    /// turn a later release into a drop.
+    pub(crate) fn end_todo_drags(&mut self) {
+        self.list_drag = None;
+        self.drag = None;
+        self.calendar_drag = None;
+        self.calendar_drag_moved = false;
+    }
+
     fn mouse_pressed(&mut self) {
         if !std::mem::take(&mut self.area_selected_by_press) {
             self.clear_area_selection();
@@ -663,6 +718,7 @@ impl Floetask {
             Some(Dialog::Confirm { pending, .. }) => self.run_pending(pending),
             Some(Dialog::Rename { attribute, from, input }) => self.rename_value(attribute, from, input),
             Some(Dialog::SaveFilter { name }) => self.save_filter(name),
+            Some(Dialog::MoveToFile { target, to }) => self.move_todo(target, to),
             Some(Dialog::BoardColumns { columns, .. }) => self.save_board_columns(columns),
             Some(Dialog::Editor(editor)) => {
                 self.dialog = Some(Dialog::Editor(editor));

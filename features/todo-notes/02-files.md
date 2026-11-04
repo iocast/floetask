@@ -12,6 +12,7 @@
 | Sort the file drawer | P1 | Sort menu next to the drawer's *Files* caption: custom order (default), name, or folder path (then name). Persisted in the state file (`file_sort`). See [§2.2](#22-file-drawer-order). |
 | Drag files into a custom order | P1 | Drag a file onto another one to take its place; a line shows where it lands. Dragging while sorted by name or folder switches to the custom order, starting from the order shown. |
 | Tab context menu | P1 | Change done-file location, reveal todo file, reveal done file (open in OS file manager), remove from list (with confirmation). |
+| Move a todo to another file | P1 | Drag a todo from the list, board or calendar onto a file in the file drawer, or choose **Move to file…** in its right-click menu and pick the file in the dialog's dropdown. See [§2.4](#24-moving-a-todo-to-another-file). |
 | Done file per todo file | P1 | Each todo file can link a `done.txt` used for archiving. |
 | File watcher | P0 | External changes reload the list automatically (see [§2.1](#21-file-watching)). |
 | Safe writes | P1 | Write to `.tmp`, verify, create `.bak`, atomically replace, delete both on success. Toggle in settings, default on. |
@@ -40,6 +41,15 @@
 - The add dialog has a file picker for new todos, starting on the active file (the one last selected); the edit dialog names the todo's file. Archiving all completed todos needs a file selected.
 - The drawer counts every file. Renaming or removing a project or context changes every file, and the dialog says so.
 - Selecting or opening a file leaves the overview.
+
+## 2.4 Moving a todo to another file
+
+- The todo line is removed from its file and appended, unchanged, to the end of the other file. The other file is written first, so an interruption can at worst leave the todo in both files.
+- Targets are the files the file drawer lists, except the todo's own file. Archive (done) files of another file are not offered; **Move to done file** covers them.
+- **Move to file…** opens a dialog with the todo line and a dropdown of the targets in drawer order, the first one picked; a name several files share shows its folder. **Move** (or `Enter`) moves it, **Cancel** or `Escape` closes the dialog. With no other file open, the menu has no **Move to file…**.
+- A dragged todo follows the cursor as a small card and outlines the file under the cursor; releasing it there moves it. Released on its own file or outside the drawer, nothing moves. `Escape` cancels the drag.
+- **Notes:** a note in the todo's notes folder (`todo-notes/`) moves to the other file's notes folder (`work-notes/`), as on archiving ([`note:` extension](note-extension.md)): copied instead when a todo left behind still links to it, renamed (`-2`, ...) when the other folder holds a different file under that name. A note linked by its absolute path is not in a notes folder and stays where it is, as do missing and invalid notes. When both files share a notes folder (`todo.txt` and `todo.md`), notes stay put.
+- A toast names the file the todo moved to.
 
 **iced notes:** use `notify` (8.x) + `notify-debouncer-full`, wrapped as an iced `Subscription` (`Subscription::run` with a channel stream) that emits `Message::FileChanged(path)`. All file I/O runs in `Task::perform` so the UI never blocks.
 

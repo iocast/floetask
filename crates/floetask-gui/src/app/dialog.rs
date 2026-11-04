@@ -1,6 +1,8 @@
 //! Modal dialogs. Each dialog's own state lives with its feature; this is
 //! the one place that knows which dialog is open.
 
+use std::path::PathBuf;
+
 use floetask_domain::board::BoardColumns;
 use floetask_domain::listing::Attribute;
 
@@ -37,6 +39,11 @@ pub enum Dialog {
     },
     SaveFilter {
         name: String,
+    },
+    /// Moves a todo to the file picked in its dropdown.
+    MoveToFile {
+        target: Target,
+        to: PathBuf,
     },
     /// The active file's board columns while being edited.
     BoardColumns {

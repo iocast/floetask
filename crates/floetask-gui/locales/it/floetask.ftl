@@ -31,6 +31,7 @@ archived =
        *[other] { $count } attività archiviate
     }
 archived_one = Attività archiviata
+moved_to_file = Spostata in { $file }
 new = Nuovo
 toggle_files = Mostra o nascondi i file
 files = File
@@ -68,6 +69,10 @@ delete_confirm = Eliminare questa attività?
 edit = Modifica
 open_link = Apri link
 archive_one = Sposta nel file delle completate
+move_to_file = Sposta in un file…
+move_to_file_title = Sposta in un altro file
+move_to_file_label = Sposta in
+move = Sposta
 due_label = scadenza
 threshold_label = inizio
 details = Dettagli

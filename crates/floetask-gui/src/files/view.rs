@@ -7,7 +7,8 @@
 //! iced has no drag and drop, so it is built from mouse areas like the
 //! board's: pressing a file starts a drag, each file reports when the cursor
 //! enters or leaves it, and releasing over another file moves the dragged
-//! one there.
+//! one there. A todo dragged from the list, board or calendar is dropped on
+//! a file the same way and moves into it.
 
 use iced::widget::{Column, button, column, container, mouse_area, row, rule, scrollable, space, text};
 use iced::{Alignment, Color, Element, Fill, mouse};
@@ -65,7 +66,7 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
     let mut files = mouse_area(files)
         .on_release(Message::Files(files::Message::Release))
         .on_exit(Message::Files(files::Message::ListLeft));
-    if app.file_drag.is_some_and(|drag| drag.moved) {
+    if app.file_drag.is_some_and(|drag| drag.moved) || app.dragged_todo().is_some() {
         files = files.interaction(mouse::Interaction::Grabbing);
     }
 
@@ -136,9 +137,16 @@ fn is_shown(app: &Floetask, index: usize) -> bool {
     index == app.state.active_file && !app.state.shows_overview()
 }
 
+/// Whether a dragged todo would move into the file at `index` if released
+/// now: the cursor is on that file and the todo is in another one.
+fn is_todo_drop_target(app: &Floetask, index: usize) -> bool {
+    let entry = &app.state.files[index];
+    app.file_hover == Some(index) && app.dragged_todo().is_some_and(|todo| todo.file != entry.path)
+}
+
 fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Message> {
     let entry = &app.state.files[index];
-    let active = is_shown(app, index);
+    let active = is_shown(app, index) || is_todo_drop_target(app, index);
     let open = app.file_menu == Some(index);
     let folder = entry
         .path

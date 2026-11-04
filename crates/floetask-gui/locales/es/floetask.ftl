@@ -31,6 +31,7 @@ archived =
        *[other] { $count } tareas archivadas
     }
 archived_one = Tarea archivada
+moved_to_file = Movida a { $file }
 new = Nuevo
 toggle_files = Mostrar u ocultar archivos
 files = Archivos
@@ -71,6 +72,10 @@ delete_confirm = ¿Borrar esta tarea?
 edit = Editar
 open_link = Abrir enlace
 archive_one = Mover al archivo de completadas
+move_to_file = Mover a archivo…
+move_to_file_title = Mover a otro archivo
+move_to_file_label = Mover a
+move = Mover
 due_label = vence
 threshold_label = inicio
 details = Detalles

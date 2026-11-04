@@ -19,6 +19,9 @@ pub enum Message {
     Saved(PathBuf, Result<TodoDocument, AppError>),
     /// Result of a change that also reports how many todos it touched.
     SavedCount(PathBuf, Result<(TodoDocument, usize), AppError>, &'static str),
+    /// Result of moving a todo from the first file to the second: both
+    /// files as they are now.
+    Moved(PathBuf, PathBuf, Result<(TodoDocument, TodoDocument), AppError>),
     OpenDialog,
     CreateDialog,
     Picked(Option<PathBuf>),
@@ -39,7 +42,8 @@ pub enum Message {
     Sort(FileSort),
     /// A file was pressed: start dragging it.
     Press(usize),
-    /// The mouse entered (`true`) or left a file and its archive.
+    /// The mouse entered (`true`) or left a file and its archive. A todo
+    /// dragged from the list, board or calendar is dropped on this file.
     Hover(usize, bool),
     /// The cursor left the pressed file: a press there became a drag.
     EntryLeft,

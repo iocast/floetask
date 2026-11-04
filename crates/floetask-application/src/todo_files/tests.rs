@@ -262,3 +262,74 @@ fn moving_on_the_board_sets_status_or_completes() {
         .unwrap();
     assert_eq!(files.get(TODO), "a\nx 2024-03-13 2024-03-13 Write report +work\n");
 }
+
+#[test]
+fn moving_to_another_file_takes_the_notes_folder_note_along() {
+    let note = |folder: &str, name: &str| Path::new(folder).join(name).to_string_lossy().into_owned();
+    let external = "/home/me/plan.md";
+    let todo = "keep\nWrite report note:r.md\nPlan note:/home/me/plan.md\n";
+    let files = MemoryFiles::with(&[
+        (TODO, todo),
+        ("work.txt", "(A) Other\n"),
+        (&note("todo-notes", "r.md"), "R\n"),
+        (external, "P\n"),
+    ]);
+    let service = service(&files);
+    let options = FileOptions::default();
+    let (left, other) = service
+        .move_to_file(
+            Path::new(TODO),
+            Path::new("work.txt"),
+            &target(1, "Write report note:r.md"),
+            &options,
+        )
+        .unwrap();
+    assert_eq!(left.todo_count(), 2);
+    assert_eq!(other.todo_count(), 2);
+    assert_eq!(files.get("work.txt"), "(A) Other\nWrite report note:r.md\n");
+    assert_eq!(files.get(&note("work-notes", "r.md")), "R\n");
+    assert!(!files.exists(Path::new(&note("todo-notes", "r.md"))));
+
+    // A note linked by its absolute path is not in a notes folder: it stays.
+    service
+        .move_to_file(
+            Path::new(TODO),
+            Path::new("work.txt"),
+            &target(1, "Plan note:/home/me/plan.md"),
+            &options,
+        )
+        .unwrap();
+    assert_eq!(files.get(TODO), "keep\n");
+    assert!(files.get("work.txt").ends_with("Plan note:/home/me/plan.md\n"));
+    assert_eq!(files.get(external), "P\n");
+    assert!(!files.exists(Path::new(&note("work-notes", "plan.md"))));
+}
+
+#[test]
+fn moving_between_files_that_share_a_notes_folder_keeps_the_note() {
+    let note = Path::new("todo-notes").join("r.md").to_string_lossy().into_owned();
+    let files = MemoryFiles::with(&[(TODO, "Write report note:r.md\n"), (&note, "R\n")]);
+    service(&files)
+        .move_to_file(
+            Path::new(TODO),
+            Path::new("todo.md"),
+            &target(0, "Write report note:r.md"),
+            &FileOptions::default(),
+        )
+        .unwrap();
+    assert_eq!(files.get("todo.md"), "Write report note:r.md\n");
+    assert_eq!(files.get(&note), "R\n");
+}
+
+#[test]
+fn moving_to_the_same_file_is_refused() {
+    let files = MemoryFiles::with(&[(TODO, "a\n")]);
+    let result = service(&files).move_to_file(
+        Path::new(TODO),
+        Path::new(TODO),
+        &target(0, "a"),
+        &FileOptions::default(),
+    );
+    assert!(result.is_err());
+    assert_eq!(files.get(TODO), "a\n");
+}

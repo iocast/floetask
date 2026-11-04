@@ -2134,3 +2134,396 @@ fn a_board_lane_adds_a_todo_with_its_status_and_group() {
     assert!(app.lane_menu.is_none());
     assert_eq!(new_todo_text(&mut app, "Ask legal"), "Ask legal +work status:waiting");
 }
+
+/// `SAMPLE` with `work.txt` registered and loaded; `todo.txt` stays active.
+fn two_files_app() -> Floetask {
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+    files.write(Path::new(WORK_PATH), WORK, false).unwrap();
+    app.state
+        .files
+        .push(floetask_application::TodoFileEntry::new(PathBuf::from(WORK_PATH)));
+    let _ = app.update(Message::Files(files::Message::Loaded(
+        PathBuf::from(WORK_PATH),
+        Ok(TodoDocument::parse(WORK, &[])),
+    )));
+    app
+}
+
+#[test]
+fn the_row_menu_moves_a_todo_and_its_note_to_another_file() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = two_files_app();
+    let files = app.services.ports.files.clone();
+
+    for message in right_click(&app, "Prepare slides") {
+        let _ = app.update(message);
+    }
+    assert!(app.row_menu.is_some());
+    snapshot(&app, "row-menu-move");
+
+    // The menu has one entry; the file is picked in a dialog.
+    for message in click(&app, "Move to file…") {
+        let _ = app.update(message);
+    }
+    assert!(app.row_menu.is_none());
+    let Some(Dialog::MoveToFile { target, to }) = &app.dialog else {
+        panic!("the move dialog is not open");
+    };
+    assert_eq!(target, &target_of(&app, "Prepare slides"));
+    // The first other file is picked to start with.
+    assert_eq!(to, Path::new(WORK_PATH));
+    snapshot(&app, "move-to-file-dialog");
+
+    let _ = app.update(Message::List(list::Message::MoveToFileChoice(PathBuf::from(WORK_PATH))));
+    drive(&runtime, &mut app, Message::ConfirmDialog);
+    assert!(app.dialog.is_none());
+    let todo = files.read(Path::new(TODO_PATH)).unwrap();
+    let work = files.read(Path::new(WORK_PATH)).unwrap();
+    assert!(!todo.contains("Prepare slides"), "{todo}");
+    assert!(
+        work.ends_with("(B) Prepare slides +work due:2026-10-06 note:slides status:doing\n"),
+        "{work}"
+    );
+    // The note in todo-notes moved to work-notes.
+    assert_eq!(
+        files.read(Path::new("/test/work-notes/slides.md")).unwrap(),
+        "# Slides\n"
+    );
+    assert!(!files.exists(&note_path("slides.md")));
+    // Both files show what is on disk.
+    assert!(app.listing.todos().all(|entry| entry.todo.body() != "Prepare slides"));
+    assert!(
+        app.documents[Path::new(WORK_PATH)]
+            .to_content()
+            .contains("Prepare slides")
+    );
+    // `drive` also runs the toast's timer, so check the toast on its own.
+    let documents = (
+        app.documents[Path::new(TODO_PATH)].clone(),
+        app.documents[Path::new(WORK_PATH)].clone(),
+    );
+    let _ = app.update(Message::Files(files::Message::Moved(
+        PathBuf::from(TODO_PATH),
+        PathBuf::from(WORK_PATH),
+        Ok(documents),
+    )));
+    assert!(app.toasts.iter().any(|toast| toast.text.contains("work.txt")));
+}
+
+#[test]
+fn the_row_menu_offers_no_move_with_a_single_file() {
+    let mut app = app();
+    for message in right_click(&app, "Prepare slides") {
+        let _ = app.update(message);
+    }
+    assert!(app.row_menu.is_some());
+    let mut ui = simulator(app.view());
+    assert!(ui.find("Move to done file").is_ok(), "the row menu is not shown");
+    assert!(ui.find("Move to file…").is_err());
+}
+
+#[test]
+fn a_row_dragged_onto_a_file_in_the_drawer_moves_there() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = two_files_app();
+    let files = app.services.ports.files.clone();
+
+    // Pressed and released on the row, it is a click and opens the todo.
+    let messages = click(&app, "Buy milk");
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::List(list::Message::Press(target)) if target.todo.line == 2)),
+        "{messages:?}"
+    );
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
+    assert!(app.list_drag.is_none());
+    let _ = app.update(Message::CloseDialog);
+
+    // Dragged off the row and released on work.txt, it moves there.
+    let milk = target_of(&app, "Buy milk");
+    let _ = app.update(Message::List(list::Message::Press(milk)));
+    let _ = app.update(Message::List(list::Message::Hover(None)));
+    let _ = app.update(Message::Files(files::Message::Hover(1, true)));
+    snapshot(&app, "row-drag-to-file");
+    drive(&runtime, &mut app, Message::Files(files::Message::Release));
+    assert!(app.dialog.is_none());
+    assert!(app.list_drag.is_none());
+    assert!(!files.read(Path::new(TODO_PATH)).unwrap().contains("Buy milk"));
+    assert!(
+        files
+            .read(Path::new(WORK_PATH))
+            .unwrap()
+            .ends_with("Buy milk note:shopping\n")
+    );
+
+    // Released on its own file, nothing moves.
+    let mom = target_of(&app, "Call mom");
+    let _ = app.update(Message::List(list::Message::Press(mom)));
+    let _ = app.update(Message::List(list::Message::Hover(None)));
+    let _ = app.update(Message::Files(files::Message::Hover(0, true)));
+    drive(&runtime, &mut app, Message::Files(files::Message::Release));
+    assert!(files.read(Path::new(TODO_PATH)).unwrap().contains("Call mom"));
+}
+
+#[test]
+fn a_dragged_todo_follows_the_cursor_without_blocking_the_drop() {
+    use iced::mouse::{Button, Event};
+
+    let mut app = two_files_app();
+    let work = simulator(app.view()).find("work.txt").unwrap().bounds().center();
+
+    // A press alone shows nothing yet; off the row, the todo follows the
+    // cursor.
+    let milk = target_of(&app, "Buy milk");
+    let _ = app.update(Message::List(list::Message::Press(milk)));
+    assert!(app.dragged_todo().is_none());
+    let _ = app.update(Message::List(list::Message::Hover(None)));
+    assert!(app.dragged_todo().is_some());
+
+    // Rows the dragged todo passes send nothing: each message would rebuild
+    // the whole window and make the drag stutter.
+    let mut ui = simulator(app.view());
+    for label in ["Legal review", "Prepare slides"] {
+        let position = ui.find(label).unwrap().bounds().center();
+        ui.point_at(position);
+        let _ = ui.simulate([iced::Event::Mouse(Event::CursorMoved { position })]);
+    }
+    let messages: Vec<Message> = ui.into_messages().collect();
+    assert!(messages.is_empty(), "{messages:?}");
+
+    // The floating todo takes no mouse input: the file under the cursor
+    // still sees it enter and the release.
+    let mut ui = simulator(app.view());
+    for position in [iced::Point::new(work.x, work.y - 200.0), work] {
+        ui.point_at(position);
+        let _ = ui.simulate([iced::Event::Mouse(Event::CursorMoved { position })]);
+    }
+    // The snapshot draws at the cursor, so it is taken here, not with
+    // `snapshot`.
+    if let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") {
+        let path = PathBuf::from(dir).join("row-drag-ghost");
+        let _ = std::fs::remove_file(path.with_extension("png"));
+        ui.snapshot(&app.theme()).unwrap().matches_image(&path).unwrap();
+    }
+    let _ = ui.simulate([iced::Event::Mouse(Event::ButtonReleased(Button::Left))]);
+    let messages: Vec<Message> = ui.into_messages().collect();
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::Files(files::Message::Hover(1, true)))),
+        "{messages:?}"
+    );
+    assert!(
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::Files(files::Message::Release))),
+        "{messages:?}"
+    );
+
+    // The release ends the drag and the floating todo with it.
+    let _ = app.update(Message::MouseReleased);
+    assert!(app.dragged_todo().is_none());
+}
+
+/// Moves the mouse along `path` over the main view, as iced's runtime does,
+/// and returns what the window does next: its pointer, the redraw it asks
+/// for, and the messages sent (each one rebuilds the window).
+fn move_mouse(
+    app: &Floetask,
+    path: &[iced::Point],
+) -> (iced::mouse::Interaction, iced::window::RedrawRequest, Vec<Message>) {
+    use iced::advanced::renderer::Headless;
+    use iced_test::runtime::user_interface::{Cache, State, UserInterface};
+
+    let mut renderer = iced_test::futures::futures::executor::block_on(<iced::Renderer as Headless>::new(
+        iced::Font::with_name("Fira Sans"),
+        iced::Pixels(16.0),
+        None,
+    ))
+    .unwrap();
+    let mut ui = UserInterface::build(
+        app.view(),
+        iced::Size::new(1024.0, 768.0),
+        Cache::default(),
+        &mut renderer,
+    );
+    let mut messages = Vec::new();
+    let mut last = None;
+    for &position in path {
+        let (state, _) = ui.update(
+            &[iced::Event::Mouse(iced::mouse::Event::CursorMoved { position })],
+            iced::mouse::Cursor::Available(position),
+            &mut renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut messages,
+        );
+        last = Some(state);
+    }
+    match last {
+        Some(State::Updated {
+            mouse_interaction,
+            redraw_request,
+            ..
+        }) => (mouse_interaction, redraw_request, messages),
+        _ => panic!("the window is outdated after moving the mouse"),
+    }
+}
+
+#[test]
+fn a_dragged_todo_hides_the_system_pointer_and_only_redraws() {
+    use iced::mouse::Interaction;
+    use iced::window::RedrawRequest;
+
+    let mut app = two_files_app();
+    let rows: Vec<iced::Point> = {
+        let mut ui = simulator(app.view());
+        ["Legal review", "Prepare slides", "work.txt"]
+            .iter()
+            .map(|label| ui.find(*label).unwrap().bounds().center())
+            .collect()
+    };
+
+    // Without a drag, the system pointer shows.
+    let (pointer, _, _) = move_mouse(&app, &rows);
+    assert_ne!(pointer, Interaction::Hidden);
+
+    // Pressed but not yet dragged: still the system pointer.
+    let milk = target_of(&app, "Buy milk");
+    let _ = app.update(Message::List(list::Message::Press(milk)));
+    let (pointer, _, _) = move_mouse(&app, &rows[..1]);
+    assert_ne!(pointer, Interaction::Hidden);
+
+    // Dragged: the app draws the pointer with the todo, so the system's is
+    // hidden; moving the mouse over rows only asks for the next frame, and
+    // sends no message that would rebuild the window. Entering a file in
+    // the drawer, a drop target, is the one message.
+    let _ = app.update(Message::List(list::Message::Hover(None)));
+    let (pointer, redraw, messages) = move_mouse(&app, &rows[..2]);
+    assert_eq!(pointer, Interaction::Hidden);
+    assert_eq!(redraw, RedrawRequest::NextFrame);
+    assert!(messages.is_empty(), "{messages:?}");
+    let (pointer, _, messages) = move_mouse(&app, &rows);
+    assert_eq!(pointer, Interaction::Hidden);
+    assert!(
+        matches!(&messages[..], [Message::Files(files::Message::Hover(1, true))]),
+        "{messages:?}"
+    );
+
+    // Released, the system pointer is back.
+    let _ = app.update(Message::MouseReleased);
+    let (pointer, _, _) = move_mouse(&app, &rows);
+    assert_ne!(pointer, Interaction::Hidden);
+}
+
+#[test]
+fn only_the_pressed_board_card_reports_the_cursor_leaving() {
+    use iced::mouse::Event;
+
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let hover_over = |app: &Floetask, labels: &[&str]| -> Vec<Message> {
+        let mut ui = simulator(app.view());
+        for label in labels {
+            let position = ui.find(*label).unwrap().bounds().center();
+            ui.point_at(position);
+            let _ = ui.simulate([iced::Event::Mouse(Event::CursorMoved { position })]);
+        }
+        ui.point_at(iced::Point::ORIGIN);
+        let _ = ui.simulate([iced::Event::Mouse(Event::CursorMoved {
+            position: iced::Point::ORIGIN,
+        })]);
+        ui.into_messages().collect()
+    };
+    let card_left = |messages: &[Message]| {
+        messages
+            .iter()
+            .filter(|m| matches!(m, Message::Board(board::Message::CardLeft)))
+            .count()
+    };
+    // Passing over cards without a press sends nothing.
+    assert_eq!(card_left(&hover_over(&app, &["Prepare slides", "Legal review"])), 0);
+
+    // Pressed, only that card reports the cursor leaving it.
+    let messages = click(&app, "Legal review");
+    let press = messages
+        .into_iter()
+        .find(|m| matches!(m, Message::Board(board::Message::Press(..))))
+        .unwrap();
+    let _ = app.update(press);
+    assert_eq!(card_left(&hover_over(&app, &["Legal review", "Prepare slides"])), 1);
+}
+
+#[test]
+fn a_dragged_board_card_is_drawn_over_the_columns() {
+    use iced::mouse::Event;
+
+    let mut app = app();
+    let _ = app.update(Message::ToggleMainView);
+    let review = target_of(&app, "Legal review");
+    let _ = app.update(Message::Board(board::Message::Press(review, lane(0, 2))));
+    let _ = app.update(Message::Board(board::Message::CardLeft));
+    assert!(app.dragged_todo().is_some());
+
+    // Over another column's card, which scrolls and so draws on a layer of
+    // its own above the page.
+    let mut ui = simulator(app.view());
+    let position = ui.find("Prepare slides").unwrap().bounds().center();
+    ui.point_at(position);
+    let _ = ui.simulate([iced::Event::Mouse(Event::CursorMoved { position })]);
+    if let Some(dir) = std::env::var_os("FLOETASK_SNAPSHOTS") {
+        let path = PathBuf::from(dir).join("board-drag-ghost");
+        let _ = std::fs::remove_file(path.with_extension("png"));
+        ui.snapshot(&app.theme()).unwrap().matches_image(&path).unwrap();
+    }
+}
+
+#[test]
+fn a_board_card_dragged_onto_a_file_moves_there() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = two_files_app();
+    let _ = app.update(Message::ToggleMainView);
+    let files = app.services.ports.files.clone();
+
+    let review = target_of(&app, "Legal review");
+    let _ = app.update(Message::Board(board::Message::Press(review, lane(0, 2))));
+    let _ = app.update(Message::Board(board::Message::CardLeft));
+    let _ = app.update(Message::Files(files::Message::Hover(1, true)));
+    drive(&runtime, &mut app, Message::Files(files::Message::Release));
+    assert!(app.drag.is_none());
+    assert!(!files.read(Path::new(TODO_PATH)).unwrap().contains("Legal review"));
+    assert!(
+        files
+            .read(Path::new(WORK_PATH))
+            .unwrap()
+            .ends_with("Legal review +work status:waiting\n")
+    );
+}
+
+#[test]
+fn a_todo_drag_released_elsewhere_ends_without_moving() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = two_files_app();
+    let files = app.services.ports.files.clone();
+
+    // Released over the title bar: no drop target takes it.
+    let milk = target_of(&app, "Buy milk");
+    let _ = app.update(Message::List(list::Message::Press(milk)));
+    let _ = app.update(Message::List(list::Message::Hover(None)));
+    let _ = app.update(Message::MouseReleased);
+    assert!(app.list_drag.is_none());
+
+    // A later release on a file does not drop the old drag there.
+    let _ = app.update(Message::Files(files::Message::Hover(1, true)));
+    drive(&runtime, &mut app, Message::Files(files::Message::Release));
+    assert_eq!(files.read(Path::new(TODO_PATH)).unwrap(), SAMPLE);
+    assert_eq!(files.read(Path::new(WORK_PATH)).unwrap(), WORK);
+}

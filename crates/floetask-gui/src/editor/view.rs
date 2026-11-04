@@ -24,7 +24,7 @@ use crate::theme::{self, Colors};
 use crate::view::EDITOR_ID;
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
-use crate::view::widgets::{caption, primary_button, secondary_button, title, with_tooltip};
+use crate::view::widgets::{caption, file_choices, primary_button, secondary_button, title, with_tooltip};
 
 pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     let colors = app.colors();
@@ -123,7 +123,7 @@ fn suggestions(editor: &Editor, colors: Colors) -> Element<'_, Message> {
 /// Which file the todo is in, shown in the overview where files mix. A new
 /// todo picks its file here; it starts with the active one.
 fn file_line<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
-    let choices = file_choices(app);
+    let choices = file_choices(&app.state.overview_files());
     let current = choices.iter().find(|choice| choice.1 == editor.file).cloned();
     let glyph = icon(Icon::File, 14.0, colors.muted);
     if editor.target.is_some() {
@@ -149,25 +149,6 @@ fn file_line<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Eleme
     .spacing(8)
     .align_y(Alignment::Center)
     .into()
-}
-
-/// The overview's files for the file picker, in drawer order. A name that
-/// several files share gets its folder added, so each choice is clear.
-fn file_choices(app: &Floetask) -> Vec<FileChoice> {
-    let files = app.state.overview_files();
-    let names: Vec<String> = files.iter().map(|entry| entry.file_name()).collect();
-    files
-        .iter()
-        .zip(&names)
-        .map(|(entry, name)| {
-            let shared = names.iter().filter(|other| *other == name).count() > 1;
-            let label = match entry.path.parent() {
-                Some(folder) if shared => format!("{name} ({})", folder.display()),
-                _ => name.clone(),
-            };
-            FileChoice(label, entry.path.clone())
-        })
-        .collect()
 }
 
 fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
@@ -459,16 +440,6 @@ impl std::fmt::Display for PriorityChoice {
 struct StatusChoice(String, String);
 
 impl std::fmt::Display for StatusChoice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-/// File option for the pick list: its label and its path.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct FileChoice(String, std::path::PathBuf);
-
-impl std::fmt::Display for FileChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }

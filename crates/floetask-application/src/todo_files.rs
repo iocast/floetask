@@ -277,10 +277,27 @@ impl TodoFileService {
         Ok(document)
     }
 
-    /// Moves todos to the done file, their notes into the done file's notes
-    /// folder, and saves what stays. Notes are copied before either file is
-    /// written and the originals removed last, so a crash can at worst leave
-    /// a note in both folders.
+    /// Moves a todo, completed or not, to the end of another todo file.
+    /// A note in the notes folder moves along into the other file's notes
+    /// folder; a note linked by its absolute path stays where it is. Returns
+    /// both files as they are now: the one the todo left, then the other.
+    pub fn move_to_file(
+        &self,
+        path: &Path,
+        to_path: &Path,
+        target: &TodoRef,
+        options: &FileOptions,
+    ) -> Result<(TodoDocument, TodoDocument), AppError> {
+        if path == to_path {
+            return Err(AppError::Other("the todo is already in that file".to_owned()));
+        }
+        let mut document = self.load(path, options)?;
+        let todo = document.remove(target.line, &target.raw)?;
+        let other = self.transfer(path, to_path, vec![todo], &document, options)?;
+        Ok((document, other))
+    }
+
+    /// Moves todos to the done file. See [`Self::transfer`].
     fn move_to_done(
         &self,
         path: &Path,
@@ -289,22 +306,40 @@ impl TodoFileService {
         staying: &TodoDocument,
         options: &FileOptions,
     ) -> Result<(), AppError> {
-        let (todos, notes) = NoteTransfer::plan(self.files.as_ref(), path, done_path, todos, staying);
-        notes.copy(self.files.as_ref())?;
-        self.append_to_done(done_path, todos, options)?;
-        self.files.write(path, &staying.to_content(), options.safe_writes)?;
-        notes.remove_originals(self.files.as_ref());
-        Ok(())
+        self.transfer(path, done_path, todos, staying, options).map(drop)
     }
 
-    fn append_to_done(&self, done_path: &Path, todos: Vec<Todo>, options: &FileOptions) -> Result<(), AppError> {
-        let mut done = if self.files.exists(done_path) {
-            self.load(done_path, options)?
+    /// Moves todos to another file, their notes into that file's notes
+    /// folder, and saves what stays. The other file is written first, so a
+    /// crash can at worst duplicate todos, never lose them. Notes are copied
+    /// before either file is written and the originals removed last, so an
+    /// interruption can at worst leave a note in both folders.
+    fn transfer(
+        &self,
+        path: &Path,
+        to_path: &Path,
+        todos: Vec<Todo>,
+        staying: &TodoDocument,
+        options: &FileOptions,
+    ) -> Result<TodoDocument, AppError> {
+        let (todos, notes) = NoteTransfer::plan(self.files.as_ref(), path, to_path, todos, staying);
+        notes.copy(self.files.as_ref())?;
+        let other = self.append_to(to_path, todos, options)?;
+        self.files.write(path, &staying.to_content(), options.safe_writes)?;
+        notes.remove_originals(self.files.as_ref());
+        Ok(other)
+    }
+
+    /// Appends todos to a file, creating it when it does not exist yet.
+    fn append_to(&self, path: &Path, todos: Vec<Todo>, options: &FileOptions) -> Result<TodoDocument, AppError> {
+        let mut document = if self.files.exists(path) {
+            self.load(path, options)?
         } else {
             TodoDocument::parse("", &options.exclude_prefixes)
         };
-        done.append(todos);
-        self.files.write(done_path, &done.to_content(), options.safe_writes)
+        document.append(todos);
+        self.files.write(path, &document.to_content(), options.safe_writes)?;
+        Ok(document)
     }
 
     fn convert_dates(&self, text: &str, input: &InputOptions) -> String {

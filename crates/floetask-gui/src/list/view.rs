@@ -3,11 +3,13 @@
 //! Each todo is a card: a priority accent, a round checkbox, the text with
 //! its attributes underneath, and quick actions that appear on hover.
 
+use std::path::Path;
+
 use iced::widget::{
-    Column, Row, button, checkbox, column, container, markdown, mouse_area, rich_text, row, rule, scrollable, space,
-    span, text,
+    Column, Row, button, checkbox, column, container, markdown, mouse_area, pick_list, rich_text, row, rule,
+    scrollable, space, span, text,
 };
-use iced::{Alignment, Color, Element, Fill};
+use iced::{Alignment, Color, Element, Fill, mouse};
 
 use floetask_application::NoteStatus;
 use floetask_domain::board::BoardColumns;
@@ -23,9 +25,10 @@ use crate::editor::DateKey;
 use crate::i18n::{self, tr, trf};
 use crate::theme::{self, Colors};
 use crate::view::LIST_ID;
+use crate::view::dialogs::{buttons, raw_text};
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
-use crate::view::widgets::{icon_button, with_tooltip};
+use crate::view::widgets::{file_choices, icon_button, primary_button, title, with_tooltip};
 use crate::{drawer, list};
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
@@ -59,13 +62,19 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
         }
         groups = groups.push(rows);
     }
-    scrollable(container(groups).padding(iced::padding::right(8).bottom(16)))
+    let list = scrollable(container(groups).padding(iced::padding::right(8).bottom(16)))
         .id(LIST_ID)
         .direction(theme::thin_scrollbar())
         .style(theme::slim_scroller(colors))
         .height(Fill)
-        .width(Fill)
-        .into()
+        .width(Fill);
+    // A row press opens the todo on release, or starts dragging it to a
+    // file in the file drawer.
+    let mut list = mouse_area(list).on_release(Message::List(list::Message::Release));
+    if app.list_drag.as_ref().is_some_and(|drag| drag.moved) {
+        list = list.interaction(mouse::Interaction::Grabbing);
+    }
+    list.into()
 }
 
 /// Group title with its todo count, for the list and the grouped board.
@@ -202,17 +211,24 @@ fn todo_row<'a>(
         line = line.push(quick_actions(todo, &target, colors));
     }
 
-    let selected = app.selected == Some(index);
+    let dragged = app
+        .list_drag
+        .as_ref()
+        .is_some_and(|drag| drag.moved && drag.target == target);
+    let selected = app.selected == Some(index) || dragged;
     let card = container(line)
         .padding(if compact { [6, 12] } else { [10, 14] })
         .width(Fill)
         .style(theme::row(colors, hovered, selected));
-    mouse_area(card)
-        .on_press(Message::List(list::Message::OpenTodo(target)))
-        .on_right_press(Message::List(list::Message::RowMenu(Some(entry.id()))))
-        .on_enter(Message::List(list::Message::Hover(Some(entry.id()))))
-        .on_exit(Message::List(list::Message::Hover(None)))
-        .into()
+    let mut row = mouse_area(card).on_press(Message::List(list::Message::Press(target)));
+    // While a todo is dragged, rows the cursor passes stay as they are:
+    // a hover message for each would rebuild the whole window.
+    if app.dragged_todo().is_none() {
+        row = row
+            .on_enter(Message::List(list::Message::Hover(Some(entry.id()))))
+            .on_exit(Message::List(list::Message::Hover(None)));
+    }
+    card_menu(app, entry, row)
 }
 
 /// Extra space around an inline context pill.
@@ -505,9 +521,9 @@ fn quick_actions<'a>(todo: &'a Todo, target: &Target, colors: Colors) -> Element
     .into()
 }
 
-/// Wraps a board or calendar card so a right-click opens a menu at the
-/// cursor with the list row's copy, move to done file and delete. Cards have
-/// no room for hover actions, and a left press there starts a drag.
+/// Wraps a list row, board card or calendar card so a right-click opens a
+/// menu at the cursor: copy, move to done file, move to another file and
+/// delete.
 pub(crate) fn card_menu<'a>(
     app: &Floetask,
     entry: &'a ListedTodo,
@@ -576,28 +592,97 @@ fn row_menu<'a>(app: &Floetask, entry: &'a ListedTodo, colors: Colors) -> Elemen
         .style(theme::ghost(colors, false))
         .on_press(Message::List(message))
     };
+    let mut items = column![
+        item(
+            Icon::Copy,
+            "copy",
+            list::Message::Copy(entry.todo.raw().to_owned()),
+            false
+        ),
+        item(
+            Icon::Archive,
+            "archive_one",
+            list::Message::ArchiveOne(target.clone()),
+            false
+        ),
+    ]
+    .spacing(2);
+    // A dialog picks the file, so the menu stays short however many files
+    // are open.
+    if !app.move_targets(&target.file).is_empty() {
+        items = items.push(item(
+            Icon::File,
+            "move_to_file",
+            list::Message::AskMoveToFile(target.clone()),
+            false,
+        ));
+    }
+    items = items
+        .push(rule::horizontal(1))
+        .push(item(Icon::Trash, "delete", list::Message::AskDelete(target), true));
+    container(items).padding(6).width(220).style(theme::card(colors)).into()
+}
+
+/// The todo following the cursor while it is dragged: its priority accent
+/// and text on one short line. Plain containers and text only, so it takes
+/// no mouse input and the drop target under it still sees the cursor.
+pub(crate) fn drag_ghost<'a>(app: &Floetask, target: &Target) -> Element<'a, Message> {
+    let colors = app.colors();
+    let todo = Todo::parse(&target.todo.raw);
+    let accent_color = match todo.priority() {
+        Some(priority) if !todo.is_complete() => colors.priority(priority),
+        _ => colors.primary,
+    };
+    let accent = container(space())
+        .width(3)
+        .height(18)
+        .style(theme::accent(accent_color));
     container(
-        column![
-            item(
-                Icon::Copy,
-                "copy",
-                list::Message::Copy(entry.todo.raw().to_owned()),
-                false
-            ),
-            item(
-                Icon::Archive,
-                "archive_one",
-                list::Message::ArchiveOne(target.clone()),
-                false
-            ),
-            rule::horizontal(1),
-            item(Icon::Trash, "delete", list::Message::AskDelete(target), true),
-        ]
-        .spacing(2),
+        row![accent, text(ghost_label(&todo.display_text())).size(14)]
+            .spacing(10)
+            .align_y(Alignment::Center),
     )
-    .padding(6)
-    .width(220)
-    .style(theme::card(colors))
+    .padding([8, 12])
+    .max_width(320)
+    .style(theme::drag_ghost(colors))
+    .into()
+}
+
+/// A todo's text cut to fit the drag ghost's single line.
+fn ghost_label(text: &str) -> String {
+    const MAX: usize = 40;
+    if text.chars().count() <= MAX {
+        return text.to_owned();
+    }
+    let cut: String = text.chars().take(MAX - 1).collect();
+    format!("{}…", cut.trim_end())
+}
+
+/// Moves a todo to another file picked from a dropdown of the files in the
+/// file drawer.
+pub(crate) fn move_dialog<'a>(app: &'a Floetask, target: &'a Target, to: &'a Path) -> Element<'a, Message> {
+    let colors = app.colors();
+    let line = Todo::parse(&target.todo.raw).editable_text();
+    let choices = file_choices(&app.move_targets(&target.file));
+    let current = choices.iter().find(|choice| choice.1 == to).cloned();
+    column![
+        title(tr("move_to_file_title")),
+        raw_text(line, colors),
+        row![
+            icon(Icon::File, 14.0, colors.muted),
+            text(tr("move_to_file_label")).size(13).color(colors.muted),
+            pick_list(choices, current, |choice| Message::List(
+                list::Message::MoveToFileChoice(choice.1)
+            ))
+            .text_size(13)
+            .width(Fill),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+        buttons(primary_button(tr("move"), Message::ConfirmDialog, colors), colors),
+    ]
+    .spacing(16)
+    .width(460)
     .into()
 }
 

@@ -298,7 +298,8 @@ fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colo
         let details = column![body(app, todo, colors)].extend(meta).spacing(6).width(Fill);
         row![accent, done, details].spacing(10).align_y(Alignment::Start).into()
     };
-    let card = mouse_area(
+    let awaits_drag = app.awaits_drag(&target);
+    let mut card = mouse_area(
         container(content)
             .padding(if compact { [6, 10] } else { [10, 12] })
             .width(Fill)
@@ -306,8 +307,10 @@ fn card<'a>(app: &'a Floetask, lane: LaneId, entry: &'a ListedTodo, colors: Colo
             .clip(true),
     )
     .on_press(Message::Board(board::Message::Press(target, lane)))
-    .on_exit(Message::Board(board::Message::CardLeft))
     .interaction(mouse::Interaction::Grab);
+    if awaits_drag {
+        card = card.on_exit(Message::Board(board::Message::CardLeft));
+    }
     card_menu(app, entry, card)
 }
 

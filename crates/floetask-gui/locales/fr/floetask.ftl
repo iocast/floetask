@@ -31,6 +31,7 @@ archived =
        *[other] { $count } tâches archivées
     }
 archived_one = Tâche archivée
+moved_to_file = Déplacée vers { $file }
 new = Nouveau
 toggle_files = Afficher ou masquer les fichiers
 files = Fichiers
@@ -71,6 +72,10 @@ delete_confirm = Supprimer cette tâche ?
 edit = Modifier
 open_link = Ouvrir le lien
 archive_one = Déplacer vers le fichier des tâches terminées
+move_to_file = Déplacer vers un fichier…
+move_to_file_title = Déplacer vers un autre fichier
+move_to_file_label = Déplacer vers
+move = Déplacer
 due_label = échéance
 threshold_label = début
 details = Détails

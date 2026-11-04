@@ -253,6 +253,26 @@ pub fn accent(color: Color) -> impl Fn(&Theme) -> container::Style {
     }
 }
 
+/// The todo that follows the cursor while it is dragged: lifted off the
+/// page with a shadow and outlined like a selected row.
+pub fn drag_ghost(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.surface.scale_alpha(0.92)),
+        text_color: Some(colors.text),
+        border: Border {
+            radius: 10.0.into(),
+            width: 1.0,
+            color: colors.primary,
+        },
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(if colors.dark { 0.5 } else { 0.2 }),
+            offset: Vector::new(0.0, 6.0),
+            blur_radius: 16.0,
+        },
+        ..container::Style::default()
+    }
+}
+
 pub fn card(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
         background: filled(colors.surface),

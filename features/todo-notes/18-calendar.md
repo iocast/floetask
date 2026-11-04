@@ -30,7 +30,7 @@ A third way to show the active file, next to the list and the status board: todo
 - Double-clicking a day's free space, or **New todo** in its right-click menu, opens the add dialog with `due:` set to that day. The cursor stands before the date, so the description is typed in front of it.
 - Clicking or right-clicking a day's free space selects it: it is outlined like a drop target until a click anywhere else (another day moves the outline there), a right-click on a todo or `Escape` clears it.
 - Each entry has a checkbox that completes or reopens the todo, as in the list and on the board; ticking it does not start a drag.
-- Dragging a todo to another day sets its `due:` to that day; only the `due:` token changes (round-trip rules, §1.3).
+- Dragging a todo to another day sets its `due:` to that day; only the `due:` token changes (round-trip rules, §1.3). The dragged todo follows the cursor as a small card, as on the board ([§3](03-list-view.md)).
 - The title bar switches between list, board and calendar; `Ctrl+Alt+C` toggles between the calendar and the list.
 
 ___

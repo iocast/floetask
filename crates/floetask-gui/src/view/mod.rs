@@ -6,6 +6,7 @@
 //! this module puts them together and holds the widgets they share.
 
 pub(crate) mod dialogs;
+mod drag_layer;
 mod empty;
 pub mod icons;
 pub(crate) mod popover;
@@ -17,6 +18,7 @@ use iced::{Element, Fill, Length, mouse, window};
 
 use floetask_application::MainView;
 
+use self::drag_layer::drag_layer;
 use crate::app::{Dialog, Floetask, Message};
 use crate::{board, calendar, drawer, editor, files, list, search, settings, theme};
 
@@ -86,6 +88,7 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
             Dialog::Rename { attribute, from, input } => drawer::rename_dialog(app, *attribute, from, input),
             Dialog::RowDate { calendar, .. } => editor::row_dialog(app, calendar),
             Dialog::SaveFilter { name } => search::save_filter_dialog(app, name),
+            Dialog::MoveToFile { target, to } => list::move_dialog(app, target, to),
             Dialog::BoardColumns { columns, input } => board::columns_dialog(app, columns, input),
         };
         layers = layers.push(match dialog {
@@ -114,7 +117,10 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
     if !app.maximized {
         layers = layers.push(resize_edges());
     }
-    layers.into()
+    // A dragged todo follows the cursor, drawn with its own pointer so the
+    // two never drift apart.
+    let dragged = app.dragged_todo().map(|target| list::drag_ghost(app, target));
+    drag_layer(layers, dragged).into()
 }
 
 /// A side panel the user opened while there is no room for it, drawn over

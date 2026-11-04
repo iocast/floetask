@@ -31,6 +31,7 @@ archived =
        *[other] { $count } Aufgaben archiviert
     }
 archived_one = Aufgabe archiviert
+moved_to_file = Nach { $file } verschoben
 new = Neu
 toggle_files = Dateien zeigen oder ausblenden
 files = Dateien
@@ -68,6 +69,10 @@ delete_confirm = Diese Aufgabe löschen?
 edit = Bearbeiten
 open_link = Link öffnen
 archive_one = In die Erledigt-Datei verschieben
+move_to_file = In Datei verschieben…
+move_to_file_title = In andere Datei verschieben
+move_to_file_label = Verschieben nach
+move = Verschieben
 due_label = fällig
 threshold_label = ab
 details = Details

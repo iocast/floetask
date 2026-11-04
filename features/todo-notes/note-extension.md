@@ -95,4 +95,4 @@ This is not part of the official todo.txt spec. Tools must explicitly support it
 * Clearing the notes field of an existing note empties the file but keeps it and the tag.
 * Deleting a todo whose note no other todo in the file uses shows a warning that the note is now orphaned. The note file is never deleted.
 * Completing leaves both the tag and the file untouched.
-* Archiving moves notes to the done file's notes folder as described above. Notes are copied before either todo file is written and the originals are removed last, so an interruption can at worst leave a note in both folders.
+* Archiving, and moving a todo to another file ([§2.4](02-files.md#24-moving-a-todo-to-another-file)), move notes-folder notes to the other file's notes folder as described above; external notes stay where they are. Notes are copied before either todo file is written and the originals are removed last, so an interruption can at worst leave a note in both folders.

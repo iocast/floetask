@@ -31,6 +31,7 @@ pub(super) fn all(app: &Floetask) -> Subscription<Message> {
             (iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left | mouse::Button::Right)), _) => {
                 Some(Message::MousePressed)
             }
+            (iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)), _) => Some(Message::MouseReleased),
             (
                 iced::Event::Window(
                     event @ (window::Event::FileDropped(_)

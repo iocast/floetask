@@ -7,7 +7,7 @@ use iced::Task;
 use floetask_application::{AppError, FileOptions, TodoFileService};
 use floetask_domain::TodoDocument;
 
-use crate::app::{Dialog, Floetask, Message, Pending, absolute};
+use crate::app::{Dialog, Floetask, Message, Pending, Target, absolute};
 use crate::i18n::{self, tr, trf};
 use crate::{files, search};
 
@@ -26,6 +26,21 @@ impl Floetask {
                     Task::batch([reload, self.toast(trf(key, &[("count", count.into())]))])
                 }
                 Err(error) => self.save_failed(path, &error),
+            },
+            files::Message::Moved(from, to, result) => match result {
+                Ok((left, other)) => {
+                    let name = to
+                        .file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    let _ = self.document_saved(from, left);
+                    let _ = self.document_saved(to, other);
+                    self.toast(trf("moved_to_file", &[("file", name.into())]))
+                }
+                Err(error) => {
+                    let reload = self.load(to);
+                    Task::batch([self.save_failed(from, &error), reload])
+                }
             },
             files::Message::OpenDialog => {
                 Task::perform(pick_file(), |path| Message::Files(files::Message::Picked(path)))
@@ -98,6 +113,7 @@ impl Floetask {
             }
             files::Message::Press(index) => {
                 self.file_menu = None;
+                self.end_todo_drags();
                 self.file_drag = Some(files::FileDrag {
                     from: index,
                     moved: false,
@@ -130,10 +146,22 @@ impl Floetask {
         }
     }
 
-    /// Ends a drag. Released on another file, the dragged file takes its
-    /// place in a custom order; released on the file itself without leaving
-    /// it, it was a click and selects the file.
+    /// Ends a drag. A todo dragged from the list, board or calendar moves to
+    /// the file it is released on. Released on another file, a dragged file
+    /// takes its place in a custom order; released on the file itself
+    /// without leaving it, it was a click and selects the file.
     fn drop_file(&mut self) -> Task<Message> {
+        if let Some(todo) = self.dragged_todo().cloned() {
+            self.end_todo_drags();
+            let to = self.file_hover.and_then(|index| self.state.files.get(index));
+            return match to {
+                Some(entry) if entry.path != todo.file => {
+                    let to = entry.path.clone();
+                    self.move_todo(todo, to)
+                }
+                _ => Task::none(),
+            };
+        }
         let Some(drag) = self.file_drag.take() else {
             return Task::none();
         };
@@ -302,6 +330,24 @@ impl Floetask {
         Task::perform(
             async move { service.archive_completed(&entry.path, &done_path, &options) },
             move |result| Message::Files(files::Message::SavedCount(path.clone(), result, "archived")),
+        )
+    }
+
+    /// Moves a todo to the end of another file, its notes-folder note into
+    /// that file's notes folder. Both files are shown as they are after.
+    pub(crate) fn move_todo(&mut self, target: Target, to: PathBuf) -> Task<Message> {
+        if target.file == to {
+            return Task::none();
+        }
+        let service = self.services.todo_files.clone();
+        let options = self.file_options();
+        let Target { file, todo } = target;
+        Task::perform(
+            {
+                let (file, to) = (file.clone(), to.clone());
+                async move { service.move_to_file(&file, &to, &todo, &options) }
+            },
+            move |result| Message::Files(files::Message::Moved(file.clone(), to.clone(), result)),
         )
     }
 

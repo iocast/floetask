@@ -1,9 +1,11 @@
 //! Row interactions in the todo list.
 
+use std::path::Path;
+
 use iced::Task;
 use iced::widget::operation;
 
-use floetask_application::NoteService;
+use floetask_application::{NoteService, TodoFileEntry};
 use floetask_domain::NoteLink;
 use floetask_domain::listing::ListedTodo;
 use floetask_domain::todo::Todo;
@@ -55,6 +57,22 @@ impl Floetask {
                 Task::batch([iced::clipboard::write(raw), self.toast(tr("copied"))])
             }
             list::Message::ArchiveOne(target) => self.archive_one(target),
+            list::Message::AskMoveToFile(target) => {
+                self.row_menu = None;
+                if let Some(to) = self.move_targets(&target.file).first() {
+                    self.dialog = Some(Dialog::MoveToFile {
+                        to: to.path.clone(),
+                        target,
+                    });
+                }
+                Task::none()
+            }
+            list::Message::MoveToFileChoice(path) => {
+                if let Some(Dialog::MoveToFile { to, .. }) = &mut self.dialog {
+                    *to = path;
+                }
+                Task::none()
+            }
             list::Message::AskDelete(target) => {
                 self.row_menu = None;
                 self.dialog = Some(Dialog::Confirm {
@@ -97,9 +115,24 @@ impl Floetask {
                 Task::none()
             }
             list::Message::Hover(id) => {
+                if id.is_none()
+                    && let Some(drag) = &mut self.list_drag
+                {
+                    drag.moved = true;
+                }
                 self.hovered = id;
                 Task::none()
             }
+            list::Message::Press(target) => {
+                self.list_drag = Some(list::RowDrag { target, moved: false });
+                Task::none()
+            }
+            // Released on the row it was pressed on, it was a click; dropped
+            // anywhere else in the list, nothing moves.
+            list::Message::Release => match self.list_drag.take() {
+                Some(drag) if !drag.moved => self.update(Message::List(list::Message::OpenTodo(drag.target))),
+                _ => Task::none(),
+            },
         }
     }
 
@@ -184,5 +217,15 @@ impl Floetask {
             service.archive_one(path, &done_path, &todo, options)
         });
         Task::batch([archive, self.toast(tr("archived_one"))])
+    }
+
+    /// The files a todo in `file` can move to: every file the file drawer
+    /// lists but its own, in the drawer's order.
+    pub(crate) fn move_targets(&self, file: &Path) -> Vec<&TodoFileEntry> {
+        self.state
+            .overview_files()
+            .into_iter()
+            .filter(|entry| entry.path != file)
+            .collect()
     }
 }
