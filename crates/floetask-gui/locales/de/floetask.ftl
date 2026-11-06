@@ -103,7 +103,6 @@ status_doing = In Arbeit
 status_waiting = Wartet
 status_someday = Irgendwann
 status_done = Erledigt
-set = Setzen
 clear = Leeren
 today = Heute
 strict = Streng

@@ -12,6 +12,7 @@ use floetask_domain::note::default_name;
 use floetask_domain::{NoteError, NoteLink, NoteName, RecurrenceUnit};
 
 use super::DatePicker;
+use crate::compose::FieldText;
 use crate::theme::{self, Colors};
 
 /// The add/edit dialog.
@@ -22,7 +23,10 @@ pub struct Editor {
     pub file: PathBuf,
     /// `None` when adding a new todo.
     pub target: Option<TodoRef>,
+    /// The text field, which hides tokens shown elsewhere in the dialog.
     pub content: text_editor::Content,
+    /// The whole todo text behind the field, see [`FieldText`].
+    field: FieldText,
     pub suggestions: Vec<String>,
     pub selected_suggestion: usize,
     pub calendar: Option<DatePicker>,
@@ -39,23 +43,34 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(file: PathBuf, target: Option<TodoRef>, text: &str, colors: Colors) -> Self {
+        let field = FieldText::new(text);
+        let todo = floetask_domain::Todo::from_user_text(text);
+        let recurrence = todo.recurrence();
         Self {
             file,
             target,
-            content: text_editor::Content::with_text(text),
+            content: text_editor::Content::with_text(&field.visible),
+            field,
             suggestions: Vec::new(),
             selected_suggestion: 0,
             calendar: None,
-            recurrence_count: "1".to_owned(),
-            recurrence_unit: RecurrenceUnit::Week,
-            recurrence_strict: false,
-            pomodoros: "1".to_owned(),
+            // 0 shows that the todo does not repeat or has no pomodoros.
+            recurrence_count: recurrence.map_or(0, |r| r.count).to_string(),
+            recurrence_unit: recurrence.map_or(RecurrenceUnit::Week, |r| r.unit),
+            recurrence_strict: recurrence.is_some_and(|r| r.strict),
+            pomodoros: todo.pomodoros().unwrap_or(0).to_string(),
             note: NoteField::new(colors),
             pending_link: None,
         }
     }
 
+    /// The whole todo text, hidden tokens included.
     pub fn text(&self) -> String {
+        self.field.join(&self.visible_text())
+    }
+
+    /// The text as the field shows it.
+    pub fn visible_text(&self) -> String {
         let text = self.content.text();
         text.strip_suffix('\n').map(str::to_owned).unwrap_or(text)
     }
@@ -89,7 +104,8 @@ impl Editor {
     }
 
     pub fn set_text(&mut self, text: &str) {
-        self.content = text_editor::Content::with_text(text);
+        self.field = FieldText::new(text);
+        self.content = text_editor::Content::with_text(&self.field.visible);
         self.content
             .perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
         self.suggestions.clear();
@@ -118,7 +134,7 @@ impl Editor {
         let (Some(tag), Some(name)) = (self.typed_tag(), self.suggestions.get(index).cloned()) else {
             return;
         };
-        let (text, line, column) = crate::compose::insert_suggestion(&self.text(), &tag, &name);
+        let (text, line, column) = crate::compose::insert_suggestion(&self.visible_text(), &tag, &name);
         self.content = text_editor::Content::with_text(&text);
         self.content.move_to(text_editor::Cursor {
             position: text_editor::Position { line, column },

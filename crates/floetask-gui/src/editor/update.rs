@@ -192,42 +192,39 @@ impl Floetask {
                         editor.note.show("");
                         Task::none()
                     }
+                    // The repeat and pomodoro controls change the text as they change.
                     editor::Message::RecurrenceCount(count) => {
-                        if count.chars().all(|c| c.is_ascii_digit()) && count.len() <= 3 {
+                        if is_count(&count) {
                             editor.recurrence_count = count;
+                            apply_recurrence(editor);
                         }
                         Task::none()
                     }
                     editor::Message::RecurrenceUnit(unit) => {
                         editor.recurrence_unit = unit;
+                        apply_recurrence(editor);
                         Task::none()
                     }
                     editor::Message::RecurrenceStrict(strict) => {
                         editor.recurrence_strict = strict;
+                        apply_recurrence(editor);
                         Task::none()
                     }
-                    editor::Message::ApplyRecurrence(set) => {
-                        let value = set.then(|| Recurrence {
-                            strict: editor.recurrence_strict,
-                            count: editor.recurrence_count.parse().unwrap_or(1).max(1),
-                            unit: editor.recurrence_unit,
-                        });
-                        rewrite(editor, |todo| {
-                            todo.with_extension("rec", value.map(|r| r.to_string()).as_deref())
-                        });
+                    editor::Message::ClearRecurrence => {
+                        editor.recurrence_count = "0".to_owned();
+                        apply_recurrence(editor);
                         Task::none()
                     }
                     editor::Message::Pomodoros(count) => {
-                        if count.chars().all(|c| c.is_ascii_digit()) && count.len() <= 3 {
+                        if is_count(&count) {
                             editor.pomodoros = count;
+                            apply_pomodoros(editor);
                         }
                         Task::none()
                     }
-                    editor::Message::ApplyPomodoros(set) => {
-                        let value = editor.pomodoros.parse::<u32>().ok().filter(|_| set);
-                        rewrite(editor, |todo| {
-                            todo.with_extension("pm", value.map(|n| n.to_string()).as_deref())
-                        });
+                    editor::Message::ClearPomodoros => {
+                        editor.pomodoros = "0".to_owned();
+                        apply_pomodoros(editor);
                         Task::none()
                     }
                     _ => Task::none(),
@@ -352,10 +349,11 @@ impl Floetask {
         let Some(Dialog::Editor(editor)) = &self.dialog else {
             return Task::none();
         };
-        let text = editor.text();
-        if text.trim().is_empty() {
+        // Hidden tokens alone, such as a prefilled due date, are no todo.
+        if editor.visible_text().trim().is_empty() {
             return self.toast_error(tr("empty_todo"));
         }
+        let text = editor.text();
         // A note open in the note window is saved from there.
         let note = match NoteSave::from_editor(editor) {
             Ok(_) if self.dialog_note_in_window() => NoteSave::Keep,
@@ -458,6 +456,36 @@ async fn pick_note_file(folder: Option<PathBuf>) -> Option<PathBuf> {
         dialog = dialog.set_directory(folder);
     }
     dialog.pick_file().await.map(|handle| handle.path().to_path_buf())
+}
+
+/// Whether typed text fits a count field: up to three digits, or empty.
+fn is_count(text: &str) -> bool {
+    text.chars().all(|c| c.is_ascii_digit()) && text.len() <= 3
+}
+
+/// Writes the repeat controls to `rec:`; a count of 0 or none removes it.
+fn apply_recurrence(editor: &mut Editor) {
+    let value = editor
+        .recurrence_count
+        .parse::<u32>()
+        .ok()
+        .filter(|count| *count > 0)
+        .map(|count| Recurrence {
+            strict: editor.recurrence_strict,
+            count,
+            unit: editor.recurrence_unit,
+        });
+    rewrite(editor, |todo| {
+        todo.with_extension("rec", value.map(|r| r.to_string()).as_deref())
+    });
+}
+
+/// Writes the pomodoro count to `pm:`; 0 or none removes it.
+fn apply_pomodoros(editor: &mut Editor) {
+    let value = editor.pomodoros.parse::<u32>().ok().filter(|count| *count > 0);
+    rewrite(editor, |todo| {
+        todo.with_extension("pm", value.map(|n| n.to_string()).as_deref())
+    });
 }
 
 /// Applies a todo edit to the dialog text.

@@ -106,7 +106,6 @@ status_doing = En curso
 status_waiting = En espera
 status_someday = Algún día
 status_done = Hecho
-set = Fijar
 clear = Borrar
 today = Hoy
 strict = Estricto

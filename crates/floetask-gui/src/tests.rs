@@ -326,6 +326,36 @@ fn editor_status_picker_rewrites_the_status_token() {
 }
 
 #[test]
+fn editor_field_hides_tokens_shown_by_the_dialog() {
+    let mut app = app();
+    let _ = app.update(Message::Editor(editor::Message::New));
+    let editor_of = |app: &Floetask| match &app.dialog {
+        Some(Dialog::Editor(editor)) => (editor.visible_text(), editor.text(), editor.pomodoros.clone()),
+        _ => panic!("editor closed"),
+    };
+    assert_eq!(editor_of(&app).2, "0");
+    let _ = app.update(Message::Editor(editor::Message::Action(text_editor::Action::Edit(
+        text_editor::Edit::Paste(std::sync::Arc::new("Plan trip".to_owned())),
+    ))));
+    // Typing a count or picking a unit changes the todo right away.
+    let _ = app.update(Message::Editor(editor::Message::Pomodoros("3".to_owned())));
+    let _ = app.update(Message::Editor(editor::Message::RecurrenceCount("2".to_owned())));
+    let _ = app.update(Message::Editor(editor::Message::RecurrenceUnit(
+        floetask_domain::RecurrenceUnit::Day,
+    )));
+    let (visible, text, _) = editor_of(&app);
+    assert_eq!(
+        (visible.as_str(), text.as_str()),
+        ("Plan trip", "Plan trip pm:3 rec:2d")
+    );
+
+    // 0 and Clear remove the tags.
+    let _ = app.update(Message::Editor(editor::Message::Pomodoros("0".to_owned())));
+    let _ = app.update(Message::Editor(editor::Message::ClearRecurrence));
+    assert_eq!(editor_of(&app).1, "Plan trip");
+}
+
+#[test]
 fn clicking_a_chip_filters_the_list() {
     let mut app = app();
     let messages = click(&app, "family");

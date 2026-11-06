@@ -41,9 +41,11 @@ pub enum Message {
     RecurrenceCount(String),
     RecurrenceUnit(RecurrenceUnit),
     RecurrenceStrict(bool),
-    ApplyRecurrence(bool),
+    /// Sets the repeat count to 0, which removes `rec:`.
+    ClearRecurrence,
     Pomodoros(String),
-    ApplyPomodoros(bool),
+    /// Sets the pomodoros to 0, which removes `pm:`.
+    ClearPomodoros,
     NoteAction(iced_markdown_editor::Action),
     /// The note file of the todo being edited, read from disk (`None`: missing).
     NoteLoaded(crate::app::Target, Result<Option<String>, AppError>),

@@ -84,10 +84,122 @@ pub fn edit_text(text: &str, edit: impl FnOnce(&Todo) -> Todo) -> String {
     edit(&todo).editable_text()
 }
 
+/// The todo text as the dialog's field shows it: without the due date,
+/// threshold, repeat, pomodoros and note, which the dialog shows in their own
+/// controls. It keeps the whole text so a todo the user did not retype is
+/// saved exactly as it was.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FieldText {
+    /// What the field shows.
+    pub visible: String,
+    full: String,
+    hidden: Vec<String>,
+}
+
+impl FieldText {
+    pub fn new(text: &str) -> Self {
+        let mut hidden = Vec::new();
+        let lines: Vec<String> = text
+            .split('\n')
+            .filter_map(|line| {
+                let words: Vec<&str> = line.split(' ').collect();
+                let kept: Vec<&str> = words.iter().copied().filter(|word| !is_hidden_token(word)).collect();
+                hidden.extend(
+                    words
+                        .iter()
+                        .filter(|word| is_hidden_token(word))
+                        .map(|w| (*w).to_owned()),
+                );
+                // A line that held only hidden tokens goes away with them.
+                (kept.len() == words.len() || kept.iter().any(|word| !word.is_empty())).then(|| kept.join(" "))
+            })
+            .collect();
+        Self {
+            visible: lines.join("\n"),
+            full: text.to_owned(),
+            hidden,
+        }
+    }
+
+    /// The whole todo text for what the field now shows. Hidden tokens go
+    /// at the end, except ones the user typed again in the field.
+    pub fn join(&self, visible: &str) -> String {
+        if visible == self.visible {
+            return self.full.clone();
+        }
+        let typed = Todo::from_user_text(visible);
+        let kept: Vec<&str> = self
+            .hidden
+            .iter()
+            .map(String::as_str)
+            .filter(|token| {
+                token
+                    .split_once(':')
+                    .is_none_or(|(key, _)| typed.extension(key).is_none())
+            })
+            .collect();
+        match (kept.is_empty(), visible.trim().is_empty()) {
+            (true, _) => visible.to_owned(),
+            (false, true) => kept.join(" "),
+            (false, false) => format!("{} {}", visible.trim_end(), kept.join(" ")),
+        }
+    }
+}
+
+/// Whether the field hides this word: a valid `due:`, `t:`, `rec:` or `pm:`, or any
+/// `note:`. An invalid value stays visible so the user can fix it.
+fn is_hidden_token(word: &str) -> bool {
+    let Some((key, value)) = word.split_once(':') else {
+        return false;
+    };
+    if value.is_empty() || word.contains(char::is_whitespace) {
+        return false;
+    }
+    let todo = Todo::parse(word);
+    match key {
+        "due" => todo.due().is_some(),
+        "t" => todo.threshold().is_some(),
+        "pm" => todo.pomodoros().is_some(),
+        "rec" => todo.recurrence().is_some(),
+        "note" => todo.note().is_some(),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use floetask_domain::Priority;
+
+    #[test]
+    fn field_hides_dates_pomodoros_and_note() {
+        let text = "2026-10-08 Call due:2026-10-10 mom +home t:2026-10-01 pm:2 note:call.md";
+        let field = FieldText::new(text);
+        assert_eq!(field.visible, "2026-10-08 Call mom +home");
+        // Untouched, the text is kept exactly.
+        assert_eq!(field.join(&field.visible), text);
+        // Edited, hidden tokens move to the end.
+        assert_eq!(
+            field.join("2026-10-08 Call dad +home"),
+            "2026-10-08 Call dad +home due:2026-10-10 t:2026-10-01 pm:2 note:call.md"
+        );
+        // A token typed again replaces the hidden one.
+        assert_eq!(
+            field.join("Call due:2026-12-24"),
+            "Call due:2026-12-24 t:2026-10-01 pm:2 note:call.md"
+        );
+    }
+
+    #[test]
+    fn field_keeps_invalid_values_and_other_tags() {
+        let field = FieldText::new("Fix due:someday pm:x rec:often status:doing rec:1w");
+        assert_eq!(field.visible, "Fix due:someday pm:x rec:often status:doing");
+        let field = FieldText::new("Plan\ndue:2026-01-02\nmore");
+        assert_eq!(field.visible, "Plan\nmore");
+        let field = FieldText::new(" due:2026-01-02");
+        assert_eq!(field.visible, "");
+        assert_eq!(field.join("Buy milk"), "Buy milk due:2026-01-02");
+    }
 
     fn names(list: &[&str]) -> BTreeSet<String> {
         list.iter().map(|s| (*s).to_owned()).collect()

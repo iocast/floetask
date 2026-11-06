@@ -103,7 +103,6 @@ status_doing = Doing
 status_waiting = Waiting
 status_someday = Someday
 status_done = Done
-set = Set
 clear = Clear
 today = Today
 strict = Strict

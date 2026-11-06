@@ -235,7 +235,7 @@ fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message>
     let repeat = row![
         icon(Icon::Repeat, 14.0, colors.muted),
         text(tr("rec")).size(13).color(colors.muted),
-        number("1", &editor.recurrence_count, |count| Message::Editor(
+        number("0", &editor.recurrence_count, |count| Message::Editor(
             editor::Message::RecurrenceCount(count)
         )),
         pick_list(units, Some(UnitChoice(editor.recurrence_unit)), |unit| {
@@ -246,19 +246,17 @@ fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message>
             .label(tr("strict"))
             .on_toggle(|strict| Message::Editor(editor::Message::RecurrenceStrict(strict)))
             .text_size(13),
-        small("set", Message::Editor(editor::Message::ApplyRecurrence(true))),
-        small("clear", Message::Editor(editor::Message::ApplyRecurrence(false))),
+        small("clear", Message::Editor(editor::Message::ClearRecurrence)),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
     let pomodoros = row![
         icon(Icon::Timer, 14.0, colors.muted),
         text(tr("pm")).size(13).color(colors.muted),
-        number("1", &editor.pomodoros, |count| Message::Editor(
+        number("0", &editor.pomodoros, |count| Message::Editor(
             editor::Message::Pomodoros(count)
         )),
-        small("set", Message::Editor(editor::Message::ApplyPomodoros(true))),
-        small("clear", Message::Editor(editor::Message::ApplyPomodoros(false))),
+        small("clear", Message::Editor(editor::Message::ClearPomodoros)),
     ]
     .spacing(8)
     .align_y(Alignment::Center);

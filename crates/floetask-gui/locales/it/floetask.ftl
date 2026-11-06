@@ -103,7 +103,6 @@ status_doing = In corso
 status_waiting = In attesa
 status_someday = Prima o poi
 status_done = Fatto
-set = Imposta
 clear = Cancella
 today = Oggi
 strict = Rigoroso
