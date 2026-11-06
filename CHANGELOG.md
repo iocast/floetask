@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- Week numbers in the calendar: the month view shows each week's ISO number beside it and the week view names its week in the header; turn them on with *Week numbers* in Settings → Dates (`week_numbers` in `config.toml`)
+
 ## [0.6.0] - 2026-11-04
 
 ### Added

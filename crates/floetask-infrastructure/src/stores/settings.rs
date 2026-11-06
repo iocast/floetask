@@ -151,6 +151,7 @@ columns = ["doing", "done"]
             compact: true,
             theme: ThemePreference::Dark,
             week_start: WeekStart::Sunday,
+            week_numbers: true,
             month_overflow: MonthOverflow::Scroll,
             update_channel: UpdateChannel::Preview,
             exclude_lines_with_prefix: vec!["##".into()],

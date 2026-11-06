@@ -88,6 +88,8 @@ pub struct Settings {
     pub theme: ThemePreference,
     #[serde(with = "crate::persist::week_start")]
     pub week_start: WeekStart,
+    /// Show ISO week numbers in the calendar's week and month views.
+    pub week_numbers: bool,
     pub month_overflow: MonthOverflow,
     /// `system` or a language code such as `en`.
     pub language: String,
@@ -119,6 +121,7 @@ impl Default for Settings {
             notification_threshold_days: 2,
             theme: ThemePreference::System,
             week_start: WeekStart::Monday,
+            week_numbers: false,
             month_overflow: MonthOverflow::More,
             language: "system".to_owned(),
             exclude_lines_with_prefix: Vec::new(),

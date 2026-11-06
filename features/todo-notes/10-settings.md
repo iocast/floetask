@@ -5,7 +5,7 @@ Settings dialog (`Ctrl+,`). A sidebar on the left lists the sections (Todos, Dat
 | Section | Settings |
 |---|---|
 | Todos | append creation date, bulk todo creation |
-| Dates | convert relative dates, human-friendly dates, week start |
+| Dates | convert relative dates, human-friendly dates, week start, week numbers |
 | Statuses | the global status list (below) |
 | Appearance | theme, language, compact mode, disable animations |
 | Notifications | notifications, notification threshold |
@@ -32,6 +32,7 @@ All settings:
 | Notification threshold | slider 0–10 days | 2 |
 | Colour theme | system / light / dark | system |
 | Week start | Mon / Sat / Sun | Mon |
+| Week numbers (calendar) | toggle | off |
 | Language | select | system |
 
 Config-file-only settings: `exclude_lines_with_prefix` (list), watcher options ([§2.1](02-files.md#21-file-watching)).

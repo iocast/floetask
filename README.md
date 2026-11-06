@@ -61,6 +61,7 @@ notifications = true
 notification_threshold_days = 2 # 0-10
 theme = "system"                # system, light, dark
 week_start = "monday"           # monday, saturday, sunday (first start: from your region)
+week_numbers = false            # ISO week numbers in the calendar's week and month views
 month_overflow = "more"         # full calendar month cells: more (+N more), scroll
 language = "system"             # system, en, de, fr, es, it
 exclude_lines_with_prefix = ["##"]

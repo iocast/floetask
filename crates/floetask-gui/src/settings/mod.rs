@@ -46,6 +46,7 @@ pub enum SettingChange {
     NotificationThreshold(u8),
     Theme(ThemePreference),
     WeekStart(WeekStart),
+    WeekNumbers(bool),
     MonthOverflow(MonthOverflow),
     /// Adds a custom status from the name the user typed, such as
     /// "In review"; the key (`in-review`) is derived from it.

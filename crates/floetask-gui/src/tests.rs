@@ -1575,6 +1575,34 @@ fn calendar_shows_todos_by_due_date_and_moves_them_by_drag() {
 }
 
 #[test]
+fn calendar_shows_week_numbers_when_enabled() {
+    use floetask_application::MainView;
+    use floetask_domain::calendar::CalendarMode;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    assert!(!app.settings.week_numbers);
+    assert!(simulator(app.view()).find("Wk").is_err());
+
+    let _ = app.update(Message::Settings(settings::Message::Change(
+        SettingChange::WeekNumbers(true),
+    )));
+    assert!(app.settings.week_numbers);
+    // October 2026 starts in ISO week 40 (Monday 28 September).
+    assert!(simulator(app.view()).find("Wk").is_ok());
+    assert!(simulator(app.view()).find("40").is_ok());
+    snapshot(&app, "calendar-month-week-numbers");
+
+    let _ = app.update(Message::Calendar(calendar::Message::Mode(CalendarMode::Week)));
+    assert!(simulator(app.view()).find("Week 40").is_ok());
+
+    let _ = app.update(Message::Settings(settings::Message::Change(
+        SettingChange::WeekNumbers(false),
+    )));
+    assert!(simulator(app.view()).find("Week 40").is_err());
+}
+
+#[test]
 fn calendar_checkbox_completes_a_todo_without_dragging_it() {
     use floetask_application::MainView;
 

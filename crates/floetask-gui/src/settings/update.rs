@@ -86,6 +86,7 @@ impl Floetask {
                 s.week_start = week_start;
                 affects_list = true;
             }
+            SettingChange::WeekNumbers(on) => s.week_numbers = on,
             SettingChange::MonthOverflow(overflow) => s.month_overflow = overflow,
             SettingChange::Language(language) => {
                 s.language = language;

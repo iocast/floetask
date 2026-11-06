@@ -163,6 +163,8 @@ calendar_undated_title = Without due date
 calendar_undated_hint = Drag a todo onto a day, or set its date here.
 calendar_set_due = Set due date
 calendar_empty_day = Nothing due this day.
+calendar_week_number = Week { $number }
+calendar_week_abbr = Wk
 
 ## Dates
 # Calendar titles. $month and $weekday are the names below.
@@ -320,6 +322,8 @@ month_overflow_more = Show +N more
 month_overflow_scroll = Scroll
 week_start = Week starts on
 week_start_desc = First day of the week in calendars and for this week and next week.
+week_numbers = Week numbers
+week_numbers_desc = Show ISO week numbers in the calendar's week and month views.
 monday = Monday
 saturday = Saturday
 sunday = Sunday

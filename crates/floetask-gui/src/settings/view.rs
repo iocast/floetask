@@ -160,6 +160,7 @@ fn dates(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                 colors,
             ),
             setting("week_start", tr("week_start").to_owned(), week_start, colors),
+            switch_setting("week_numbers", s.week_numbers, SettingChange::WeekNumbers, colors),
         ],
     )
 }

@@ -13,7 +13,7 @@ use iced::{Alignment, Color, Element, Fill, Length, mouse};
 
 use floetask_application::MonthOverflow;
 use floetask_domain::Date;
-use floetask_domain::calendar::{CalendarMode, CalendarSpan, todos_by_day, undated};
+use floetask_domain::calendar::{CalendarMode, CalendarSpan, todos_by_day, undated, week_number};
 use floetask_domain::date::Datelike;
 use floetask_domain::listing::ListedTodo;
 
@@ -81,6 +81,19 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
     ]
     .spacing(8)
     .align_y(Alignment::Center);
+    // The month grid has a column of week numbers; the week view says it here.
+    let navigation = if mode == CalendarMode::Week && app.settings.week_numbers {
+        navigation.push(
+            text(trf(
+                "calendar_week_number",
+                &[("number", week_number(span.first).into())],
+            ))
+            .size(13)
+            .color(colors.muted),
+        )
+    } else {
+        navigation
+    };
 
     // Opens the panel of todos without a due date, to plan them.
     let undated = undated(app.listing.todos()).len();
@@ -132,17 +145,30 @@ fn period_title(mode: CalendarMode, anchor: Date, span: &CalendarSpan) -> String
 
 type Days<'a> = std::collections::BTreeMap<Date, Vec<&'a ListedTodo>>;
 
-/// Whole weeks covering the month, one cell per day.
+/// Whole weeks covering the month, one cell per day, each week led by its
+/// number when `week_numbers` is on.
 fn month<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<'a, Message> {
     let colors = app.colors();
     let month = app.calendar_anchor.month();
     let names = weekday_names(app, colors);
     let all: Vec<Date> = span.days().collect();
     let weeks = Column::with_children(all.chunks(7).map(|week| {
-        Row::with_children(week.iter().map(|&date| {
+        let number = app.settings.week_numbers.then(|| {
+            container(
+                text(week_number(week[0]).to_string())
+                    .size(11)
+                    .color(colors.muted)
+                    .width(Fill)
+                    .align_x(Alignment::Center),
+            )
+            .width(WEEK_NUMBER_WIDTH)
+            .padding(iced::padding::top(8))
+            .into()
+        });
+        Row::with_children(number.into_iter().chain(week.iter().map(|&date| {
             let todos = days.get(&date).map(Vec::as_slice).unwrap_or_default();
             month_cell(app, date, date.month() == month, todos)
-        }))
+        })))
         .spacing(6)
         .height(Fill)
         .into()
@@ -152,16 +178,27 @@ fn month<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element
     column![names, weeks].spacing(6).height(Fill).into()
 }
 
+/// Width of the month grid's week number column.
+const WEEK_NUMBER_WIDTH: f32 = 24.0;
+
 fn weekday_names<'a>(app: &Floetask, colors: Colors) -> Element<'a, Message> {
     let first = app.settings.week_start.weekday().num_days_from_monday() as usize;
-    Row::with_children((0..7).map(|offset| {
+    let week = app.settings.week_numbers.then(|| {
+        text(tr("calendar_week_abbr"))
+            .size(12)
+            .color(colors.muted)
+            .width(WEEK_NUMBER_WIDTH)
+            .align_x(Alignment::Center)
+            .into()
+    });
+    Row::with_children(week.into_iter().chain((0..7).map(|offset| {
         text(tr(WEEKDAYS[(first + offset) % 7]))
             .size(12)
             .color(colors.muted)
             .width(Fill)
             .align_x(Alignment::Center)
             .into()
-    }))
+    })))
     .spacing(6)
     .into()
 }

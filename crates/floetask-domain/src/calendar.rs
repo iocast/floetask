@@ -4,7 +4,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::date::{Date, WeekStart, add_days, add_months, end_of_month, first_of_month, start_of_week};
+use crate::date::{
+    Date, Datelike, WeekStart, Weekday, add_days, add_months, days_since, end_of_month, first_of_month, start_of_week,
+};
 use crate::listing::ListedTodo;
 use crate::todo::Todo;
 
@@ -64,6 +66,14 @@ impl CalendarSpan {
         let count = (self.last - self.first).num_days() + 1;
         (0..count).map(|offset| add_days(self.first, offset))
     }
+}
+
+/// The ISO 8601 week number of a calendar row, a week starting on `first`.
+/// A row that starts on Saturday or Sunday takes the number of the Monday in
+/// it, the ISO week most of its days belong to.
+pub fn week_number(first: Date) -> u32 {
+    let monday = add_days(first, days_since(Weekday::Mon, first.weekday()));
+    monday.iso_week().week()
 }
 
 /// The anchor `steps` periods away: days, weeks or months.
@@ -143,6 +153,19 @@ mod tests {
         let month = CalendarSpan::new(CalendarMode::Month, d("2026-10-06"), WeekStart::Monday);
         assert_eq!((month.first, month.last), (d("2026-09-28"), d("2026-11-01")));
         assert_eq!(month.days().count(), 35);
+    }
+
+    #[test]
+    fn week_numbers_follow_iso_8601() {
+        // 2026-10-05 is a Monday in ISO week 41; 2026-01-01 a Thursday, so
+        // the week of 29 December 2025 is week 1 of 2026.
+        assert_eq!(week_number(d("2026-10-05")), 41);
+        assert_eq!(week_number(d("2025-12-29")), 1);
+        // 2027-01-01 is a Friday, so its week still belongs to 2026 (week 53).
+        assert_eq!(week_number(d("2026-12-28")), 53);
+        // Weeks starting on Sunday or Saturday take the number of their Monday.
+        assert_eq!(week_number(d("2026-10-04")), 41);
+        assert_eq!(week_number(d("2026-10-03")), 41);
     }
 
     #[test]

@@ -163,6 +163,8 @@ calendar_undated_title = Ohne Fälligkeitsdatum
 calendar_undated_hint = Zieh eine Aufgabe auf einen Tag oder setze ihr Datum hier.
 calendar_set_due = Fälligkeitsdatum setzen
 calendar_empty_day = An diesem Tag ist nichts fällig.
+calendar_week_number = KW { $number }
+calendar_week_abbr = KW
 
 ## Dates
 
@@ -317,6 +319,8 @@ month_overflow_more = +N weitere zeigen
 month_overflow_scroll = Scrollen
 week_start = Woche beginnt am
 week_start_desc = Erster Tag der Woche in Kalendern und für diese und nächste Woche.
+week_numbers = Kalenderwochen
+week_numbers_desc = Zeigt die ISO-Kalenderwoche in der Wochen- und Monatsansicht des Kalenders.
 monday = Montag
 saturday = Samstag
 sunday = Sonntag

@@ -12,6 +12,7 @@ A third way to show the active file, next to the list and the status board: todo
 
 - The header shows the period ("October 2026", "5 – 11 Oct 2026", "Tuesday, 6 October 2026"), **previous** / **today** / **next** buttons and the mode switch.
 - Today is highlighted in every mode.
+- With **Week numbers** on (Settings → Dates, `week_numbers`, off by default), the month grid shows each week's number in a narrow column on its left, and the week view shows "Week 41" after the period. Numbers follow ISO 8601; a week starting on Saturday or Sunday takes the number of the Monday in it, the ISO week most of its days belong to.
 - The week view's columns shrink with the window down to the main view's minimum of 760 px; side panels hide before that, as in every view (§3.6), with the undated panel last.
 - The mode is remembered in `state.toml`; the calendar always opens on today.
 

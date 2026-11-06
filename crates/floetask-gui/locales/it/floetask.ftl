@@ -163,6 +163,8 @@ calendar_undated_title = Senza scadenza
 calendar_undated_hint = Trascina un’attività su un giorno o imposta qui la sua data.
 calendar_set_due = Imposta scadenza
 calendar_empty_day = Niente in scadenza in questo giorno.
+calendar_week_number = Settimana { $number }
+calendar_week_abbr = Sett.
 
 ## Dates
 
@@ -317,6 +319,8 @@ month_overflow_more = Mostra +N altre
 month_overflow_scroll = Scorri
 week_start = La settimana inizia di
 week_start_desc = Primo giorno della settimana nei calendari e per questa settimana e la prossima.
+week_numbers = Numeri della settimana
+week_numbers_desc = Mostra il numero di settimana ISO nelle viste settimana e mese del calendario.
 monday = Lunedì
 saturday = Sabato
 sunday = Domenica
