@@ -2665,3 +2665,26 @@ fn a_todo_drag_released_elsewhere_ends_without_moving() {
     assert_eq!(files.read(Path::new(TODO_PATH)).unwrap(), SAMPLE);
     assert_eq!(files.read(Path::new(WORK_PATH)).unwrap(), WORK);
 }
+
+#[test]
+fn hovering_a_row_keeps_the_list_in_place() {
+    let mut app = app();
+    let _ = app.update(Message::Files(files::Message::Loaded(
+        PathBuf::from(TODO_PATH),
+        Ok(TodoDocument::parse("Water plants\nRead a book\n", &[])),
+    )));
+    let below = |app: &Floetask| simulator(app.view()).find("Read a book").unwrap().bounds();
+    let before = below(&app);
+
+    // A one-line row is lower than its quick actions; hovering it must not
+    // make it taller and push the rows under it down.
+    let first = app
+        .listing
+        .todos()
+        .find(|e| e.todo.body() == "Water plants")
+        .unwrap()
+        .id();
+    let _ = app.update(Message::List(list::Message::Hover(Some(first))));
+    assert_eq!(below(&app), before);
+    snapshot(&app, "list-row-hovered");
+}

@@ -7,7 +7,7 @@ use std::path::Path;
 
 use iced::widget::{
     Column, Row, button, checkbox, column, container, markdown, mouse_area, pick_list, rich_text, row, rule,
-    scrollable, space, span, text,
+    scrollable, space, span, stack, text,
 };
 use iced::{Alignment, Color, Element, Fill, mouse};
 
@@ -206,10 +206,7 @@ fn todo_row<'a>(
         details = details.push(meta);
     }
 
-    let mut line = row![accent, done, details].spacing(12).align_y(Alignment::Start);
-    if hovered {
-        line = line.push(quick_actions(todo, &target, colors));
-    }
+    let line = row![accent, done, details].spacing(12).align_y(Alignment::Start);
 
     let dragged = app
         .list_drag
@@ -220,7 +217,19 @@ fn todo_row<'a>(
         .padding(if compact { [6, 12] } else { [10, 14] })
         .width(Fill)
         .style(theme::row(colors, hovered, selected));
-    let mut row = mouse_area(card).on_press(Message::List(list::Message::Press(target)));
+    // The quick actions float over the row's right edge instead of taking
+    // room in it. A row that changed size on hover would shift the list
+    // while it scrolls under a still cursor, and the list would jitter.
+    let actions: Element<'a, Message> = if hovered {
+        container(container(quick_actions(todo, &target, colors)).style(theme::row_actions(colors)))
+            .padding(iced::padding::right(6))
+            .align_right(Fill)
+            .center_y(Fill)
+            .into()
+    } else {
+        space().into()
+    };
+    let mut row = mouse_area(stack![card, actions]).on_press(Message::List(list::Message::Press(target)));
     // While a todo is dragged, rows the cursor passes stay as they are:
     // a hover message for each would rebuild the whole window.
     if app.dragged_todo().is_none() {

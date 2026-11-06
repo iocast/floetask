@@ -179,6 +179,19 @@ pub fn panel(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     }
 }
 
+/// Backing for the quick actions drawn over a hovered todo row, in the
+/// row's hover colour so the text underneath doesn't show through.
+pub fn row_actions(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.hover),
+        border: Border {
+            radius: 8.0.into(),
+            ..Border::default()
+        },
+        ..container::Style::default()
+    }
+}
+
 /// A todo row. Hovered and selected rows are lifted a little.
 pub fn row(colors: Colors, hovered: bool, selected: bool) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
