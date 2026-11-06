@@ -38,21 +38,30 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
     }
     main = main.push(body(app));
 
+    // iced keeps widget state by tree position, so the main view stays the
+    // middle child and the stack's first layer whether or not a drawer
+    // shows: toggling one then keeps the list's scroll position. A hidden
+    // drawer leaves an empty slot: a shrinking space, as iced drops children
+    // of size zero. The gap is padding, as row spacing would also surround
+    // the empty slots.
     let shown = app.shown_panels();
-    let mut content = row![].spacing(12).height(Fill);
-    if shown.files {
-        content = content.push(files::drawer(app));
-    }
-    // Clipped, so a wide list or board can never draw under the drawers.
-    content = content.push(container(main).width(Fill).height(Fill).clip(true));
-    if shown.filters {
-        content = content.push(drawer::view(app));
-    }
-
-    let content: Element<'_, Message> = match overlay_panel(app, &shown) {
-        Some(panel) => stack![content, panel].into(),
-        None => content.into(),
+    let gap = crate::layout::PANEL_SPACING;
+    let slot = |show: bool, panel: fn(&Floetask) -> Element<'_, Message>, padding: iced::Padding| {
+        if show {
+            container(panel(app)).height(Fill).padding(padding).into()
+        } else {
+            Element::from(space())
+        }
     };
+    let content = row![
+        slot(shown.files, files::drawer, iced::padding::right(gap)),
+        // Clipped, so a wide list or board can never draw under the drawers.
+        container(main).width(Fill).height(Fill).clip(true),
+        slot(shown.filters, drawer::view, iced::padding::left(gap)),
+    ]
+    .height(Fill);
+    let overlay = overlay_panel(app, &shown).unwrap_or_else(|| space().into());
+    let content = stack![content, overlay];
     let mut page = column![title_bar::view(app)].spacing(8);
     page = page.push(
         container(content)

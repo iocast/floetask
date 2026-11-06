@@ -1741,6 +1741,86 @@ fn main_view_closes_side_panels_before_getting_narrower_than_its_minimum() {
     assert_eq!(app.panel_overlay, Some(crate::layout::Panel::Filters));
 }
 
+/// Reads the list's vertical scroll offset from a built interface.
+struct ListOffset(Option<f32>);
+
+impl iced::advanced::widget::Operation for ListOffset {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation)) {
+        operate(self);
+    }
+
+    fn scrollable(
+        &mut self,
+        id: Option<&iced::advanced::widget::Id>,
+        _bounds: iced::Rectangle,
+        _content_bounds: iced::Rectangle,
+        translation: iced::Vector,
+        _state: &mut dyn iced::advanced::widget::operation::Scrollable,
+    ) {
+        if id == Some(&iced::advanced::widget::Id::new(crate::view::LIST_ID)) {
+            self.0 = Some(translation.y);
+        }
+    }
+}
+
+#[test]
+fn toggling_a_panel_keeps_the_list_scrolled() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::widget::operation::scrollable::{AbsoluteOffset, scroll_to};
+    use iced_test::runtime::{UserInterface, user_interface::Cache};
+
+    let mut app = app();
+    let long: String = (1..=80).map(|n| format!("Todo number {n}\n")).collect();
+    let _ = app.update(Message::Files(files::Message::Loaded(
+        PathBuf::from(TODO_PATH),
+        Ok(TodoDocument::parse(&long, &[])),
+    )));
+    let mut renderer = iced_test::futures::futures::executor::block_on(iced::Renderer::new(
+        iced::Font::DEFAULT,
+        iced::Pixels(16.0),
+        None,
+    ))
+    .expect("headless renderer");
+    let size = iced::Size::new(app.state.window.width, 700.0);
+    let offset = |app: &Floetask, cache: Cache, renderer: &mut iced::Renderer| {
+        let mut ui = UserInterface::build(app.view(), size, cache, renderer);
+        let mut read = ListOffset(None);
+        ui.operate(renderer, &mut read);
+        (read.0.expect("the list is on screen"), ui.into_cache())
+    };
+
+    let mut ui = UserInterface::build(app.view(), size, Cache::default(), &mut renderer);
+    let mut scroll = scroll_to(
+        crate::view::LIST_ID.into(),
+        AbsoluteOffset {
+            x: None,
+            y: Some(300.0),
+        },
+    );
+    ui.operate(&renderer, &mut scroll);
+    let mut cache = ui.into_cache();
+    let (scrolled, next) = offset(&app, cache, &mut renderer);
+    assert!(scrolled > 0.0, "the list scrolled");
+    cache = next;
+
+    // Each drawer, docked or (in a narrow window) over the main view.
+    let toggles = [
+        Message::Files(files::Message::ToggleDrawer),
+        Message::Files(files::Message::ToggleDrawer),
+        Message::Drawer(drawer::Message::Toggle),
+        Message::Drawer(drawer::Message::Toggle),
+    ];
+    for width in [1800.0, 1000.0] {
+        app.state.window.width = width;
+        for toggle in toggles.iter().cloned() {
+            let _ = app.update(toggle);
+            let (now, next) = offset(&app, cache, &mut renderer);
+            assert_eq!(now, scrolled, "scroll kept at width {width}");
+            cache = next;
+        }
+    }
+}
+
 /// Registers `/test/done.txt` as the archive of the sample file, opened, and
 /// a second todo file `/test/work.txt`.
 fn app_with_files() -> Floetask {
