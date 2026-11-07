@@ -19,7 +19,7 @@ use crate::i18n::{self, Language, tr, trf};
 use crate::list::status_label;
 use crate::settings;
 use crate::theme::{self, Colors};
-use crate::view::icons::Icon;
+use crate::view::icons::{Icon, icon};
 use crate::view::widgets::{caption, icon_button, primary_button, status_name_field, title};
 
 const SIDEBAR_WIDTH: f32 = 170.0;
@@ -468,7 +468,7 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         }
     };
 
-    let mut items = vec![identity.into(), status];
+    let mut items = vec![identity.into(), sponsor(colors), status];
     if configured {
         items.push(switch_setting(
             "check_for_updates",
@@ -496,6 +496,35 @@ fn about(app: &Floetask, colors: Colors) -> Element<'_, Message> {
         items.push(rollback(app, colors));
     }
     page("section_about", items)
+}
+
+/// Where to sponsor floetask; the same accounts as `.github/FUNDING.yml`.
+const GITHUB_SPONSORS_URL: &str = "https://github.com/sponsors/iocast";
+const KOFI_URL: &str = "https://ko-fi.com/iocast";
+
+/// A tinted card asking for support, with links opened in the browser. It
+/// sits right under the name so it is seen before the update details.
+fn sponsor(colors: Colors) -> Element<'static, Message> {
+    let heading = row![icon(Icon::Heart, 20.0, colors.primary), text(tr("sponsor")).size(16),]
+        .spacing(8)
+        .align_y(Alignment::Center);
+    let links = row![
+        primary_button(
+            tr("sponsor_github"),
+            Message::OpenLink(GITHUB_SPONSORS_URL.to_owned()),
+            colors
+        ),
+        primary_button(tr("sponsor_kofi"), Message::OpenLink(KOFI_URL.to_owned()), colors),
+    ]
+    .spacing(8);
+    let words = column![heading, text(tr("sponsor_desc")).size(13).color(colors.muted)]
+        .spacing(4)
+        .width(Fill);
+    container(row![words, links].spacing(16).align_y(Alignment::Center))
+        .padding([12, 16])
+        .width(Fill)
+        .style(theme::highlight(colors))
+        .into()
 }
 
 /// Installs an earlier release over this one. The list fills with the

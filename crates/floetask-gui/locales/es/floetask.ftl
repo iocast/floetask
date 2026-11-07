@@ -365,6 +365,10 @@ add_status = Añadir estado
 
 about_tagline = Un gestor de todo.txt para el escritorio.
 about_version = Versión { $version }
+sponsor = Apoya floetask
+sponsor_desc = floetask es gratuito y de código abierto. Un patrocinio ayuda a mantenerlo.
+sponsor_github = GitHub Sponsors
+sponsor_kofi = Ko-fi
 check_for_updates = Buscar actualizaciones al iniciar
 check_for_updates_desc = Busca una versión nueva al iniciar floetask. Solo se envía la comprobación de versión.
 check_now = Comprobar ahora

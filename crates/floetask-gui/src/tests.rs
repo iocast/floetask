@@ -235,6 +235,24 @@ fn click(app: &Floetask, label: &str) -> Vec<Message> {
     ui.into_messages().collect()
 }
 
+/// Like [`click`], for a widget further down a scrolling page: scrolls the
+/// page under `anchor` to its end first.
+fn click_scrolled(app: &Floetask, anchor: &str, label: &str) -> Vec<Message> {
+    use iced::mouse::{self, ScrollDelta};
+
+    let mut ui = simulator(app.view());
+    let anchor = ui
+        .find(anchor)
+        .unwrap_or_else(|_| panic!("`{anchor}` is not on screen"));
+    let point = anchor.visible_bounds().expect("anchor is visible").center();
+    ui.point_at(point);
+    let _ = ui.simulate([iced::Event::Mouse(mouse::Event::WheelScrolled {
+        delta: ScrollDelta::Lines { x: 0.0, y: -100.0 },
+    })]);
+    ui.click(label).unwrap_or_else(|_| panic!("`{label}` is not on screen"));
+    ui.into_messages().collect()
+}
+
 /// Writes a snapshot when `FLOETASK_SNAPSHOTS` names a directory.
 /// iced's simulator with the fonts the notes editor measures text with.
 fn simulator<'a>(
@@ -402,6 +420,13 @@ fn escape_closes_dialog_then_drawer() {
     let _ = app.update(Message::Drawer(drawer::Message::Toggle));
     let _ = app.update(Message::Settings(settings::Message::Open));
     snapshot(&app, "settings");
+    let _ = app.update(Message::Settings(settings::Message::Section(
+        settings::SettingsSection::About,
+    )));
+    snapshot(&app, "settings-sponsor");
+    let _ = app.update(Message::Settings(settings::Message::Section(
+        settings::SettingsSection::Todos,
+    )));
     let escape = || {
         Message::KeyPressed(
             iced::window::Id::unique(),
@@ -1479,7 +1504,7 @@ fn about_page_shows_the_version_and_an_available_update() {
     // Rolling back installs the earlier version picked.
     let _ = app.update(Message::Settings(settings::Message::RollbackChoice("0.3.1".to_owned())));
     snapshot(&app, "settings-about");
-    let messages = click(&app, "Install");
+    let messages = click_scrolled(&app, "Check for updates on start", "Install");
     let [Message::Settings(settings::Message::InstallRelease(version))] = &messages[..] else {
         panic!("expected InstallRelease, got {messages:?}")
     };

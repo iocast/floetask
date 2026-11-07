@@ -10,6 +10,7 @@ Settings dialog (`Ctrl+,`), a centred card of fixed size that shrinks with a sma
 | Appearance | theme, language, compact mode, disable animations |
 | Notifications | notifications, notification threshold |
 | Files | safe writes; shows where the settings file is |
+| About | name, version; right under them a tinted card with a heart asking to sponsor floetask, with buttons for GitHub Sponsors and Ko-fi that open in the browser; then the update check, update channel and rollback |
 
 **Status management** (Statuses section): the global statuses of the `status:` extension (1.5) in sort order, each with its name, key and a description (built-in meaning, or "Your own status"). Each status can be moved up or down and marked hidden (left out of the list by default; not for `todo`). Custom statuses can be added (same rules as status values) and removed; the four built-in ones cannot be removed. Changes are saved to `[statuses]` in `config.toml` right away and re-sort and re-filter the list.
 

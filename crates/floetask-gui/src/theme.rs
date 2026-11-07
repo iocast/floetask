@@ -304,6 +304,21 @@ pub fn card(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     }
 }
 
+/// A box tinted with the accent colour, for the one thing on a page that
+/// should catch the eye, such as the sponsor call on About.
+pub fn highlight(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.tint(colors.primary, if colors.dark { 0.18 } else { 0.08 })),
+        text_color: Some(colors.text),
+        border: Border {
+            radius: 12.0.into(),
+            width: 1.0,
+            color: colors.tint(colors.primary, 0.35),
+        },
+        ..container::Style::default()
+    }
+}
+
 pub fn backdrop(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
         background: filled(Color::BLACK.scale_alpha(if colors.dark { 0.6 } else { 0.3 })),

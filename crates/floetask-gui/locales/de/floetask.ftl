@@ -362,6 +362,10 @@ add_status = Status hinzufügen
 
 about_tagline = Ein todo.txt-Manager für den Desktop.
 about_version = Version { $version }
+sponsor = floetask unterstützen
+sponsor_desc = floetask ist kostenlos und quelloffen. Eine Unterstützung hilft, es weiterzuentwickeln.
+sponsor_github = GitHub Sponsors
+sponsor_kofi = Ko-fi
 check_for_updates = Beim Start nach Updates suchen
 check_for_updates_desc = Sucht beim Start von floetask nach einer neuen Version. Gesendet wird nur die Versionsabfrage.
 check_now = Jetzt suchen
