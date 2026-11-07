@@ -38,3 +38,8 @@ icons = ["../../assets/icon-512.png", "../../assets/icon-256.png", "../../assets
 [package.metadata.packager.nsis]
 # Installs for the current user, no admin prompt.
 installer-mode = "currentUser"
+
+[package.metadata.packager.wix]
+# The built-in template with a "Create a desktop shortcut" checkbox added; the
+# NSIS setup already asks on its finish page.
+template = "wix/main.wxs"

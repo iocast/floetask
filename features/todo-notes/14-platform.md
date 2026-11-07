@@ -16,6 +16,8 @@ Installers are built with [cargo-packager](https://github.com/crabnebula-dev/car
 | macOS | `.app` bundle, `.dmg` disk image | `target/packages/*.app`, `*.dmg` |
 | Linux | `.deb`, AppImage | `target/packages/*.deb`, `*.AppImage` |
 
+Both Windows installers ask whether to create a desktop shortcut (ticked by default); the Start Menu entry is always created. The setup `.exe` asks with a checkbox on its finish page. The MSI asks on a page of its own after the install folder, and a silent MSI install skips the shortcut with `DESKTOPSHORTCUT=""`. An in-app update runs the setup with `/NS`, so it keeps the user's choice: an existing shortcut stays, and a declined one doesn't come back.
+
 Build locally:
 
 ```sh

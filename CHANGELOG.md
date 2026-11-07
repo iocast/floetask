@@ -6,6 +6,12 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- The Windows MSI installer asks whether to create a desktop shortcut, like the setup `.exe` already does on its last page
+
+### Fixed
+- Updating from within the app no longer brings back a desktop shortcut you chose not to create or deleted
+
 ## [0.6.1] - 2026-11-07
 
 ### Added

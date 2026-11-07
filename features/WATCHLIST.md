@@ -37,6 +37,21 @@ Each entry has:
   - Drop the drawn pointer and card from `drag_layer.rs`, and drop the redraw on every mouse move.
   - Check how Windows, macOS and Linux limit cursor size, since a card is larger than a normal cursor.
 
+### cargo-packager (now 0.11.8, built in CI with `cargo install cargo-packager --locked`)
+
+#### Desktop shortcut question in the MSI
+
+- **Topic**: Windows installers.
+- **Limit**:
+  - The built-in WiX template always creates a desktop shortcut, with no setting to ask or skip it.
+  - The NSIS setup `.exe` already asks, with a checkbox on its finish page.
+- **Workaround**:
+  - `crates/floetask-app/wix/main.wxs` is a copy of the 0.11.8 template (set as `wix.template` in `crates/floetask-app/Cargo.toml`).
+  - It adds a "Create a desktop shortcut" dialog after the folder choice and a condition on the shortcut component (the changes are listed in the comment at its top).
+  - Because the template is a copy, upstream changes to it don't reach floetask by themselves.
+- **Watch for**: a WiX setting in cargo-packager to make the desktop shortcut optional, or changes to the built-in template in a new release.
+- **Then**: drop the copy and use the setting; until then, after upgrading cargo-packager, diff the new built-in template against the copy and carry its changes over.
+
 ## By topic
 
 Workarounds that don't wait on a library. None yet.

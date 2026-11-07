@@ -167,7 +167,9 @@ impl Updater for ReleaseUpdater {
             endpoints: vec![manifest],
             pubkey: pubkey.to_owned(),
             windows: Some(WindowsConfig {
-                installer_args: None,
+                // A passive setup creates a desktop shortcut unless given /NS; an
+                // update keeps the one the user chose to create (or not) at install.
+                installer_args: Some(vec!["/NS".to_owned()]),
                 // A progress bar only; the installer restarts the app.
                 install_mode: Some(WindowsUpdateInstallMode::Passive),
             }),
