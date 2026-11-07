@@ -6,6 +6,19 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.7.0-rc.1] - 2026-11-07
+
+### Added
+- Share a todo file between people or devices through a folder that OneDrive, Dropbox, Syncthing or a network share syncs: *Share…* in a file's ⋮ menu chooses a folder (the shared copy is named like the file with `-share`) or an existing `.txt` file; *Join shared file…* in the file drawer links your own copy to one someone shared
+- Everyone keeps their own local file: floetask merges changes from both sides line by line, including the notes the todos link to, after each save, when a file changes and every 30 seconds (*Settings → Sync*, `[sync] interval` in `config.toml`)
+- An icon next to a shared file shows whether it is in sync, offline, missing its shared copy or has conflicts; lines changed differently on both sides are settled in a dialog with *Keep mine*, *Use theirs* or *Keep both*
+- Conflict copies that OneDrive, Dropbox, Nextcloud or Syncthing create next to a shared copy are merged in and removed
+- Shared files are listed in `sync.toml` in the state directory, with their base copies in `sync/`; `floetask --paths` shows where
+
+### Changed
+- Editing a todo no longer fails with "line changed" when lines above it were added or removed outside floetask, as long as no other todo has the same text
+- A change saved while another app or a sync wrote the same file is applied on top of that change instead of overwriting it; archiving or moving a todo to another file then stops and leaves the todo in both files rather than losing anything
+
 ## [0.6.3] - 2026-11-07
 
 ### Removed
@@ -165,7 +178,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.6.3...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.7.0-rc.1...HEAD
+[0.7.0-rc.1]: https://github.com/iocast/floetask/compare/v0.6.3...v0.7.0-rc.1
 [0.6.3]: https://github.com/iocast/floetask/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/iocast/floetask/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/iocast/floetask/compare/v0.6.0...v0.6.1
