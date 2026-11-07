@@ -75,7 +75,6 @@ impl Floetask {
             }
             SettingChange::SafeWrites(on) => s.safe_writes = on,
             SettingChange::BulkCreation(on) => s.bulk_creation = on,
-            SettingChange::DisableAnimations(on) => s.disable_animations = on,
             SettingChange::Compact(on) => s.compact = on,
             SettingChange::Notifications(on) => s.notifications = on,
             SettingChange::CheckForUpdates(on) => s.check_for_updates = on,

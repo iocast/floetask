@@ -150,7 +150,6 @@ Not done yet:
 - Drag-and-drop reordering of sort criteria: up/down buttons instead (the spec's P1 fallback).
 - `Left`/`Right` focus moves inside a row; hover actions replace a pop-up context menu.
 - Autocomplete suggestions show under the text field, not at the cursor.
-- "Disable animations" is stored but has no effect, since floetask has no animations.
 
 ## Logo
 

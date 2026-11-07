@@ -77,7 +77,6 @@ pub struct Settings {
     pub human_friendly_dates: bool,
     pub safe_writes: bool,
     pub bulk_creation: bool,
-    pub disable_animations: bool,
     pub compact: bool,
     pub notifications: bool,
     /// Look for a new release on start.
@@ -113,7 +112,6 @@ impl Default for Settings {
             human_friendly_dates: false,
             safe_writes: true,
             bulk_creation: false,
-            disable_animations: false,
             compact: false,
             notifications: true,
             check_for_updates: true,

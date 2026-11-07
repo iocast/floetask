@@ -322,12 +322,6 @@ fn appearance(app: &Floetask, colors: Colors) -> Element<'_, Message> {
                 month_overflow,
                 colors,
             ),
-            switch_setting(
-                "disable_animations",
-                s.disable_animations,
-                SettingChange::DisableAnimations,
-                colors,
-            ),
         ],
     )
 }

@@ -38,7 +38,6 @@ pub enum SettingChange {
     HumanFriendlyDates(bool),
     SafeWrites(bool),
     BulkCreation(bool),
-    DisableAnimations(bool),
     Compact(bool),
     Notifications(bool),
     CheckForUpdates(bool),

@@ -7,7 +7,7 @@ Settings dialog (`Ctrl+,`), a centred card of fixed size that shrinks with a sma
 | Todos | append creation date, bulk todo creation |
 | Dates | convert relative dates, human-friendly dates, week start, week numbers |
 | Statuses | the global status list (below) |
-| Appearance | theme, language, compact mode, disable animations |
+| Appearance | theme, language, compact mode |
 | Notifications | notifications, notification threshold |
 | Files | safe writes; shows where the settings file is |
 | About | name, version; right under them a tinted card with a heart asking to sponsor floetask, with buttons for GitHub Sponsors and Ko-fi that open in the browser; then the update check, update channel and rollback |
@@ -27,7 +27,6 @@ All settings:
 | Safe writes | toggle | on |
 | Menu bar visibility (Win/Linux) | toggle | on |
 | Bulk todo creation | toggle | off |
-| Disable animations | toggle | off |
 | Compact mode | toggle | off |
 | Notifications | toggle | on |
 | Notification threshold | slider 0–10 days | 2 |
