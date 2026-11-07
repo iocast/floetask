@@ -71,15 +71,23 @@ pub enum SettingsSection {
 }
 
 impl SettingsSection {
-    /// Sidebar order.
-    pub const ALL: [SettingsSection; 7] = [
-        SettingsSection::Todos,
-        SettingsSection::Dates,
-        SettingsSection::Statuses,
-        SettingsSection::Appearance,
-        SettingsSection::Notifications,
-        SettingsSection::Files,
-        SettingsSection::About,
+    /// The sidebar's groups in order: the translation key of each group's
+    /// caption and its sections. Related pages sit together so the list
+    /// reads at a glance.
+    pub const GROUPS: [(&'static str, &'static [SettingsSection]); 3] = [
+        (
+            "settings_group_general",
+            &[
+                SettingsSection::Todos,
+                SettingsSection::Dates,
+                SettingsSection::Statuses,
+            ],
+        ),
+        (
+            "settings_group_interface",
+            &[SettingsSection::Appearance, SettingsSection::Notifications],
+        ),
+        ("settings_group_app", &[SettingsSection::Files, SettingsSection::About]),
     ];
 
     /// Translation key of the section title.

@@ -1,6 +1,6 @@
 # 10. Settings (P0 / P1)
 
-Settings dialog (`Ctrl+,`). A sidebar on the left lists the sections (Todos, Dates, Statuses, Appearance, Notifications, Files); the right side shows the chosen section. Every setting shows its name with a short description underneath in grey, and its control on the right.
+Settings dialog (`Ctrl+,`), a centred card of fixed size that shrinks with a small window. A sidebar on the left lists the sections in captioned groups (General: Todos, Dates, Statuses; Interface: Appearance, Notifications; App: Files, About); the right side shows the chosen section. Every setting shows its name with a short description underneath in grey, and its control on the right.
 
 | Section | Settings |
 |---|---|

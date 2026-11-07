@@ -1,5 +1,5 @@
-//! The settings dialog: a sidebar of sections on the left, the settings of
-//! the chosen section on the right. Every setting has a short grey
+//! The settings dialog: a sidebar of sections in captioned groups on the
+//! left, the settings of the chosen section on the right. Every setting has a short grey
 //! description under its name.
 
 use iced::widget::{
@@ -20,9 +20,9 @@ use crate::list::status_label;
 use crate::settings;
 use crate::theme::{self, Colors};
 use crate::view::icons::Icon;
-use crate::view::widgets::{icon_button, primary_button, status_name_field, title};
+use crate::view::widgets::{caption, icon_button, primary_button, status_name_field, title};
 
-const SIDEBAR_WIDTH: f32 = 180.0;
+const SIDEBAR_WIDTH: f32 = 170.0;
 const CONTROL_WIDTH: f32 = 180.0;
 
 pub fn view<'a>(app: &'a Floetask, dialog: &'a SettingsDialog) -> Element<'a, Message> {
@@ -64,16 +64,25 @@ pub fn view<'a>(app: &'a Floetask, dialog: &'a SettingsDialog) -> Element<'a, Me
     .into()
 }
 
+/// The sections in their groups, each group under a small caption.
 fn sidebar(current: SettingsSection, colors: Colors) -> Element<'static, Message> {
-    Column::with_children(SettingsSection::ALL.into_iter().map(|section| {
-        button(text(tr(section.key())).size(14))
-            .width(Fill)
-            .padding([8, 12])
-            .style(theme::ghost(colors, section == current))
-            .on_press(Message::Settings(settings::Message::Section(section)))
-            .into()
+    Column::with_children(SettingsSection::GROUPS.into_iter().map(|(heading, sections)| {
+        let entries = sections.iter().map(|&section| {
+            button(text(tr(section.key())).size(14))
+                .width(Fill)
+                .padding([7, 12])
+                .style(theme::ghost(colors, section == current))
+                .on_press(Message::Settings(settings::Message::Section(section)))
+                .into()
+        });
+        column![
+            container(caption(tr(heading), colors)).padding([0, 12]),
+            Column::with_children(entries).spacing(2),
+        ]
+        .spacing(6)
+        .into()
     }))
-    .spacing(2)
+    .spacing(18)
     .width(SIDEBAR_WIDTH)
     .into()
 }

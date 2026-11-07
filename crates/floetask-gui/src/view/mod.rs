@@ -101,7 +101,7 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
             Dialog::BoardColumns { columns, input } => board::columns_dialog(app, columns, input),
         };
         layers = layers.push(match dialog {
-            Dialog::Settings(_) => widgets::full_modal(content, colors),
+            Dialog::Settings(_) => widgets::large_modal(content, colors),
             _ => widgets::modal(content, colors),
         });
     }

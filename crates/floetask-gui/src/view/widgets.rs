@@ -18,26 +18,24 @@ pub fn modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, M
     over_page(center(opaque(card)).padding(24).into(), colors)
 }
 
-/// Margin around a full-window dialog: about a thumb's width, so the app
-/// behind stays visible as a frame.
-const FULL_MODAL_MARGIN: f32 = 40.0;
+/// Margin a large dialog keeps from the window edge when the window is
+/// small: about a thumb's width, so the app behind stays visible as a frame.
+const LARGE_MODAL_MARGIN: f32 = 40.0;
+/// The most a large dialog grows to, so it stays compact on a big window.
+const LARGE_MODAL_WIDTH: f32 = 820.0;
+const LARGE_MODAL_HEIGHT: f32 = 580.0;
 
-/// Like [`modal`], but the card fills the window minus a thumb-width
-/// margin, for dialogs with a lot of content such as Settings.
-pub fn full_modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
+/// Like [`modal`], but the card has a fixed size, shrinking with a small
+/// window, for dialogs with a sidebar and scrolled pages such as Settings.
+pub fn large_modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, Message> {
     let card = container(content)
         .padding(24)
         .width(Fill)
         .height(Fill)
+        .max_width(LARGE_MODAL_WIDTH)
+        .max_height(LARGE_MODAL_HEIGHT)
         .style(theme::card(colors));
-    over_page(
-        container(opaque(card))
-            .padding(FULL_MODAL_MARGIN)
-            .width(Fill)
-            .height(Fill)
-            .into(),
-        colors,
-    )
+    over_page(center(opaque(card)).padding(LARGE_MODAL_MARGIN).into(), colors)
 }
 
 /// Puts a dialog's card layer over the dimmed backdrop. The title bar's
