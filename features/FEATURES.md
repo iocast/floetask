@@ -34,6 +34,7 @@ The specification is split into one file per topic in [todo-notes/](todo-notes/)
 | 16 | [Suggested crate layout (for later, not yet created)](todo-notes/16-crate-layout.md) | the crate layout |
 | 17 | [Suggested milestones](todo-notes/17-milestones.md) | milestones |
 | 18 | [Calendar view (P1)](todo-notes/18-calendar.md) | day, week and month calendars of todos by due date |
+| 19 | [Sync and shared files (P2)](todo-notes/19-sync.md) | linking a local file to a shared copy, the sync engine and merge, conflicts, the folder store, later cloud stores |
 
 ## todo.txt extensions
 
