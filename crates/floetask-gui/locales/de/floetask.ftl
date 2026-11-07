@@ -48,6 +48,60 @@ overview = Übersicht
 overview_hint = Alle Dateien, nach Datei gruppiert
 toggle_theme = Hell / dunkel umschalten
 
+## Teilen und Synchronisieren
+
+share_file = Teilen…
+join_shared_file = Geteilter Datei beitreten…
+sync_now = Jetzt synchronisieren
+share_again = Erneut teilen
+stop_sharing = Teilen beenden
+share_pick_folder = Ordner wählen, in dem die Datei geteilt wird
+join_pick_shared = Geteilte Kopie wählen, der du beitrittst
+join_pick_local = Wo deine eigene Kopie liegen soll
+share_title = { $file } teilen
+share_hint = floetask hält deine Datei und eine geteilte Kopie in diesem Ordner auf demselben Stand. Wer den Ordner synchronisiert (OneDrive, Dropbox, Syncthing) und der geteilten Kopie beitritt, sieht dieselben Todos.
+share_shared_copy = Geteilte Kopie
+share_choose_folder = Ordner wählen…
+share_choose_file = Datei wählen…
+share_choose_hint = Wähle einen Ordner, in dem eine Kopie mit dem Namen deiner Datei und „-share“ angelegt wird, oder eine vorhandene .txt-Datei, mit der geteilt wird.
+share_pick_file = Datei wählen, mit der geteilt wird
+share_same_file = Die geteilte Kopie kann nicht die Datei selbst sein.
+share_name = Dateiname der geteilten Kopie
+share_exists = { $name } gibt es schon. Beim Beitreten wird deine Datei damit zusammengeführt; abweichende Zeilen werden zu Konflikten, die du löst.
+share = Teilen
+join = Beitreten
+sync_shared = { $file } geteilt
+sync_joined = { $file } beigetreten
+sync_stopped = Teilen von { $file } beendet
+sync_waiting = Noch nicht synchronisiert
+sync_syncing = Wird synchronisiert…
+sync_in_sync = Synchronisiert
+sync_conflict =
+    { $count ->
+        [one] 1 Konflikt zu lösen
+       *[other] { $count } Konflikte zu lösen
+    }
+sync_offline = Offline: { $error }
+sync_missing = Die geteilte Kopie fehlt. Klicke, um die Datei erneut zu teilen.
+sync_shared_copy = Geteilte Kopie: { $location }
+sync_conflicts = { $file } hat Konflikte zu lösen. Klicke auf das Warnzeichen neben der Datei.
+sync_missing_toast = Die geteilte Kopie von { $file } fehlt.
+sync_copies_left = Führe diese Konfliktkopien von Hand zusammen: { $names }
+sync_failed = { $file } konnte nicht synchronisiert werden
+sync_no_conflicts = Keine Konflikte mehr.
+sync_changed_meanwhile = Die Datei hat sich inzwischen geändert. Prüfe die Konflikte noch einmal.
+conflicts_title = Konflikte in { $file }
+conflicts_hint = Diese Zeilen wurden auf beiden Seiten geändert; alles andere ist schon zusammengeführt. Wähle, welche Fassung bleibt.
+conflicts_todo_file = Todos
+conflicts_note = Notiz { $name }
+conflict_mine = Meine
+conflict_theirs = Andere
+conflict_removed = entfernt
+conflict_choose_mine = Meine behalten
+conflict_choose_theirs = Andere übernehmen
+conflict_choose_both = Beide behalten
+conflicts_apply = Anwenden
+
 ## Counts
 
 counts =
@@ -299,6 +353,9 @@ section_appearance = Darstellung
 section_notifications = Benachrichtigungen
 section_files = Dateien
 section_about = Über
+section_sync = Synchronisierung
+sync_interval = Alle { $seconds } Sekunden synchronisieren
+sync_interval_desc = Wie oft geteilte Dateien auf Änderungen geprüft werden, die die Dateiüberwachung nicht meldet, etwa auf Netzlaufwerken.
 settings_group_general = Allgemein
 settings_group_interface = Oberfläche
 settings_group_app = Anwendung
@@ -406,3 +463,4 @@ error_note_outside = Ein Notizname muss im Notizordner bleiben.
 error_no_done_file = { $file } hat keine Erledigt-Datei zum Archivieren.
 error_empty_todo = Die Aufgabe ist leer.
 error_config = Ungültige Konfiguration: { $details }
+error_changed = { $path } hat sich beim Speichern geändert. Versuche es noch einmal.

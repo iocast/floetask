@@ -21,7 +21,7 @@ use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
 use crate::view::widgets::{caption, icon_button, with_tooltip};
-use crate::{editor, files};
+use crate::{editor, files, sync};
 
 const WIDTH: f32 = crate::layout::FILES_DRAWER_WIDTH;
 
@@ -81,6 +81,12 @@ pub fn drawer(app: &Floetask) -> Element<'_, Message> {
             Icon::FilePlus,
             tr("create_file"),
             Message::Files(files::Message::CreateDialog),
+            colors
+        ),
+        wide_button(
+            Icon::Cloud,
+            tr("join_shared_file"),
+            Message::Sync(sync::Message::Join),
             colors
         ),
     ]
@@ -190,7 +196,12 @@ fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messa
         open.then(|| file_menu(app, index, colors)),
         Message::Files(files::Message::Menu(None)),
     );
-    row![label, menu].spacing(2).align_y(Alignment::Center).into()
+    row![label]
+        .push(sync::status_icon(app, index, colors))
+        .push(menu)
+        .spacing(2)
+        .align_y(Alignment::Center)
+        .into()
 }
 
 /// The ⋮ menu of a file: archive file settings, reveal, close.
@@ -198,6 +209,11 @@ fn file_menu(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messag
     let entry = &app.state.files[index];
     let has_done = entry.done_path.is_some();
     let can_archive = is_shown(app, index) && has_done && app.listing.counts.completed > 0;
+    let link = app.sync.link(&entry.path);
+    let missing = matches!(
+        app.sync.status(&entry.path).and_then(|state| state.status.as_ref()),
+        Some(floetask_application::SyncStatus::SharedMissing)
+    );
     let item = |glyph: Icon, label: &'static str, message: Option<Message>, danger: bool| {
         let enabled = message.is_some();
         let tint = match (enabled, danger) {
@@ -214,6 +230,40 @@ fn file_menu(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messag
         .padding([7, 10])
         .style(theme::ghost(colors, false))
         .on_press_maybe(message)
+    };
+    let sharing: Vec<Element<'_, Message>> = match link {
+        None => vec![
+            item(
+                Icon::Cloud,
+                "share_file",
+                Some(Message::Sync(sync::Message::Share(index))),
+                false,
+            )
+            .into(),
+        ],
+        Some(_) => vec![
+            item(
+                Icon::Sync,
+                "sync_now",
+                Some(Message::Sync(sync::Message::SyncNow(index))),
+                false,
+            )
+            .into(),
+            item(
+                Icon::Cloud,
+                "share_again",
+                missing.then_some(Message::Sync(sync::Message::ShareAgain(index))),
+                false,
+            )
+            .into(),
+            item(
+                Icon::CloudOff,
+                "stop_sharing",
+                Some(Message::Sync(sync::Message::StopSharing(index))),
+                false,
+            )
+            .into(),
+        ],
     };
     container(
         column![
@@ -241,6 +291,8 @@ fn file_menu(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messag
                 Some(Message::Files(files::Message::Reveal(index))),
                 false
             ),
+            rule::horizontal(1),
+            Column::with_children(sharing).spacing(2),
             rule::horizontal(1),
             item(
                 Icon::Close,

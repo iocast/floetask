@@ -87,6 +87,7 @@ impl Floetask {
             }
             SettingChange::WeekNumbers(on) => s.week_numbers = on,
             SettingChange::MonthOverflow(overflow) => s.month_overflow = overflow,
+            SettingChange::SyncInterval(seconds) => s.sync.interval = u64::from(seconds),
             SettingChange::Language(language) => {
                 s.language = language;
                 let system_locale = self.services.ports.locale.language();

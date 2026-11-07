@@ -208,6 +208,7 @@ pub fn error_text(error: &AppError) -> String {
             trf("error_note_character", &[("character", character.to_string().into())])
         }
         AppError::Note(NoteError::OutsideNotesFolder) => tr("error_note_outside").to_owned(),
+        AppError::Changed(path) => trf("error_changed", &[("path", path.display().to_string().into())]),
         AppError::NoDoneFile(path) => trf("error_no_done_file", &[("file", path.display().to_string().into())]),
         AppError::EmptyTodo => tr("error_empty_todo").to_owned(),
         AppError::Config(details) => trf("error_config", &[("details", details.as_str().into())]),

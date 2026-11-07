@@ -7,6 +7,7 @@ pub mod filters;
 pub mod notified;
 pub mod settings;
 pub mod state;
+pub mod sync_links;
 
 use std::fs;
 use std::path::Path;

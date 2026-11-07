@@ -9,7 +9,7 @@ use iced::{Alignment, Element, Fill};
 
 use floetask_application::ports::PublishedRelease;
 use floetask_application::updates::rollback_targets;
-use floetask_application::{MonthOverflow, Settings, ThemePreference, UpdateChannel};
+use floetask_application::{MonthOverflow, Settings, SyncSettings, ThemePreference, UpdateChannel};
 use floetask_domain::WeekStart;
 use floetask_domain::status::{StatusSet, is_valid_status, key_from_label};
 
@@ -34,6 +34,7 @@ pub fn view<'a>(app: &'a Floetask, dialog: &'a SettingsDialog) -> Element<'a, Me
         SettingsSection::Appearance => appearance(app, colors),
         SettingsSection::Notifications => notifications(app, colors),
         SettingsSection::Files => files(app, colors),
+        SettingsSection::Sync => sync(app, colors),
         SettingsSection::About => about(app, colors),
     };
     let body = row![
@@ -370,6 +371,29 @@ fn files(app: &Floetask, colors: Colors) -> Element<'_, Message> {
             ),
             setting("config_file", tr("config_file").to_owned(), location, colors),
         ],
+    )
+}
+
+/// How often linked files are synced.
+fn sync(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let seconds = app.settings.sync.interval;
+    let bound = |value: u64| u16::try_from(value).unwrap_or(u16::MAX);
+    let interval = slider(
+        bound(SyncSettings::INTERVAL_MIN)..=bound(SyncSettings::INTERVAL_MAX),
+        bound(seconds),
+        |seconds| Message::Settings(settings::Message::Change(SettingChange::SyncInterval(seconds))),
+    )
+    .step(10u16)
+    .width(CONTROL_WIDTH)
+    .into();
+    page(
+        "section_sync",
+        vec![setting(
+            "sync_interval",
+            trf("sync_interval", &[("seconds", seconds.into())]),
+            interval,
+            colors,
+        )],
     )
 }
 

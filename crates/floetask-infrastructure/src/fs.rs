@@ -23,6 +23,18 @@ impl FileSystem for LocalFileSystem {
         }
     }
 
+    fn write_if_unchanged(&self, path: &Path, content: &str, expected: &str, safe: bool) -> Result<(), AppError> {
+        ensure_parent(path)?;
+        let unchanged = |current: Option<&str>| current == Some(expected);
+        if safe {
+            safe_write_if(path, content, unchanged)
+        } else if unchanged(read_current(path)?.as_deref()) {
+            fs::write(path, content).map_err(|e| AppError::io(path, e))
+        } else {
+            Err(AppError::Changed(path.to_path_buf()))
+        }
+    }
+
     fn exists(&self, path: &Path) -> bool {
         path.exists()
     }
@@ -41,6 +53,20 @@ impl FileSystem for LocalFileSystem {
 ///
 /// If anything fails, the original file is untouched or the backup remains.
 pub fn safe_write(path: &Path, content: &str) -> Result<(), AppError> {
+    safe_write_if(path, content, |_| true)
+}
+
+/// A [`safe_write`] that first checks the file's current content (`None`
+/// when it does not exist) right before the rename, and fails with
+/// [`AppError::Changed`] when `unchanged` refuses it. Checking that late
+/// leaves the smallest window for another writer: a sync tool, a sync, an
+/// edit. The check and the rename are still two steps; the sync's base copy
+/// catches a change slipping in between.
+pub(crate) fn safe_write_if(
+    path: &Path,
+    content: &str,
+    unchanged: impl Fn(Option<&str>) -> bool,
+) -> Result<(), AppError> {
     let io = |e: std::io::Error| AppError::io(path, e);
     let temporary = sibling(path, "tmp");
     let backup = sibling(path, "bak");
@@ -54,12 +80,27 @@ pub fn safe_write(path: &Path, content: &str) -> Result<(), AppError> {
         let _ = fs::remove_file(&temporary);
         return Err(AppError::io(path, "verification of the temporary file failed"));
     }
+    let current = read_current(path);
+    if !current.as_ref().is_ok_and(|current| unchanged(current.as_deref())) {
+        let _ = fs::remove_file(&temporary);
+        current?;
+        return Err(AppError::Changed(path.to_path_buf()));
+    }
     if path.exists() {
         fs::copy(path, &backup).map_err(io)?;
     }
     fs::rename(&temporary, path).map_err(io)?;
     let _ = fs::remove_file(&backup);
     Ok(())
+}
+
+/// A file's content, or `None` when it does not exist.
+pub(crate) fn read_current(path: &Path) -> Result<Option<String>, AppError> {
+    match fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(AppError::io(path, e)),
+    }
 }
 
 pub(crate) fn ensure_parent(path: &Path) -> Result<(), AppError> {
@@ -92,6 +133,22 @@ mod tests {
         assert_eq!(files.read(&path).unwrap(), "two\n");
         let leftovers: Vec<_> = fs::read_dir(dir.path()).unwrap().collect();
         assert_eq!(leftovers.len(), 1);
+    }
+
+    #[test]
+    fn conditional_writes_refuse_a_changed_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("todo.txt");
+        let files = LocalFileSystem;
+        files.write(&path, "one\n", true).unwrap();
+        for safe in [true, false] {
+            let error = files.write_if_unchanged(&path, "two\n", "other\n", safe).unwrap_err();
+            assert_eq!(error, AppError::Changed(path.clone()));
+            assert_eq!(files.read(&path).unwrap(), "one\n");
+        }
+        files.write_if_unchanged(&path, "two\n", "one\n", true).unwrap();
+        assert_eq!(files.read(&path).unwrap(), "two\n");
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
     #[test]

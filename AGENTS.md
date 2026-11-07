@@ -14,9 +14,9 @@ floetask-app ──► floetask-gui ──► floetask-application ──► flo
 
 | Crate | Layer | Holds | May depend on |
 |---|---|---|---|
-| `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `note:` name rules, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts), the status board (columns, lanes, moving a todo), the calendar (spans, todos by day) | `chrono`, `regex`, `thiserror` only |
-| `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` (including the `Updater` and `SystemLocale`) | domain, `serde` (derives only) |
-| `floetask-infrastructure` | Adapters | Local file system with safe writes, debounced watcher, TOML stores (config, state, filters, notified, colors), XDG paths, OS notifications, opening links, release updates, the OS language | domain, application, I/O crates |
+| `floetask-domain` | Entities and business rules | `Todo` parsing and round-trip, completion, recurrence, `note:` name rules, `TodoDocument`, search language, natural and human-friendly dates, listing (filter, sort, group, drawer counts), the status board (columns, lanes, moving a todo), the calendar (spans, todos by day), the line merge for sync (`merge.rs`) | `chrono`, `regex`, `thiserror` only |
+| `floetask-application` | Use cases and ports | `TodoFileService`, `NoteService`, `NotificationService`, `SyncService`, `Settings`, `AppState`, `SavedFilter`, port traits in `ports.rs` (including the `Updater`, `SystemLocale`, `RemoteStore` and `SyncLinkStore`) | domain, `serde` (derives only) |
+| `floetask-infrastructure` | Adapters | Local file system with safe and conditional writes, debounced watcher, TOML stores (config, state, filters, notified, colors, sync links), the folder store for shared copies, XDG paths, OS notifications, opening links, release updates, the OS language | domain, application, I/O crates |
 | `floetask-gui` | Presentation | iced app: state, messages, update handlers, views, theme, i18n (Fluent files in `locales/`) | domain, application, `iced`, `rfd`, `fluent-bundle` (never infrastructure) |
 | `floetask-app` | Composition root | CLI (`clap`), wires infrastructure ports into services, starts the GUI | everything |
 
@@ -40,7 +40,7 @@ File locations follow the [XDG Base Directory Specification](https://specificati
 | Directory | Files |
 |---|---|
 | `~/.config/floetask/` | `config.toml` (settings; `--config FILE` overrides the path), `colors.toml` and `filters.toml` (saved searches), both next to the config file |
-| `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, main and note window), `notified.toml` (notification de-dup) |
+| `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, main and note window), `notified.toml` (notification de-dup), `sync.toml` (linked files) and `sync/` (their base copies) |
 | `~/.local/share/floetask/` | unused; older versions kept `filters.toml` here and it is moved on start |
 | `~/.cache/floetask/` | `floetask.png` (Windows: the icon notifications show, written on start) |
 
@@ -72,7 +72,7 @@ To try the app without touching real settings, point the XDG variables at a scra
 
 ## Where things are
 
-- GUI features: each feature is a folder in `floetask-gui/src/` with `mod.rs` (its `Message` enum and state types), `update.rs` (its handler on `Floetask`) and `view.rs`: `files/` (file drawer, loading and saving), `list/` (rows; its card pieces are reused by board and calendar), `editor/` (add/edit dialog, its note, the date picker), `note_window/`, `drawer/` (filters, sorting, rename dialog), `search/` (search bar, saved filters), `settings/` (settings dialog, release check), `board/` (status board, columns dialog), `calendar/` (day/week/month view). A change to one feature should mostly stay in its folder.
+- GUI features: each feature is a folder in `floetask-gui/src/` with `mod.rs` (its `Message` enum and state types), `update.rs` (its handler on `Floetask`) and `view.rs`: `files/` (file drawer, loading and saving), `list/` (rows; its card pieces are reused by board and calendar), `editor/` (add/edit dialog, its note, the date picker), `note_window/`, `drawer/` (filters, sorting, rename dialog), `search/` (search bar, saved filters), `settings/` (settings dialog, release check), `board/` (status board, columns dialog), `calendar/` (day/week/month view), `sync/` (sharing, sync status, conflict dialog). A change to one feature should mostly stay in its folder.
 - Message flow: the top-level `Message` in `floetask-gui/src/app/message.rs` holds runtime and window events, layout shared by all views (main view, dialogs, links) and one variant per feature, such as `Message::Board(board::Message::Press(..))`. `app/mod.rs` dispatches each to the feature's `update_*`. Views and tasks build top-level messages; a feature's `update.rs` matches its own.
 - Windows: the GUI runs as an `iced::daemon`. `lib.rs` opens the main window; `note_window/update.rs` opens the note window (one, reused for every note, saved as the user types) and `view_window` picks the view by window id. Keys arrive with their window id, so main-window shortcuts never fire from the note window.
 - Event sources (keyboard, window, theme, watcher, tick): `floetask-gui/src/app/subscriptions.rs`; keyboard shortcuts in `app/shortcuts.rs`.

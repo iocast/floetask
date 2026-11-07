@@ -68,6 +68,26 @@ impl Default for WatcherOptions {
     }
 }
 
+/// How linked files are synced with their shared copies.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SyncSettings {
+    /// Seconds between syncs of every linked file, for changes the file
+    /// watcher does not report.
+    pub interval: u64,
+}
+
+impl SyncSettings {
+    pub const INTERVAL_MIN: u64 = 10;
+    pub const INTERVAL_MAX: u64 = 600;
+}
+
+impl Default for SyncSettings {
+    fn default() -> Self {
+        Self { interval: 30 }
+    }
+}
+
 /// Missing keys take their default, so older and partial files stay valid.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -95,6 +115,7 @@ pub struct Settings {
     /// Lines starting with one of these are ignored and preserved.
     pub exclude_lines_with_prefix: Vec<String>,
     pub watcher: WatcherOptions,
+    pub sync: SyncSettings,
     /// Workflow statuses for `status:`: display order and hidden ones.
     #[serde(with = "crate::persist::statuses")]
     pub statuses: StatusSet,
@@ -124,6 +145,7 @@ impl Default for Settings {
             language: "system".to_owned(),
             exclude_lines_with_prefix: Vec::new(),
             watcher: WatcherOptions::default(),
+            sync: SyncSettings::default(),
             statuses: StatusSet::default(),
             boards: BTreeMap::new(),
         }
@@ -151,6 +173,10 @@ impl Settings {
     /// Clamps values a hand-edited config file may have out of range.
     pub fn normalized(mut self) -> Self {
         self.notification_threshold_days = self.notification_threshold_days.min(Self::NOTIFICATION_THRESHOLD_MAX);
+        self.sync.interval = self
+            .sync
+            .interval
+            .clamp(SyncSettings::INTERVAL_MIN, SyncSettings::INTERVAL_MAX);
         self
     }
 }

@@ -1,6 +1,7 @@
 //! Interfaces to the outside world, implemented by the infrastructure crate.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use floetask_domain::Date;
 
@@ -9,6 +10,7 @@ use crate::error::AppError;
 use crate::saved_filters::SavedFilter;
 use crate::settings::{Settings, WatcherOptions};
 use crate::state::AppState;
+use crate::sync::{StoreLocation, SyncLink};
 
 pub trait FileSystem: Send + Sync {
     /// Reads a whole text file.
@@ -17,6 +19,18 @@ pub trait FileSystem: Send + Sync {
     /// Replaces a file's content. With `safe`, the write goes through a
     /// verified temporary file and a backup so a crash cannot lose data.
     fn write(&self, path: &Path, content: &str, safe: bool) -> Result<(), AppError>;
+
+    /// Replaces a file's content only if it still holds `expected`, the
+    /// content it was read with; otherwise fails with
+    /// [`AppError::Changed`], so a sync and an edit never overwrite each
+    /// other's change. The default checks just before writing; the real
+    /// file system checks just before the final rename.
+    fn write_if_unchanged(&self, path: &Path, content: &str, expected: &str, safe: bool) -> Result<(), AppError> {
+        if self.read(path)? != expected {
+            return Err(AppError::Changed(path.to_path_buf()));
+        }
+        self.write(path, content, safe)
+    }
 
     fn exists(&self, path: &Path) -> bool;
 
@@ -120,4 +134,52 @@ pub trait Updater: Send + Sync {
     /// verifies its signature and starts its installer. On success the
     /// installer replaces the running app, which may exit before this returns.
     fn install(&self, version: &str) -> Result<(), AppError>;
+}
+
+/// The version of a shared copy as its store reports it: a content hash, an
+/// ETag. Only compared for equality.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Version(pub String);
+
+/// Where shared copies live: a synced folder, later a bucket or a service.
+/// Names are `/`-separated paths inside the store, such as `acme.txt` or
+/// `acme-notes/plan.md`.
+pub trait RemoteStore: Send + Sync {
+    /// A shared copy and its version, or `None` when it does not exist.
+    /// Fails when the store cannot be reached.
+    fn get(&self, name: &str) -> Result<Option<(String, Version)>, AppError>;
+
+    /// Writes a shared copy only if it is still at `expected`, or, with
+    /// `None`, only if it does not exist yet. Fails with
+    /// [`AppError::Changed`] otherwise. Returns the new version.
+    fn put(&self, name: &str, content: &str, expected: Option<&Version>) -> Result<Version, AppError>;
+
+    /// Copies a sync tool made of `name` when two computers changed it at
+    /// once (`acme-PC.txt`, `acme (conflicted copy …).txt`), by name.
+    fn conflict_copies(&self, name: &str) -> Result<Vec<String>, AppError>;
+
+    /// Deletes a file; only used for conflict copies once merged.
+    fn remove(&self, name: &str) -> Result<(), AppError>;
+
+    /// A local folder whose changes mean the store changed, for stores the
+    /// file watcher can follow.
+    fn watch_path(&self) -> Option<PathBuf>;
+}
+
+/// Opens the store a link points at.
+pub trait RemoteStores: Send + Sync {
+    fn open(&self, location: &StoreLocation) -> Arc<dyn RemoteStore>;
+}
+
+/// The linked files and the base copy of each, the content both sides had
+/// at their last sync.
+pub trait SyncLinkStore: Send + Sync {
+    fn load(&self) -> Result<Vec<SyncLink>, AppError>;
+    fn save(&self, links: &[SyncLink]) -> Result<(), AppError>;
+    /// The base copy of the linked file `local` (`item` empty) or of one of
+    /// its notes (`item` the note name). `None` when there is none yet.
+    fn base(&self, local: &Path, item: &str) -> Result<Option<String>, AppError>;
+    fn set_base(&self, local: &Path, item: &str, content: &str) -> Result<(), AppError>;
+    /// Forgets every base copy of a linked file.
+    fn remove_bases(&self, local: &Path) -> Result<(), AppError>;
 }

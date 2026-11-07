@@ -4,7 +4,7 @@
 //! | Directory | Default | Holds |
 //! |---|---|---|
 //! | config | `~/.config/floetask` | `config.toml`, `colors.toml`, `filters.toml`: what the user configures |
-//! | state | `~/.local/state/floetask` | `state.toml`, `notified.toml`: where you left off, history |
+//! | state | `~/.local/state/floetask` | `state.toml`, `notified.toml`, `sync.toml` and `sync/`: where you left off, history, linked files and their base copies |
 //!
 //! Saved filters are configuration: the user writes them on purpose and may
 //! want to keep them under version control next to `config.toml`. Nothing
@@ -71,6 +71,16 @@ impl AppPaths {
 
     pub fn notified_file(&self) -> PathBuf {
         self.state_dir.join("notified.toml")
+    }
+
+    /// Linked files and where their shared copies are.
+    pub fn sync_file(&self) -> PathBuf {
+        self.state_dir.join("sync.toml")
+    }
+
+    /// Base copies of linked files: their content at the last sync.
+    pub fn sync_dir(&self) -> PathBuf {
+        self.state_dir.join("sync")
     }
 }
 

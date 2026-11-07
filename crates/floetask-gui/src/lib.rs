@@ -26,6 +26,7 @@ mod list;
 mod note_window;
 mod search;
 mod settings;
+mod sync;
 
 #[cfg(test)]
 mod tests;

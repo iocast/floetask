@@ -55,10 +55,18 @@ pub enum Icon {
     Window,
     Sort,
     Heart,
+    /// A linked file in sync with its shared copy; sharing.
+    Cloud,
+    /// The store of a shared copy cannot be reached; stop sharing.
+    CloudOff,
+    /// Syncing, or waiting for the first sync.
+    Sync,
+    /// Conflicts to settle, a shared copy gone missing.
+    Alert,
 }
 
 impl Icon {
-    const ALL: [Icon; 46] = [
+    const ALL: [Icon; 50] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -105,6 +113,10 @@ impl Icon {
         Icon::Window,
         Icon::Sort,
         Icon::Heart,
+        Icon::Cloud,
+        Icon::CloudOff,
+        Icon::Sync,
+        Icon::Alert,
     ];
 
     /// The SVG body (elements inside the 24×24 canvas).
@@ -183,6 +195,12 @@ impl Icon {
             Icon::Heart => {
                 r#"<path d="M12 20s-7.5-4.6-9-9.2C2 7.6 4.2 5 7 5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 2.8 0 5 2.6 4 5.8-1.5 4.6-9 9.2-9 9.2z"/>"#
             }
+            Icon::Cloud => r#"<path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 9.5a4.25 4.25 0 0 1-.5 8.5z"/>"#,
+            Icon::CloudOff => {
+                r#"<path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 9.5a4.25 4.25 0 0 1-.5 8.5zM3 3l18 18"/>"#
+            }
+            Icon::Sync => r#"<path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M19 3v4h-4M5 21v-4h4"/>"#,
+            Icon::Alert => r#"<path d="M12 3.5l9.5 16.5h-19zM12 10v4.5M12 17.5h.01"/>"#,
             Icon::Window => {
                 r#"<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M6.5 6.5h.01M9 6.5h.01"/>"#
             }

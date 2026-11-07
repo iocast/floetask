@@ -113,13 +113,13 @@ impl TodoDocument {
 
     /// Replaces the todo at `line` with zero or more todos.
     pub fn replace(&mut self, line: usize, expected_raw: &str, replacement: Vec<Todo>) -> Result<(), DocumentError> {
-        self.check(line, expected_raw)?;
+        let line = self.locate(line, expected_raw)?;
         self.lines.splice(line..=line, replacement.into_iter().map(Line::Todo));
         Ok(())
     }
 
     pub fn remove(&mut self, line: usize, expected_raw: &str) -> Result<Todo, DocumentError> {
-        self.check(line, expected_raw)?;
+        let line = self.locate(line, expected_raw)?;
         match self.lines.remove(line) {
             Line::Todo(todo) => Ok(todo),
             Line::Verbatim(_) => Err(DocumentError::MissingLine { line }),
@@ -158,11 +158,22 @@ impl TodoDocument {
         &self.exclude_prefixes
     }
 
-    fn check(&self, line: usize, expected_raw: &str) -> Result<(), DocumentError> {
-        match self.lines.get(line) {
-            Some(Line::Todo(todo)) if todo.raw() == expected_raw => Ok(()),
-            Some(Line::Todo(_)) => Err(DocumentError::StaleLine { line }),
-            _ => Err(DocumentError::MissingLine { line }),
+    /// The line of the todo the caller saw at `line` as `expected_raw`.
+    /// Lines added or removed above it (by a sync, another app) move it;
+    /// it is still found when no other todo has the same text.
+    pub fn locate(&self, line: usize, expected_raw: &str) -> Result<usize, DocumentError> {
+        let holds =
+            |index: usize| matches!(self.lines.get(index), Some(Line::Todo(todo)) if todo.raw() == expected_raw);
+        if holds(line) {
+            return Ok(line);
+        }
+        let mut found = (0..self.lines.len()).filter(|&index| holds(index));
+        match (found.next(), found.next()) {
+            (Some(moved), None) => Ok(moved),
+            _ => match self.lines.get(line) {
+                Some(Line::Todo(_)) => Err(DocumentError::StaleLine { line }),
+                _ => Err(DocumentError::MissingLine { line }),
+            },
         }
     }
 }
@@ -198,6 +209,33 @@ mod tests {
         assert_eq!(err, DocumentError::StaleLine { line: 1 });
         doc.replace(1, "two", vec![Todo::parse("2"), Todo::parse("3")]).unwrap();
         assert_eq!(doc.to_content(), "one\n2\n3\n");
+    }
+
+    #[test]
+    fn edits_find_a_todo_that_moved() {
+        let mut doc = TodoDocument::parse(
+            "new
+one
+two
+",
+            &[],
+        );
+        doc.replace(1, "two", vec![Todo::parse("2")]).unwrap();
+        assert_eq!(
+            doc.to_content(),
+            "new
+one
+2
+"
+        );
+        let mut twice = TodoDocument::parse(
+            "new
+same
+same
+",
+            &[],
+        );
+        assert_eq!(twice.remove(0, "same"), Err(DocumentError::StaleLine { line: 0 }));
     }
 
     #[test]

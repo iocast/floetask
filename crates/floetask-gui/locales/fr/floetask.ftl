@@ -48,6 +48,60 @@ overview = Vue d’ensemble
 overview_hint = Tous les fichiers, groupés par fichier
 toggle_theme = Basculer clair / sombre
 
+## Partage et synchronisation
+
+share_file = Partager…
+join_shared_file = Rejoindre un fichier partagé…
+sync_now = Synchroniser maintenant
+share_again = Partager à nouveau
+stop_sharing = Arrêter le partage
+share_pick_folder = Choisissez le dossier où partager le fichier
+join_pick_shared = Choisissez la copie partagée à rejoindre
+join_pick_local = Où garder votre propre copie
+share_title = Partager { $file }
+share_hint = floetask garde votre fichier et une copie partagée dans ce dossier à jour l’un par rapport à l’autre. Toute personne qui synchronise le dossier (OneDrive, Dropbox, Syncthing) et rejoint la copie partagée voit les mêmes tâches.
+share_shared_copy = Copie partagée
+share_choose_folder = Choisir un dossier…
+share_choose_file = Choisir un fichier…
+share_choose_hint = Choisissez un dossier, où une copie nommée comme votre fichier avec « -share » est créée, ou un fichier .txt existant avec lequel partager.
+share_pick_file = Choisissez le fichier avec lequel partager
+share_same_file = La copie partagée ne peut pas être le fichier lui-même.
+share_name = Nom du fichier de la copie partagée
+share_exists = { $name } existe déjà. Le rejoindre fusionne votre fichier avec lui ; les lignes qui diffèrent deviennent des conflits à régler.
+share = Partager
+join = Rejoindre
+sync_shared = { $file } partagé
+sync_joined = { $file } rejoint
+sync_stopped = Partage de { $file } arrêté
+sync_waiting = Pas encore synchronisé
+sync_syncing = Synchronisation…
+sync_in_sync = Synchronisé
+sync_conflict =
+    { $count ->
+        [one] 1 conflit à régler
+       *[other] { $count } conflits à régler
+    }
+sync_offline = Hors ligne : { $error }
+sync_missing = La copie partagée est introuvable. Cliquez pour partager à nouveau le fichier.
+sync_shared_copy = Copie partagée : { $location }
+sync_conflicts = { $file } a des conflits à régler. Cliquez sur le signe d’avertissement à côté du fichier.
+sync_missing_toast = La copie partagée de { $file } est introuvable.
+sync_copies_left = Fusionnez ces copies en conflit à la main : { $names }
+sync_failed = Impossible de synchroniser { $file }
+sync_no_conflicts = Plus aucun conflit.
+sync_changed_meanwhile = Le fichier a changé entre-temps. Vérifiez à nouveau les conflits.
+conflicts_title = Conflits dans { $file }
+conflicts_hint = Ces lignes ont changé des deux côtés ; tout le reste est déjà fusionné. Choisissez la version à garder.
+conflicts_todo_file = Tâches
+conflicts_note = Note { $name }
+conflict_mine = La mienne
+conflict_theirs = L’autre
+conflict_removed = supprimée
+conflict_choose_mine = Garder la mienne
+conflict_choose_theirs = Prendre l’autre
+conflict_choose_both = Garder les deux
+conflicts_apply = Appliquer
+
 ## Counts
 
 counts =
@@ -302,6 +356,9 @@ section_appearance = Apparence
 section_notifications = Notifications
 section_files = Fichiers
 section_about = À propos
+section_sync = Synchronisation
+sync_interval = Synchroniser toutes les { $seconds } secondes
+sync_interval_desc = La fréquence à laquelle les fichiers partagés sont vérifiés pour des changements que la surveillance des fichiers ne signale pas, par exemple sur un lecteur réseau.
 settings_group_general = Général
 settings_group_interface = Interface
 settings_group_app = Application
@@ -409,3 +466,4 @@ error_note_outside = Un nom de note doit rester dans le dossier des notes.
 error_no_done_file = { $file } n’a pas de fichier des tâches terminées pour l’archivage.
 error_empty_todo = La tâche est vide.
 error_config = Configuration invalide : { $details }
+error_changed = { $path } a changé pendant l’enregistrement. Réessayez.

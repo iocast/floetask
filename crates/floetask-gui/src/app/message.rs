@@ -2,7 +2,7 @@ use iced::{keyboard, window};
 
 use floetask_application::{AppError, MainView};
 
-use crate::{board, calendar, drawer, editor, files, list, note_window, search, settings};
+use crate::{board, calendar, drawer, editor, files, list, note_window, search, settings, sync};
 
 /// Everything that can happen in the GUI. Runtime and window events live
 /// here; each feature has its own message type, wrapped in one variant, and
@@ -54,6 +54,7 @@ pub enum Message {
     Settings(settings::Message),
     Board(board::Message),
     Calendar(calendar::Message),
+    Sync(sync::Message),
 }
 
 impl Message {

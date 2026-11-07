@@ -37,6 +37,7 @@ use crate::note_window::NoteWindow;
 use crate::search;
 use crate::search::SearchState;
 use crate::settings::UpdateState;
+use crate::sync::SyncState;
 use crate::theme::Colors;
 
 pub use dialog::{Dialog, Pending};
@@ -166,6 +167,8 @@ pub struct Floetask {
     pub(crate) published: Vec<floetask_application::ports::PublishedRelease>,
     /// The earlier version picked on the About page to roll back to.
     pub(crate) rollback_to: Option<String>,
+    /// Linked files and how their syncs went.
+    pub(crate) sync: SyncState,
 }
 
 impl Floetask {
@@ -195,6 +198,10 @@ impl Floetask {
         }
         let today = ports.clock.today();
         let maximized = state.window.maximized;
+        let links = services.sync.links().unwrap_or_else(|error| {
+            toasts.push(i18n::error_text(&error));
+            Vec::new()
+        });
 
         let mut app = Self {
             services,
@@ -247,9 +254,13 @@ impl Floetask {
             update: UpdateState::default(),
             published: Vec::new(),
             rollback_to: None,
+            sync: SyncState {
+                links,
+                ..SyncState::default()
+            },
         };
         let toast_tasks: Vec<_> = toasts.into_iter().map(|text| app.toast_error(text)).collect();
-        let load_files = Task::batch([app.load_all_files(), app.persist_state()]);
+        let load_files = Task::batch([app.load_all_files(), app.persist_state(), app.sync_all()]);
         let saved_filters = {
             let store = app.services.ports.saved_filters.clone();
             Task::perform(async move { store.load() }, |result| {
@@ -437,6 +448,7 @@ impl Floetask {
             Message::Settings(message) => self.update_settings(message),
             Message::Board(message) => self.update_board(message),
             Message::Calendar(message) => self.update_calendar(message),
+            Message::Sync(message) => self.update_sync(message),
         }
     }
 
@@ -720,6 +732,8 @@ impl Floetask {
             Some(Dialog::SaveFilter { name }) => self.save_filter(name),
             Some(Dialog::MoveToFile { target, to }) => self.move_todo(target, to),
             Some(Dialog::BoardColumns { columns, .. }) => self.save_board_columns(columns),
+            Some(Dialog::Share(dialog)) => self.share(dialog),
+            Some(Dialog::Conflicts(dialog)) => self.resolve_conflicts(dialog),
             Some(Dialog::Editor(editor)) => {
                 self.dialog = Some(Dialog::Editor(editor));
                 self.update_editor(crate::editor::Message::Save)

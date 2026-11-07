@@ -48,6 +48,60 @@ overview = Overview
 overview_hint = All files, grouped by file
 toggle_theme = Switch light / dark
 
+## Sharing and sync
+
+share_file = Share…
+join_shared_file = Join shared file…
+sync_now = Sync now
+share_again = Share again
+stop_sharing = Stop sharing
+share_pick_folder = Pick the folder to share the file in
+join_pick_shared = Pick the shared copy to join
+join_pick_local = Where to keep your own copy
+share_title = Share { $file }
+share_hint = floetask keeps your file and a shared copy in this folder in step. Anyone who syncs the folder (OneDrive, Dropbox, Syncthing) and joins the shared copy sees the same todos.
+share_shared_copy = Shared copy
+share_choose_folder = Choose folder…
+share_choose_file = Choose file…
+share_choose_hint = Choose a folder, where a copy named like your file with “-share” is created, or an existing .txt file to share with.
+share_pick_file = Pick the file to share with
+share_same_file = The shared copy cannot be the file itself.
+share_name = File name of the shared copy
+share_exists = { $name } exists already. Joining merges your file with it; lines that differ become conflicts to settle.
+share = Share
+join = Join
+sync_shared = Shared { $file }
+sync_joined = Joined { $file }
+sync_stopped = Stopped sharing { $file }
+sync_waiting = Not synced yet
+sync_syncing = Syncing…
+sync_in_sync = In sync
+sync_conflict =
+    { $count ->
+        [one] 1 conflict to settle
+       *[other] { $count } conflicts to settle
+    }
+sync_offline = Offline: { $error }
+sync_missing = The shared copy is missing. Click to share the file again.
+sync_shared_copy = Shared copy: { $location }
+sync_conflicts = { $file } has conflicts to settle. Click the warning sign next to the file.
+sync_missing_toast = The shared copy of { $file } is missing.
+sync_copies_left = Merge these conflict copies by hand: { $names }
+sync_failed = Could not sync { $file }
+sync_no_conflicts = No conflicts left.
+sync_changed_meanwhile = The file changed meanwhile. Check the conflicts again.
+conflicts_title = Conflicts in { $file }
+conflicts_hint = These lines changed on both sides; everything else is merged already. Pick the version to keep.
+conflicts_todo_file = Todos
+conflicts_note = Note { $name }
+conflict_mine = Mine
+conflict_theirs = Theirs
+conflict_removed = removed
+conflict_choose_mine = Keep mine
+conflict_choose_theirs = Use theirs
+conflict_choose_both = Keep both
+conflicts_apply = Apply
+
 ## Counts
 
 counts =
@@ -302,6 +356,9 @@ section_appearance = Appearance
 section_notifications = Notifications
 section_files = Files
 section_about = About
+section_sync = Sync
+sync_interval = Sync every { $seconds } seconds
+sync_interval_desc = How often shared files are checked for changes the file watcher does not report, such as on network shares.
 settings_group_general = General
 settings_group_interface = Interface
 settings_group_app = App
@@ -410,3 +467,4 @@ error_note_outside = A note name must stay inside the notes folder.
 error_no_done_file = { $file } has no done file to archive into.
 error_empty_todo = The todo is empty.
 error_config = Invalid configuration: { $details }
+error_changed = { $path } changed while it was being saved. Try again.

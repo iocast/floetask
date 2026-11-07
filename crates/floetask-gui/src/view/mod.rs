@@ -20,7 +20,7 @@ use floetask_application::MainView;
 
 use self::drag_layer::drag_layer;
 use crate::app::{Dialog, Floetask, Message};
-use crate::{board, calendar, drawer, editor, files, list, search, settings, theme};
+use crate::{board, calendar, drawer, editor, files, list, search, settings, sync, theme};
 
 pub const LIST_ID: &str = "todo-list";
 pub const SEARCH_ID: &str = "search";
@@ -99,9 +99,11 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
             Dialog::SaveFilter { name } => search::save_filter_dialog(app, name),
             Dialog::MoveToFile { target, to } => list::move_dialog(app, target, to),
             Dialog::BoardColumns { columns, input } => board::columns_dialog(app, columns, input),
+            Dialog::Share(dialog) => sync::share_dialog(app, dialog),
+            Dialog::Conflicts(dialog) => sync::conflicts_dialog(app, dialog),
         };
         layers = layers.push(match dialog {
-            Dialog::Settings(_) => widgets::large_modal(content, colors),
+            Dialog::Settings(_) | Dialog::Conflicts(_) => widgets::large_modal(content, colors),
             _ => widgets::modal(content, colors),
         });
     }

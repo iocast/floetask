@@ -4,6 +4,9 @@
 //! Parent directories are watched rather than the files themselves: many
 //! editors and sync tools replace a file by renaming a new one over it,
 //! which would silently end a watch on the old file.
+//!
+//! A watched folder reports a change of any file directly in it under the
+//! folder's path: a synced folder where conflict copies may appear.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -28,6 +31,11 @@ impl FileWatcher for NotifyFileWatcher {
     ) -> Result<WatchGuard, AppError> {
         // Normalised path -> path as the caller knows it.
         let watched: BTreeMap<PathBuf, PathBuf> = paths.iter().map(|p| (normalize(p), p.clone())).collect();
+        let folders: BTreeMap<PathBuf, PathBuf> = watched
+            .iter()
+            .filter(|(normalized, _)| normalized.is_dir())
+            .map(|(normalized, path)| (normalized.clone(), path.clone()))
+            .collect();
         let handler = {
             let watched = watched.clone();
             move |result: DebounceEventResult| {
@@ -35,8 +43,10 @@ impl FileWatcher for NotifyFileWatcher {
                 let changed: BTreeSet<PathBuf> = events
                     .iter()
                     .flat_map(|event| event.paths.iter())
-                    .map(|path| normalize(path))
-                    .filter_map(|path| watched.get(&path).cloned())
+                    .filter_map(|path| {
+                        let in_folder = || path.parent().and_then(|parent| folders.get(&normalize(parent)));
+                        watched.get(&normalize(path)).or_else(in_folder).cloned()
+                    })
                     .collect();
                 for path in changed {
                     on_change(path);
@@ -46,7 +56,13 @@ impl FileWatcher for NotifyFileWatcher {
         let timeout = Duration::from_millis(options.debounce_ms.max(1));
         let directories: BTreeSet<PathBuf> = watched
             .keys()
-            .filter_map(|p| p.parent().map(Path::to_path_buf))
+            .filter_map(|p| {
+                if p.is_dir() {
+                    Some(p.clone())
+                } else {
+                    p.parent().map(Path::to_path_buf)
+                }
+            })
             .collect();
 
         if options.polling {
@@ -125,5 +141,31 @@ mod tests {
         std::fs::write(&todo, "b\n").unwrap();
         let changed = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_eq!(changed, todo);
+    }
+
+    #[test]
+    fn reports_new_files_in_a_watched_folder_as_the_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let shared = dir.path().join("OneDrive");
+        std::fs::create_dir(&shared).unwrap();
+        let (sender, receiver) = mpsc::channel();
+        let sender = std::sync::Mutex::new(sender);
+        let options = WatcherOptions {
+            debounce_ms: 50,
+            ..WatcherOptions::default()
+        };
+        let _guard = NotifyFileWatcher
+            .watch(
+                std::slice::from_ref(&shared),
+                &options,
+                Box::new(move |path| {
+                    let _ = sender.lock().unwrap().send(path);
+                }),
+            )
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        std::fs::write(shared.join("acme-PC.txt"), "x\n").unwrap();
+        let changed = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(changed, shared);
     }
 }

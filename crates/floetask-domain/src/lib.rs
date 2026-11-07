@@ -14,6 +14,7 @@ pub mod date;
 pub mod document;
 pub mod human_date;
 pub mod listing;
+pub mod merge;
 pub mod natural_date;
 pub mod note;
 pub mod priority;

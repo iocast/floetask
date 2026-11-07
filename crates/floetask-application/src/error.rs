@@ -13,6 +13,10 @@ pub enum AppError {
     Document(#[from] DocumentError),
     #[error(transparent)]
     Note(#[from] NoteError),
+    /// A conditional write found the file changed since it was read: by a
+    /// sync, another app, another computer. Read again and retry.
+    #[error("{0} changed while it was being saved")]
+    Changed(PathBuf),
     #[error("{0} has no done file to archive into")]
     NoDoneFile(PathBuf),
     #[error("the todo is empty")]

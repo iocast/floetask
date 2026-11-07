@@ -16,6 +16,7 @@ pub mod ports;
 pub mod saved_filters;
 pub mod settings;
 pub mod state;
+pub mod sync;
 pub mod todo_files;
 pub mod updates;
 
@@ -24,8 +25,9 @@ pub use error::AppError;
 pub use notes::{NoteService, NoteStatus};
 pub use notifications::{DueNotification, NotificationService};
 pub use saved_filters::SavedFilter;
-pub use settings::{MonthOverflow, Settings, ThemePreference, UpdateChannel, WatcherOptions};
+pub use settings::{MonthOverflow, Settings, SyncSettings, ThemePreference, UpdateChannel, WatcherOptions};
 pub use state::{AppState, DrawerTab, FileSort, MainView, TodoFileEntry, WindowState};
+pub use sync::{ItemConflicts, ShareOutcome, StoreLocation, SyncLink, SyncReport, SyncService, SyncStatus};
 pub use todo_files::{FileOptions, InputOptions, TodoFileService, TodoRef};
 
 use std::sync::Arc;
@@ -45,6 +47,8 @@ pub struct Ports {
     pub desktop: Arc<dyn ports::Desktop>,
     pub colors: Arc<dyn ports::ColorStore>,
     pub updater: Arc<dyn ports::Updater>,
+    pub remote_stores: Arc<dyn ports::RemoteStores>,
+    pub sync_links: Arc<dyn ports::SyncLinkStore>,
 }
 
 /// The services the GUI uses. Built once from [`Ports`].
@@ -53,6 +57,7 @@ pub struct Services {
     pub todo_files: TodoFileService,
     pub notes: NoteService,
     pub notifications: NotificationService,
+    pub sync: SyncService,
     pub ports: Ports,
 }
 
@@ -65,6 +70,11 @@ impl Services {
                 ports.notifier.clone(),
                 ports.notification_log.clone(),
                 ports.clock.clone(),
+            ),
+            sync: SyncService::new(
+                ports.files.clone(),
+                ports.remote_stores.clone(),
+                ports.sync_links.clone(),
             ),
             ports,
         }

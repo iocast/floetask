@@ -33,9 +33,10 @@ impl Floetask {
                         .file_name()
                         .map(|name| name.to_string_lossy().into_owned())
                         .unwrap_or_default();
-                    let _ = self.document_saved(from, left);
-                    let _ = self.document_saved(to, other);
-                    self.toast(trf("moved_to_file", &[("file", name.into())]))
+                    let synced_from = self.document_saved(from, left);
+                    let synced_to = self.document_saved(to, other);
+                    let toast = self.toast(trf("moved_to_file", &[("file", name.into())]));
+                    Task::batch([synced_from, synced_to, toast])
                 }
                 Err(error) => {
                     let reload = self.load(to);
@@ -180,7 +181,7 @@ impl Floetask {
         Task::batch(self.state.files.iter().map(|entry| self.load(entry.path.clone())))
     }
 
-    fn load(&self, path: PathBuf) -> Task<Message> {
+    pub(crate) fn load(&self, path: PathBuf) -> Task<Message> {
         let service = self.services.todo_files.clone();
         let options = self.file_options();
         Task::perform(
@@ -230,9 +231,12 @@ impl Floetask {
             });
         }
         if self.state.files.iter().any(|entry| entry.path == path) {
-            self.load(path)
+            // A linked file changed outside floetask: pass the change on too.
+            let sync = self.request_sync(&path);
+            Task::batch([self.load(path), sync])
         } else {
-            Task::none()
+            // The folder of a shared copy.
+            self.sync_folder(&path)
         }
     }
 
@@ -242,12 +246,13 @@ impl Floetask {
         self.shown_paths().iter().any(|shown| shown == path)
     }
 
+    /// Shows a saved file and passes the change on to its shared copy.
     fn document_saved(&mut self, path: PathBuf, document: TodoDocument) -> Task<Message> {
         self.documents.insert(path.clone(), document);
         if self.is_shown(&path) {
             self.refresh();
         }
-        Task::none()
+        self.request_sync(&path)
     }
 
     /// A failed change usually means the file changed underneath: show the

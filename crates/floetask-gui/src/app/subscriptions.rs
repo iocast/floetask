@@ -1,5 +1,6 @@
-//! Event sources: keyboard, window, system theme, file watcher and a
-//! periodic tick for notifications and the date rollover.
+//! Event sources: keyboard, window, system theme, file watcher, a
+//! periodic tick for notifications and the date rollover, and the sync
+//! interval of linked files.
 
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
@@ -13,7 +14,7 @@ use floetask_application::WatcherOptions;
 use floetask_application::ports::FileWatcher;
 
 use super::{Dialog, Floetask, Message};
-use crate::{editor, files, note_window};
+use crate::{editor, files, note_window, sync};
 
 const TICK: Duration = Duration::from_secs(60);
 
@@ -45,6 +46,7 @@ pub(super) fn all(app: &Floetask) -> Subscription<Message> {
         }),
         iced::system::theme_changes().map(|mode| Message::SystemDark(mode == iced::theme::Mode::Dark)),
         iced::time::every(TICK).map(|_| Message::Tick),
+        sync_interval(app),
         watch(app),
         note_editors(app),
     ])
@@ -89,6 +91,16 @@ fn note_editors(app: &Floetask) -> Subscription<Message> {
     Subscription::batch(subscriptions)
 }
 
+/// Syncs every linked file each `sync.interval` seconds, for stores the
+/// watcher cannot follow and changes it missed.
+fn sync_interval(app: &Floetask) -> Subscription<Message> {
+    if app.sync.links.is_empty() {
+        return Subscription::none();
+    }
+    let seconds = app.settings.sync.interval.max(1);
+    iced::time::every(Duration::from_secs(seconds)).map(|_| Message::Sync(sync::Message::Interval))
+}
+
 /// What to watch. Hashed by generation and paths, so the subscription is
 /// restarted whenever the set of files changes.
 #[derive(Clone)]
@@ -112,6 +124,9 @@ impl Hash for WatchRequest {
 fn watch(app: &Floetask) -> Subscription<Message> {
     let mut paths: Vec<PathBuf> = app.state.files.iter().map(|entry| entry.path.clone()).collect();
     paths.push(app.services.ports.saved_filters.location());
+    // The folders of shared copies, where a sync tool writes changes and
+    // conflict copies.
+    paths.extend(app.services.sync.watch_paths(&app.sync.links));
     let request = WatchRequest {
         generation: app.watch_generation,
         paths,

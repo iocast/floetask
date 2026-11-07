@@ -3,6 +3,10 @@
 //! Every change reads the file fresh, checks that the targeted line still
 //! holds what the user saw, applies the domain rule and writes the result.
 //! The returned document is what the GUI shows next.
+//!
+//! Writes only replace the content the change was based on: when a sync or
+//! another app changed the file in between, the change is applied again to
+//! the new content, so neither overwrites the other.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -135,7 +139,7 @@ impl TodoFileService {
             return Err(AppError::EmptyTodo);
         }
         self.modify(path, options, |document| {
-            document.append(todos);
+            document.append(todos.clone());
             Ok(())
         })
         .map(|(document, ())| document)
@@ -155,7 +159,7 @@ impl TodoFileService {
         if todo.is_empty() {
             return Err(AppError::EmptyTodo);
         }
-        self.replace(path, target, options, |_| vec![todo])
+        self.replace(path, target, options, |_| vec![todo.clone()])
     }
 
     /// Completes or un-completes a todo. Completing a recurring todo appends
@@ -254,11 +258,11 @@ impl TodoFileService {
         done_path: &Path,
         options: &FileOptions,
     ) -> Result<(TodoDocument, usize), AppError> {
-        let mut document = self.load(path, options)?;
+        let (content, mut document) = self.load_content(path, options)?;
         let completed = document.take_completed();
         let count = completed.len();
         if count > 0 {
-            self.move_to_done(path, done_path, completed, &document, options)?;
+            self.move_to_done(path, done_path, completed, (&content, &document), options)?;
         }
         Ok((document, count))
     }
@@ -271,9 +275,9 @@ impl TodoFileService {
         target: &TodoRef,
         options: &FileOptions,
     ) -> Result<TodoDocument, AppError> {
-        let mut document = self.load(path, options)?;
+        let (content, mut document) = self.load_content(path, options)?;
         let todo = document.remove(target.line, &target.raw)?;
-        self.move_to_done(path, done_path, vec![todo], &document, options)?;
+        self.move_to_done(path, done_path, vec![todo], (&content, &document), options)?;
         Ok(document)
     }
 
@@ -291,9 +295,9 @@ impl TodoFileService {
         if path == to_path {
             return Err(AppError::Other("the todo is already in that file".to_owned()));
         }
-        let mut document = self.load(path, options)?;
+        let (content, mut document) = self.load_content(path, options)?;
         let todo = document.remove(target.line, &target.raw)?;
-        let other = self.transfer(path, to_path, vec![todo], &document, options)?;
+        let other = self.transfer(path, to_path, vec![todo], (&content, &document), options)?;
         Ok((document, other))
     }
 
@@ -303,7 +307,7 @@ impl TodoFileService {
         path: &Path,
         done_path: &Path,
         todos: Vec<Todo>,
-        staying: &TodoDocument,
+        staying: (&str, &TodoDocument),
         options: &FileOptions,
     ) -> Result<(), AppError> {
         self.transfer(path, done_path, todos, staying, options).map(drop)
@@ -314,32 +318,40 @@ impl TodoFileService {
     /// crash can at worst duplicate todos, never lose them. Notes are copied
     /// before either file is written and the originals removed last, so an
     /// interruption can at worst leave a note in both folders.
+    ///
+    /// `staying` is the file's content as read and what stays of it. When
+    /// the file changed in between, the write fails and the moved todos are
+    /// in both files: duplicated, never lost.
     fn transfer(
         &self,
         path: &Path,
         to_path: &Path,
         todos: Vec<Todo>,
-        staying: &TodoDocument,
+        (content, staying): (&str, &TodoDocument),
         options: &FileOptions,
     ) -> Result<TodoDocument, AppError> {
         let (todos, notes) = NoteTransfer::plan(self.files.as_ref(), path, to_path, todos, staying);
         notes.copy(self.files.as_ref())?;
         let other = self.append_to(to_path, todos, options)?;
-        self.files.write(path, &staying.to_content(), options.safe_writes)?;
+        self.files
+            .write_if_unchanged(path, &staying.to_content(), content, options.safe_writes)?;
         notes.remove_originals(self.files.as_ref());
         Ok(other)
     }
 
     /// Appends todos to a file, creating it when it does not exist yet.
     fn append_to(&self, path: &Path, todos: Vec<Todo>, options: &FileOptions) -> Result<TodoDocument, AppError> {
-        let mut document = if self.files.exists(path) {
-            self.load(path, options)?
-        } else {
-            TodoDocument::parse("", &options.exclude_prefixes)
-        };
-        document.append(todos);
-        self.files.write(path, &document.to_content(), options.safe_writes)?;
-        Ok(document)
+        if !self.files.exists(path) {
+            let mut document = TodoDocument::parse("", &options.exclude_prefixes);
+            document.append(todos);
+            self.files.write(path, &document.to_content(), options.safe_writes)?;
+            return Ok(document);
+        }
+        self.modify(path, options, |document| {
+            document.append(todos.clone());
+            Ok(())
+        })
+        .map(|(document, ())| document)
     }
 
     fn convert_dates(&self, text: &str, input: &InputOptions) -> String {
@@ -355,33 +367,54 @@ impl TodoFileService {
         path: &Path,
         target: &TodoRef,
         options: &FileOptions,
-        change: impl FnOnce(&Todo) -> Vec<Todo>,
+        change: impl Fn(&Todo) -> Vec<Todo>,
     ) -> Result<TodoDocument, AppError> {
         self.modify(path, options, |document| {
+            let line = document.locate(target.line, &target.raw)?;
             let current = document
-                .todo_at(target.line)
-                .ok_or(floetask_domain::DocumentError::MissingLine { line: target.line })?
+                .todo_at(line)
+                .ok_or(floetask_domain::DocumentError::MissingLine { line })?
                 .clone();
-            document.replace(target.line, &target.raw, change(&current))?;
+            document.replace(line, &target.raw, change(&current))?;
             Ok(())
         })
         .map(|(document, ())| document)
     }
 
+    /// The file's content as read, and parsed.
+    fn load_content(&self, path: &Path, options: &FileOptions) -> Result<(String, TodoDocument), AppError> {
+        let content = self.files.read(path)?;
+        let document = TodoDocument::parse(&content, &options.exclude_prefixes);
+        Ok((content, document))
+    }
+
+    /// Applies `change` to the file and writes the result. When the file
+    /// changed since it was read (a sync wrote a merge), the change is
+    /// applied once more to the new content.
     fn modify<T>(
         &self,
         path: &Path,
         options: &FileOptions,
-        change: impl FnOnce(&mut TodoDocument) -> Result<T, AppError>,
+        mut change: impl FnMut(&mut TodoDocument) -> Result<T, AppError>,
     ) -> Result<(TodoDocument, T), AppError> {
-        let mut document = self.load(path, options)?;
-        let before = document.to_content();
-        let result = change(&mut document)?;
-        let after = document.to_content();
-        if after != before {
-            self.files.write(path, &after, options.safe_writes)?;
+        let mut retried = false;
+        loop {
+            let (content, mut document) = self.load_content(path, options)?;
+            let before = document.to_content();
+            let result = change(&mut document)?;
+            let after = document.to_content();
+            if after == before {
+                return Ok((document, result));
+            }
+            match self
+                .files
+                .write_if_unchanged(path, &after, &content, options.safe_writes)
+            {
+                Ok(()) => return Ok((document, result)),
+                Err(AppError::Changed(_)) if !retried => retried = true,
+                Err(error) => return Err(error),
+            }
         }
-        Ok((document, result))
     }
 }
 

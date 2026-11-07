@@ -54,6 +54,8 @@ pub enum SettingChange {
     StatusMove(usize, isize),
     StatusHidden(String, bool),
     Language(String),
+    /// Seconds between syncs of linked files.
+    SyncInterval(u16),
 }
 
 /// A page of the settings dialog, chosen in its sidebar.
@@ -66,6 +68,7 @@ pub enum SettingsSection {
     Appearance,
     Notifications,
     Files,
+    Sync,
     About,
 }
 
@@ -86,7 +89,10 @@ impl SettingsSection {
             "settings_group_interface",
             &[SettingsSection::Appearance, SettingsSection::Notifications],
         ),
-        ("settings_group_app", &[SettingsSection::Files, SettingsSection::About]),
+        (
+            "settings_group_app",
+            &[SettingsSection::Files, SettingsSection::Sync, SettingsSection::About],
+        ),
     ];
 
     /// Translation key of the section title.
@@ -98,6 +104,7 @@ impl SettingsSection {
             SettingsSection::Appearance => "section_appearance",
             SettingsSection::Notifications => "section_notifications",
             SettingsSection::Files => "section_files",
+            SettingsSection::Sync => "section_sync",
             SettingsSection::About => "section_about",
         }
     }

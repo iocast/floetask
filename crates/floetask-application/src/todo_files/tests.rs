@@ -333,3 +333,62 @@ fn moving_to_the_same_file_is_refused() {
     assert!(result.is_err());
     assert_eq!(files.get(TODO), "a\n");
 }
+
+/// Adds a line at the top once, between a change's read and its write, as
+/// a sync writing its merge would.
+struct SyncingFiles {
+    inner: Arc<MemoryFiles>,
+    sync_writes: Mutex<Option<&'static str>>,
+}
+
+impl FileSystem for SyncingFiles {
+    fn read(&self, path: &Path) -> Result<String, AppError> {
+        self.inner.read(path)
+    }
+    fn write(&self, path: &Path, content: &str, safe: bool) -> Result<(), AppError> {
+        self.inner.write(path, content, safe)
+    }
+    fn exists(&self, path: &Path) -> bool {
+        self.inner.exists(path)
+    }
+    fn remove(&self, path: &Path) -> Result<(), AppError> {
+        self.inner.remove(path)
+    }
+    fn write_if_unchanged(&self, path: &Path, content: &str, expected: &str, safe: bool) -> Result<(), AppError> {
+        if let Some(line) = self.sync_writes.lock().unwrap().take() {
+            let merged = format!("{line}\n{}", self.inner.read(path)?);
+            self.inner.write(path, &merged, false)?;
+        }
+        if self.inner.read(path)? != expected {
+            return Err(AppError::Changed(path.to_owned()));
+        }
+        self.inner.write(path, content, safe)
+    }
+}
+
+#[test]
+fn a_change_written_meanwhile_is_kept_and_the_edit_applied_again() {
+    let memory = MemoryFiles::with(&[(TODO, "first\nsecond\n")]);
+    let files = Arc::new(SyncingFiles {
+        inner: memory.clone(),
+        sync_writes: Mutex::new(Some("from sync")),
+    });
+    let svc = TodoFileService::new(files.clone(), Arc::new(FixedClock));
+    svc.toggle_complete(Path::new(TODO), &target(1, "second"), &FileOptions::default())
+        .unwrap();
+    let completed = "x 2024-03-13 2024-03-13 second";
+    assert_eq!(memory.get(TODO), format!("from sync\nfirst\n{completed}\n"));
+
+    *files.sync_writes.lock().unwrap() = Some("again");
+    svc.add(
+        Path::new(TODO),
+        "third",
+        &InputOptions::default(),
+        &FileOptions::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        memory.get(TODO),
+        format!("again\nfrom sync\nfirst\n{completed}\nthird\n")
+    );
+}

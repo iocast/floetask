@@ -4,13 +4,14 @@
 //! Set `FLOETASK_SNAPSHOTS=<dir>` to also write PNG snapshots of each screen
 //! for a visual check.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use floetask_application::ports::*;
 use floetask_application::{
-    AppError, AppState, ColorOverrides, NoteStatus, Ports, SavedFilter, Services, Settings, WatcherOptions,
+    AppError, AppState, ColorOverrides, NoteStatus, Ports, SavedFilter, Services, Settings, StoreLocation, SyncLink,
+    SyncStatus, WatcherOptions,
 };
 use floetask_domain::date::parse_iso;
 use floetask_domain::listing::Attribute;
@@ -22,7 +23,7 @@ use crate::app::{Dialog, Floetask, Message, Startup, Target};
 use crate::drawer::ViewToggle;
 use crate::editor::NoteSave;
 use crate::settings::SettingChange;
-use crate::{board, calendar, drawer, editor, files, list, search, settings};
+use crate::{board, calendar, drawer, editor, files, list, search, settings, sync};
 
 const TODO_PATH: &str = "/test/todo.txt";
 const SAMPLE: &str = "\
@@ -187,6 +188,89 @@ impl ColorStore for Fixed {
     }
 }
 
+/// The folder shared copies are in, kept in memory. A copy's version is
+/// its content.
+#[derive(Default)]
+struct SharedFolder(Mutex<BTreeMap<String, String>>);
+
+impl SharedFolder {
+    fn text(&self, name: &str) -> Option<String> {
+        self.0.lock().unwrap().get(name).cloned()
+    }
+    fn set(&self, name: &str, content: &str) {
+        self.0.lock().unwrap().insert(name.to_owned(), content.to_owned());
+    }
+}
+
+impl RemoteStore for SharedFolder {
+    fn get(&self, name: &str) -> Result<Option<(String, Version)>, AppError> {
+        Ok(self.text(name).map(|text| (text.clone(), Version(text))))
+    }
+    fn put(&self, name: &str, content: &str, expected: Option<&Version>) -> Result<Version, AppError> {
+        if self.text(name).map(Version).as_ref() != expected {
+            return Err(AppError::Changed(PathBuf::from(name)));
+        }
+        self.set(name, content);
+        Ok(Version(content.to_owned()))
+    }
+    fn conflict_copies(&self, _: &str) -> Result<Vec<String>, AppError> {
+        Ok(Vec::new())
+    }
+    fn remove(&self, name: &str) -> Result<(), AppError> {
+        self.0.lock().unwrap().remove(name);
+        Ok(())
+    }
+    fn watch_path(&self) -> Option<PathBuf> {
+        Some(PathBuf::from(SHARED_FOLDER))
+    }
+}
+
+const SHARED_FOLDER: &str = "/shared";
+
+/// Every store is the one shared folder.
+struct Stores(Arc<SharedFolder>);
+
+impl RemoteStores for Stores {
+    fn open(&self, _: &StoreLocation) -> Arc<dyn RemoteStore> {
+        self.0.clone()
+    }
+}
+
+#[derive(Default)]
+struct Links {
+    links: Mutex<Vec<SyncLink>>,
+    bases: Mutex<HashMap<(PathBuf, String), String>>,
+}
+
+impl SyncLinkStore for Links {
+    fn load(&self) -> Result<Vec<SyncLink>, AppError> {
+        Ok(self.links.lock().unwrap().clone())
+    }
+    fn save(&self, links: &[SyncLink]) -> Result<(), AppError> {
+        *self.links.lock().unwrap() = links.to_vec();
+        Ok(())
+    }
+    fn base(&self, local: &Path, item: &str) -> Result<Option<String>, AppError> {
+        Ok(self
+            .bases
+            .lock()
+            .unwrap()
+            .get(&(local.to_owned(), item.to_owned()))
+            .cloned())
+    }
+    fn set_base(&self, local: &Path, item: &str, content: &str) -> Result<(), AppError> {
+        self.bases
+            .lock()
+            .unwrap()
+            .insert((local.to_owned(), item.to_owned()), content.to_owned());
+        Ok(())
+    }
+    fn remove_bases(&self, local: &Path) -> Result<(), AppError> {
+        self.bases.lock().unwrap().retain(|(path, _), _| path != local);
+        Ok(())
+    }
+}
+
 /// An app showing `SAMPLE`, as if the file had finished loading.
 fn app() -> Floetask {
     let files = Arc::new(MemoryFiles::default());
@@ -214,6 +298,8 @@ fn app() -> Floetask {
         desktop: fixed.clone(),
         colors: fixed.clone(),
         updater: fixed,
+        remote_stores: Arc::new(Stores(Arc::new(SharedFolder::default()))),
+        sync_links: Arc::new(Links::default()),
     };
     let (mut app, _) = Floetask::boot(Startup {
         services: Services::new(ports),
@@ -2712,4 +2798,223 @@ fn hovering_a_row_keeps_the_list_in_place() {
     let _ = app.update(Message::List(list::Message::Hover(Some(first))));
     assert_eq!(below(&app), before);
     snapshot(&app, "list-row-hovered");
+}
+
+/// The shared folder of the test app.
+fn shared_folder(app: &Floetask) -> Arc<dyn RemoteStore> {
+    app.services.ports.remote_stores.open(&StoreLocation::Folder {
+        path: PathBuf::from(SHARED_FOLDER),
+    })
+}
+
+fn shared_text(app: &Floetask, name: &str) -> Option<String> {
+    shared_folder(app).get(name).unwrap().map(|(text, _)| text)
+}
+
+/// Replaces a shared copy, as another computer would.
+fn set_shared(app: &Floetask, name: &str, content: &str) {
+    let folder = shared_folder(app);
+    let current = folder.get(name).unwrap().map(|(_, version)| version);
+    folder.put(name, content, current.as_ref()).unwrap();
+}
+
+fn sync_status(app: &Floetask) -> Option<SyncStatus> {
+    app.sync
+        .status(Path::new(TODO_PATH))
+        .and_then(|state| state.status.clone())
+}
+
+/// The shared copy of the sample file when shared in a folder.
+const SHARED_NAME: &str = "todo-share.txt";
+
+/// Opens the share dialog of the sample file and chooses `choice`, a
+/// folder or a file, as the file pickers would.
+fn open_share_dialog(runtime: &tokio::runtime::Runtime, app: &mut Floetask, choice: sync::Message) {
+    let _ = app.update(Message::Sync(sync::Message::Share(0)));
+    drive(runtime, app, Message::Sync(choice));
+}
+
+/// Shares the sample file in the shared folder, as the share dialog does.
+fn share_sample(runtime: &tokio::runtime::Runtime, app: &mut Floetask) {
+    let folder = sync::Message::ShareFolder(Some(PathBuf::from(SHARED_FOLDER)));
+    open_share_dialog(runtime, app, folder);
+    for message in click(app, "Share") {
+        drive(runtime, app, message);
+    }
+}
+
+#[test]
+fn sharing_a_file_copies_it_and_keeps_both_in_step() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let _ = app.update(Message::Files(files::Message::Menu(Some(0))));
+    let messages = click(&app, "Share…");
+    assert!(matches!(messages[..], [Message::Sync(sync::Message::Share(0))]));
+    let _ = app.update(Message::Files(files::Message::Menu(None)));
+
+    let _ = app.update(Message::Sync(sync::Message::Share(0)));
+    let mut ui = simulator(app.view());
+    for choice in ["Choose folder…", "Choose file…"] {
+        assert!(ui.find(choice).is_ok(), "missing {choice}");
+    }
+    drop(ui);
+    drive(
+        &runtime,
+        &mut app,
+        Message::Sync(sync::Message::ShareFolder(Some(PathBuf::from(SHARED_FOLDER)))),
+    );
+    let Some(Dialog::Share(dialog)) = &app.dialog else {
+        panic!("the share dialog is open");
+    };
+    assert_eq!(dialog.name, SHARED_NAME);
+    assert!(!dialog.exists);
+    snapshot(&app, "share-dialog");
+    for message in click(&app, "Share") {
+        drive(&runtime, &mut app, message);
+    }
+    assert!(app.dialog.is_none());
+    assert_eq!(sync_status(&app), Some(SyncStatus::InSync));
+    snapshot(&app, "shared-file");
+    assert_eq!(shared_text(&app, SHARED_NAME).as_deref(), Some(SAMPLE));
+    // The note the sample links to went along.
+    assert_eq!(
+        shared_text(&app, "todo-share-notes/slides.md").as_deref(),
+        Some("# Slides\n")
+    );
+
+    // A saved change goes to the shared copy.
+    let todo = Todo::parse("Learn Rust status:someday");
+    let saved = app.services.todo_files.toggle_complete(
+        Path::new(TODO_PATH),
+        &floetask_application::TodoRef::new(5, &todo),
+        &app.file_options(),
+    );
+    drive(
+        &runtime,
+        &mut app,
+        Message::Files(files::Message::Saved(PathBuf::from(TODO_PATH), saved)),
+    );
+    let local = app.services.ports.files.read(Path::new(TODO_PATH)).unwrap();
+    assert_eq!(shared_text(&app, SHARED_NAME), Some(local));
+
+    // A change in the shared copy comes back.
+    let shared = format!("{}Pay rent\n", shared_text(&app, SHARED_NAME).unwrap());
+    set_shared(&app, SHARED_NAME, &shared);
+    drive(
+        &runtime,
+        &mut app,
+        Message::Files(files::Message::Changed(PathBuf::from(SHARED_FOLDER))),
+    );
+    assert_eq!(app.services.ports.files.read(Path::new(TODO_PATH)).unwrap(), shared);
+    assert!(
+        app.active_document()
+            .unwrap()
+            .todos()
+            .any(|entry| entry.todo.raw() == "Pay rent")
+    );
+
+    let _ = app.update(Message::Files(files::Message::Menu(Some(0))));
+    let mut ui = simulator(app.view());
+    for item in ["Sync now", "Stop sharing"] {
+        assert!(ui.find(item).is_ok(), "missing {item}");
+    }
+    drop(ui);
+    for message in click(&app, "Stop sharing") {
+        drive(&runtime, &mut app, message);
+    }
+    assert!(app.sync.links.is_empty());
+}
+
+#[test]
+fn a_chosen_file_is_the_shared_copy_and_is_joined() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    set_shared(
+        &app,
+        "team.txt",
+        "(A) Call mom +family @phone due:2026-10-04\nWalk dog\n",
+    );
+    let chosen = PathBuf::from(SHARED_FOLDER).join("team.txt");
+    open_share_dialog(&runtime, &mut app, sync::Message::ShareFile(Some(chosen)));
+    let Some(Dialog::Share(dialog)) = &app.dialog else {
+        panic!("the share dialog is open");
+    };
+    assert_eq!(dialog.name, "team.txt");
+    assert!(dialog.exists, "the chosen file exists, so sharing joins it");
+    snapshot(&app, "share-dialog-join");
+    for message in click(&app, "Join") {
+        drive(&runtime, &mut app, message);
+    }
+    assert_eq!(app.sync.links[0].name, "team.txt");
+    // No base yet: every differing line is a conflict.
+    assert!(matches!(sync_status(&app), Some(SyncStatus::Conflict(_))));
+}
+
+#[test]
+fn a_file_cannot_be_shared_with_itself() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    open_share_dialog(
+        &runtime,
+        &mut app,
+        sync::Message::ShareFile(Some(PathBuf::from(TODO_PATH))),
+    );
+    let mut ui = simulator(app.view());
+    assert!(ui.find("The shared copy cannot be the file itself.").is_ok());
+    drop(ui);
+    let _ = app.update(Message::ConfirmDialog);
+    assert!(app.sync.links.is_empty());
+    assert!(matches!(app.dialog, Some(Dialog::Share(_))));
+}
+
+#[test]
+fn conflicts_are_settled_in_the_dialog() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    share_sample(&runtime, &mut app);
+    let files = app.services.ports.files.clone();
+    let local = SAMPLE.replace("Buy milk", "Buy oat milk");
+    files.write(Path::new(TODO_PATH), &local, false).unwrap();
+    set_shared(&app, SHARED_NAME, &SAMPLE.replace("Buy milk", "Buy milk and eggs"));
+    drive(&runtime, &mut app, Message::Sync(sync::Message::SyncNow(0)));
+    assert_eq!(sync_status(&app), Some(SyncStatus::Conflict(1)));
+    assert_eq!(files.read(Path::new(TODO_PATH)).unwrap(), local);
+
+    // What a click on the warning sign next to the file sends.
+    drive(
+        &runtime,
+        &mut app,
+        Message::Sync(sync::Message::ShowConflicts(PathBuf::from(TODO_PATH))),
+    );
+    assert!(matches!(app.dialog, Some(Dialog::Conflicts(_))));
+    snapshot(&app, "conflicts-dialog");
+    for message in click(&app, "Use theirs") {
+        drive(&runtime, &mut app, message);
+    }
+    for message in click(&app, "Apply") {
+        drive(&runtime, &mut app, message);
+    }
+    assert_eq!(sync_status(&app), Some(SyncStatus::InSync));
+    let expected = SAMPLE.replace("Buy milk", "Buy milk and eggs");
+    assert_eq!(files.read(Path::new(TODO_PATH)).unwrap(), expected);
+    assert_eq!(shared_text(&app, SHARED_NAME), Some(expected));
+}
+
+#[test]
+fn the_sync_interval_is_a_setting() {
+    let mut app = app();
+    let _ = app.update(Message::Settings(settings::Message::OpenAt(
+        settings::SettingsSection::Sync,
+    )));
+    let mut ui = simulator(app.view());
+    assert!(ui.find("Sync every 30 seconds").is_ok());
+    drop(ui);
+    let _ = app.update(Message::Settings(settings::Message::Change(
+        SettingChange::SyncInterval(60),
+    )));
+    assert_eq!(app.settings.sync.interval, 60);
 }

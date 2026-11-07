@@ -9,6 +9,7 @@ use floetask_domain::listing::Attribute;
 use super::Target;
 use crate::editor::{DatePicker, Editor};
 use crate::settings::SettingsDialog;
+use crate::sync::{ConflictsDialog, ShareDialog};
 
 /// An action waiting for the user's confirmation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,4 +51,8 @@ pub enum Dialog {
         columns: BoardColumns,
         input: String,
     },
+    /// Where and under which name to share a file.
+    Share(ShareDialog),
+    /// The conflicts of a linked file and the user's choices.
+    Conflicts(ConflictsDialog),
 }

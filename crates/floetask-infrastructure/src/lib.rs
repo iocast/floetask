@@ -11,6 +11,7 @@ pub mod desktop;
 pub mod fs;
 pub mod locale;
 pub mod paths;
+pub mod remote;
 pub mod stores;
 pub mod updater;
 pub mod watcher;
@@ -37,5 +38,10 @@ pub fn ports(paths: &AppPaths) -> Ports {
         desktop: Arc::new(desktop::OsDesktop),
         colors: Arc::new(TomlColorStore::new(paths.colors_file())),
         updater: Arc::new(updater::ReleaseUpdater::from_build_env()),
+        remote_stores: Arc::new(remote::LocalStores),
+        sync_links: Arc::new(stores::sync_links::TomlSyncLinkStore::new(
+            paths.sync_file(),
+            paths.sync_dir(),
+        )),
     }
 }

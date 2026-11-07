@@ -42,6 +42,7 @@ fn main() -> ExitCode {
         println!("filters: {}", paths.filters_file().display());
         println!("state:   {}", paths.state_file().display());
         println!("notified: {}", paths.notified_file().display());
+        println!("sync:    {}", paths.sync_file().display());
         return ExitCode::SUCCESS;
     }
 
