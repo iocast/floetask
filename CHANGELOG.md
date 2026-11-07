@@ -6,11 +6,19 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-07
+
 ### Added
-- The Windows MSI installer asks whether to create a desktop shortcut, like the setup `.exe` already does on its last page
+- The Windows MSI installer asks whether to create a desktop shortcut, like the setup `.exe` already does on its last page; a silent MSI install skips the shortcut with `DESKTOPSHORTCUT=""`
+- Right-click in a note for a menu: with text selected it offers cut, copy, paste, bold, italic, strikethrough, code and *Link…*; inside a table it inserts or deletes rows and columns, deletes the table and sets the column alignment
+- *Link…* opens a dialog in the middle of the note to set the text and address of a link, or remove it
+
+### Removed
+- The *Disable animations* setting, which had no effect because floetask has no animations; an existing `disable_animations` key in `config.toml` is ignored
 
 ### Fixed
 - Updating from within the app no longer brings back a desktop shortcut you chose not to create or deleted
+- Double-clicking a word in a note selects the whole word even if the mouse moves slightly; dragging after a double or triple click extends the selection by whole words or paragraphs
 
 ## [0.6.1] - 2026-11-07
 
@@ -152,7 +160,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.6.1...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/iocast/floetask/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/iocast/floetask/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/iocast/floetask/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/iocast/floetask/compare/v0.5.1...v0.5.2
