@@ -10,6 +10,13 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ### Added
 - Week numbers in the calendar: the month view shows each week's ISO number beside it and the week view names its week in the header; turn them on with *Week numbers* in Settings → Dates (`week_numbers` in `config.toml`)
+- Support floetask: Settings → About shows a card with links to sponsor it on GitHub Sponsors or Ko-fi
+
+### Changed
+- The Settings sidebar groups its sections under the captions General, Interface and App
+
+### Fixed
+- The list keeps its scroll position when the file drawer or the filter drawer is shown or hidden
 
 ## [0.6.0] - 2026-11-04
 
