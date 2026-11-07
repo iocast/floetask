@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-07
+
 ### Added
 - Week numbers in the calendar: the month view shows each week's ISO number beside it and the week view names its week in the header; turn them on with *Week numbers* in Settings → Dates (`week_numbers` in `config.toml`)
 
@@ -137,7 +139,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/iocast/floetask/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/iocast/floetask/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/iocast/floetask/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/iocast/floetask/compare/v0.5.0...v0.5.1
