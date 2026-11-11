@@ -28,7 +28,8 @@ impl Floetask {
                 Task::none()
             }
             editor::Message::PickDate(date) => self.pick_date(date),
-            editor::Message::Save => self.save_editor(),
+            editor::Message::Save => self.save_editor(false),
+            editor::Message::ToggleComplete => self.save_editor(true),
             editor::Message::NoteLoaded(target, result) => match result {
                 Ok(Some(text)) => {
                     if let Some(Dialog::Editor(editor)) = &mut self.dialog
@@ -344,8 +345,9 @@ impl Floetask {
 
     /// Saves the todo and, when its notes changed, the note file first. A
     /// todo without `note:` gets one named after its text, so the user never
-    /// has to name or create the file.
-    fn save_editor(&mut self) -> Task<Message> {
+    /// has to name or create the file. With `toggle_complete`, an existing
+    /// todo is also completed (or reopened) in the same write.
+    fn save_editor(&mut self, toggle_complete: bool) -> Task<Message> {
         let Some(Dialog::Editor(editor)) = &self.dialog else {
             return Task::none();
         };
@@ -370,6 +372,9 @@ impl Floetask {
             async move {
                 let text = note.write(&notes, &path, text)?;
                 match target {
+                    Some(target) if toggle_complete => {
+                        todo_files.update_and_toggle_complete(&path, &target, &text, &input, &options)
+                    }
                     Some(target) => todo_files.update(&path, &target, &text, &input, &options),
                     None => todo_files.add(&path, &text, &input, &options),
                 }

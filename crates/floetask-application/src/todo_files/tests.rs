@@ -129,6 +129,34 @@ fn completing_recurring_todo_inserts_next_occurrence() {
 }
 
 #[test]
+fn completing_from_the_editor_saves_the_edit_too() {
+    let files = MemoryFiles::with(&[(
+        TODO,
+        "a
+Water plants due:2024-03-13 rec:1w
+b
+",
+    )]);
+    service(&files)
+        .update_and_toggle_complete(
+            Path::new(TODO),
+            &target(1, "Water plants due:2024-03-13 rec:1w"),
+            "Water herbs due:2024-03-13 rec:1w",
+            &InputOptions::default(),
+            &FileOptions::default(),
+        )
+        .unwrap();
+    assert_eq!(
+        files.get(TODO),
+        "a
+x 2024-03-13 2024-03-13 Water herbs due:2024-03-13 rec:1w
+2024-03-13 Water herbs due:2024-03-20 rec:1w
+b
+"
+    );
+}
+
+#[test]
 fn stale_edits_are_refused() {
     let files = MemoryFiles::with(&[(TODO, "changed outside\n")]);
     let result = service(&files).delete(

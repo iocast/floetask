@@ -842,6 +842,47 @@ fn editing_a_todo_loads_and_saves_its_note() {
     );
 }
 
+#[test]
+fn the_edit_dialog_saves_and_completes_or_reopens_a_todo() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+
+    // A new todo has nothing to complete yet.
+    let _ = app.update(Message::Editor(editor::Message::New));
+    assert!(simulator(app.view()).find("Complete").is_err());
+    let _ = app.update(Message::CloseDialog);
+
+    let _ = app.update(Message::List(list::Message::OpenTodo(target_of(&app, "Buy milk"))));
+    if let Some(Dialog::Editor(editor)) = &mut app.dialog {
+        editor.set_text("Buy oat milk note:shopping");
+    }
+    for message in click(&app, "Complete") {
+        drive(&runtime, &mut app, message);
+    }
+    assert!(app.dialog.is_none());
+    let content = files.read(Path::new(TODO_PATH)).unwrap();
+    let line = content.lines().find(|line| line.contains("oat milk")).unwrap();
+    assert!(line.starts_with("x "), "{line}");
+    assert!(line.ends_with("Buy oat milk note:shopping"), "{line}");
+
+    // A completed todo offers to reopen it instead.
+    let _ = app.update(Message::Drawer(drawer::Message::ViewToggle(
+        ViewToggle::Completed,
+        true,
+    )));
+    let _ = app.update(Message::List(list::Message::OpenTodo(target_of(&app, "Send invoice"))));
+    assert!(simulator(app.view()).find("Reopen").is_ok());
+    drive(&runtime, &mut app, Message::Editor(editor::Message::ToggleComplete));
+    let content = files.read(Path::new(TODO_PATH)).unwrap();
+    assert!(
+        content
+            .lines()
+            .any(|line| line.ends_with("Send invoice +work") && !line.starts_with("x "))
+    );
+}
+
 /// The open dialog's editor.
 fn editor(app: &Floetask) -> &crate::editor::Editor {
     match &app.dialog {

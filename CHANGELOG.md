@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- *Complete* in the edit dialog saves your edits and completes the todo in one step (a recurring todo adds its next occurrence); on a completed todo it reads *Reopen* and un-completes it
+
 ## [0.7.0-rc.1] - 2026-11-07
 
 ### Added

@@ -155,11 +155,37 @@ impl TodoFileService {
         input: &InputOptions,
         options: &FileOptions,
     ) -> Result<TodoDocument, AppError> {
+        let todo = self.edited_todo(text, input)?;
+        self.replace(path, target, options, |_| vec![todo.clone()])
+    }
+
+    /// Saves the edit dialog's text and completes (or un-completes) the todo
+    /// in one write, so the file never holds the edit without the completion.
+    /// Completing a recurring todo appends its next occurrence, built from
+    /// the edited text.
+    pub fn update_and_toggle_complete(
+        &self,
+        path: &Path,
+        target: &TodoRef,
+        text: &str,
+        input: &InputOptions,
+        options: &FileOptions,
+    ) -> Result<TodoDocument, AppError> {
+        let todo = self.edited_todo(text, input)?;
+        let today = self.today();
+        self.replace(path, target, options, |_| {
+            let completion = todo.toggle_complete(today);
+            std::iter::once(completion.completed).chain(completion.next).collect()
+        })
+    }
+
+    /// The todo the edit dialog's text describes; empty text is refused.
+    fn edited_todo(&self, text: &str, input: &InputOptions) -> Result<Todo, AppError> {
         let todo = Todo::from_user_text(&self.convert_dates(text, input));
         if todo.is_empty() {
             return Err(AppError::EmptyTodo);
         }
-        self.replace(path, target, options, |_| vec![todo.clone()])
+        Ok(todo)
     }
 
     /// Completes or un-completes a todo. Completing a recurring todo appends

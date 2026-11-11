@@ -410,14 +410,30 @@ fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
             tr("add").to_owned()
         }
     };
-    row![
-        text(tr("editor_hint")).size(12).color(colors.muted).width(Fill),
-        secondary_button(tr("cancel"), Message::CloseDialog, colors),
-        primary_button(save_label, Message::Editor(editor::Message::Save), colors),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .into()
+    let mut actions = row![text(tr("editor_hint")).size(12).color(colors.muted).width(Fill)];
+    // Only a todo already in the file can be completed from here.
+    if editor.target.is_some() {
+        let label = tr(if Todo::from_user_text(&editor.text()).is_complete() {
+            "reopen"
+        } else {
+            "complete"
+        });
+        actions = actions.push(secondary_button(
+            label,
+            Message::Editor(editor::Message::ToggleComplete),
+            colors,
+        ));
+    }
+    actions
+        .push(secondary_button(tr("cancel"), Message::CloseDialog, colors))
+        .push(primary_button(
+            save_label,
+            Message::Editor(editor::Message::Save),
+            colors,
+        ))
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .into()
 }
 
 /// Priority option for the pick list; `None` shows as a dash.

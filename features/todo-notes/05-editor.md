@@ -10,6 +10,7 @@
   - Recurrence picker (unit + count + strict toggle).
   - Pomodoro picker (number).
 - **Notes** (P1): a WYSIWYG Markdown editor for the todo's notes, with a toolbar and a Source mode. Saving writes them to the `note:` file, creating the file and the tag from the task text when the todo has none. Buttons in the notes header link a Markdown file from disk instead (moved into the notes folder or kept where it is), open the note in the note window, and unlink it (see [note-extension.md](note-extension.md#how-floetask-implements-it)).
+- **Complete** (edit only): a button next to Cancel saves the edits and completes the todo in one write; a recurring todo adds its next occurrence, as the list checkbox does. On a completed todo the button reads **Reopen** and un-completes it.
 - **Bulk creation** (setting): each line in the field becomes a separate todo; the Add button shows the count, e.g. `Add (3)`.
 - Empty input shows a non-blocking warning (toast).
 - Creating a todo from the search box: `Ctrl+Enter` in the search field saves its text as a new todo.

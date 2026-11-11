@@ -68,4 +68,6 @@ pub enum Message {
     /// on disk (`None`: no file yet).
     NoteHandedOver(Result<(NoteLink, Option<String>), AppError>),
     Save,
+    /// Saves the edits and completes the todo, or reopens a completed one.
+    ToggleComplete,
 }
