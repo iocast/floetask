@@ -13,13 +13,13 @@ path = "src/main.rs"
 floetask-application.workspace = true
 floetask-infrastructure.workspace = true
 floetask-gui.workspace = true
-clap = { version = "4", features = ["derive"] }
+clap.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+windows-sys = { workspace = true, features = ["Win32_System_Console"] }
 
 [build-dependencies]
-winresource = "0.1"
+winresource.workspace = true
 
 # Installers and bundles, built with `cargo packager --release` (see
 # features/todo-notes/14-platform.md). Each OS builds its own formats.

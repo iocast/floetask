@@ -8,13 +8,13 @@ rust-version.workspace = true
 [dependencies]
 floetask-domain.workspace = true
 floetask-application.workspace = true
-iced = { version = "0.14", features = ["advanced", "markdown", "svg", "tokio"] }
-tokio = { version = "1.53", features = ["rt", "time"] }
-rfd = "0.17"
-png = "0.18"
-iced-markdown-editor = "0.3.3"
-fluent-bundle = "0.16.0"
-fluent-syntax = "0.12.0"
+iced.workspace = true
+tokio.workspace = true
+rfd.workspace = true
+png.workspace = true
+iced-markdown-editor.workspace = true
+fluent-bundle.workspace = true
+fluent-syntax.workspace = true
 
 [dev-dependencies]
-iced_test = "0.14"
+iced_test.workspace = true

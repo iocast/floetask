@@ -10,16 +10,16 @@ floetask-domain.workspace = true
 floetask-application.workspace = true
 chrono.workspace = true
 serde.workspace = true
-toml = "1.1.8+spec-1.1.0"
-notify-debouncer-full = "0.7"
-notify-rust = "4.18"
-open = "5.4"
-cargo-packager-updater = "0.2"
-sys-locale = "0.3.2"
+toml.workspace = true
+notify-debouncer-full.workspace = true
+notify-rust.workspace = true
+open.workspace = true
+cargo-packager-updater.workspace = true
+sys-locale.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_System_Registry", "Win32_UI_Shell"] }
+windows-sys = { workspace = true, features = ["Win32_System_Registry", "Win32_UI_Shell"] }
 
 [dev-dependencies]
-serde_json = "1.0.154"
-tempfile = "3.27"
+serde_json.workspace = true
+tempfile.workspace = true
