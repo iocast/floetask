@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.7.0-rc.3] - 2026-11-11
+
 ### Changed
 - Deleting a todo whose note no other todo uses asks whether to delete the note too: *Delete todo only* keeps the file as before, *Delete todo and note* removes it
 - *Join shared file…* opens a step-by-step wizard instead of two file pickers in a row: choose the shared copy, then your own copy (suggested next to your open file, or a new or existing file), then check both and join; it says up front whether your copy will be created or merged
@@ -187,7 +189,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.7.0-rc.2...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.7.0-rc.3...HEAD
+[0.7.0-rc.3]: https://github.com/iocast/floetask/compare/v0.7.0-rc.2...v0.7.0-rc.3
 [0.7.0-rc.2]: https://github.com/iocast/floetask/compare/v0.7.0-rc.1...v0.7.0-rc.2
 [0.7.0-rc.1]: https://github.com/iocast/floetask/compare/v0.6.3...v0.7.0-rc.1
 [0.6.3]: https://github.com/iocast/floetask/compare/v0.6.2...v0.6.3
