@@ -9,10 +9,10 @@ mod view;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use floetask_application::{AppError, ItemConflicts, ShareOutcome, SyncLink, SyncReport, SyncStatus};
+use floetask_application::{AppError, ItemConflicts, ShareOutcome, StoreLocation, SyncLink, SyncReport, SyncStatus};
 use floetask_domain::merge::Choice;
 
-pub(crate) use view::{conflicts_dialog, share_dialog, status_icon};
+pub(crate) use view::{conflicts_dialog, join_dialog, share_dialog, status_icon};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -31,11 +31,20 @@ pub enum Message {
     ShareExists(PathBuf, String, bool),
     /// The result of sharing a file in a folder under a name.
     Shared(ShareDialog, Result<ShareOutcome, AppError>),
-    /// Join a shared file: pick the shared copy first.
+    /// Opens the join wizard.
     Join,
-    JoinPicked(Option<PathBuf>),
-    /// Where the local copy of the picked shared copy goes.
-    JoinLocal(PathBuf, Option<PathBuf>),
+    /// Pick the shared copy to join.
+    JoinChooseShared,
+    JoinShared(Option<PathBuf>),
+    /// Pick where a new local copy goes.
+    JoinChooseNew,
+    /// Pick an existing file to be the local copy.
+    JoinChooseExisting,
+    JoinLocal(Option<PathBuf>),
+    /// Whether the local copy at this path exists.
+    JoinLocalExists(PathBuf, bool),
+    /// Back to the join wizard's previous step.
+    JoinBack,
     Joined(SyncLink, Result<SyncReport, AppError>),
     /// Share the file at this index again under its old name, after the
     /// shared copy went missing.
@@ -141,6 +150,84 @@ impl ShareDialog {
             && name != "."
             && name != ".."
             && !self.is_same_file()
+    }
+}
+
+/// The steps of the join wizard, in order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum JoinStep {
+    /// Pick the shared copy someone shared.
+    #[default]
+    Shared,
+    /// Choose where your own copy goes.
+    Local,
+    /// Check both and join.
+    Review,
+}
+
+impl JoinStep {
+    pub const ALL: [JoinStep; 3] = [JoinStep::Shared, JoinStep::Local, JoinStep::Review];
+
+    pub fn next(self) -> Option<JoinStep> {
+        match self {
+            JoinStep::Shared => Some(JoinStep::Local),
+            JoinStep::Local => Some(JoinStep::Review),
+            JoinStep::Review => None,
+        }
+    }
+
+    pub fn previous(self) -> Option<JoinStep> {
+        match self {
+            JoinStep::Shared => None,
+            JoinStep::Local => Some(JoinStep::Shared),
+            JoinStep::Review => Some(JoinStep::Local),
+        }
+    }
+}
+
+/// The join wizard: one step at a time, the shared copy first, then the
+/// user's own copy, then a summary of what joining does. Two bare file
+/// pickers in a row left people guessing which file each one asked for.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct JoinDialog {
+    pub step: JoinStep,
+    pub shared: Option<PathBuf>,
+    pub local: Option<PathBuf>,
+    /// The local copy was suggested, not chosen: picking another shared
+    /// copy suggests again.
+    pub suggested: bool,
+    /// Whether the local copy exists, so joining merges it; `None` until
+    /// checked.
+    pub local_exists: Option<bool>,
+}
+
+impl JoinDialog {
+    /// The local copy is the shared copy itself.
+    pub fn is_same_file(&self) -> bool {
+        self.local.is_some() && self.local == self.shared
+    }
+
+    /// The current step has what it needs to go on.
+    pub fn can_continue(&self) -> bool {
+        match self.step {
+            JoinStep::Shared => self.shared.is_some(),
+            JoinStep::Local | JoinStep::Review => {
+                self.shared.is_some() && self.local.is_some() && !self.is_same_file() && self.local_exists.is_some()
+            }
+        }
+    }
+
+    /// The link joining creates, once both copies are chosen.
+    pub fn link(&self) -> Option<SyncLink> {
+        let shared = self.shared.as_ref()?;
+        let (folder, name) = (shared.parent()?, shared.file_name()?);
+        Some(SyncLink {
+            local: self.local.clone()?,
+            store: StoreLocation::Folder {
+                path: folder.to_path_buf(),
+            },
+            name: name.to_string_lossy().into_owned(),
+        })
     }
 }
 

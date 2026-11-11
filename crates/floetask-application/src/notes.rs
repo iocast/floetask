@@ -2,9 +2,9 @@
 //! whether it exists, reading and writing it, and linking a file the user
 //! picked, either moved into the notes folder or left where it is.
 //!
-//! Note files are never deleted: completing and deleting a todo leave them
-//! where they are, archiving or moving a todo to another file moves its
-//! notes-folder note along with it.
+//! Completing a todo leaves its note where it is; archiving or moving a todo
+//! to another file moves its notes-folder note along with it. A note is only
+//! deleted when the user deletes its todo and asks for the note to go too.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -178,7 +178,7 @@ impl NoteService {
     }
 
     /// The note that deleting `target` would leave without any todo in the
-    /// document linking to it. The file itself is kept either way.
+    /// document linking to it, so the user can be asked whether it goes too.
     pub fn orphaned_by_delete(document: &TodoDocument, target: &TodoRef) -> Option<NoteLink> {
         let link = Todo::parse(&target.raw).note_link()?.ok()?;
         let shared = document
@@ -186,6 +186,20 @@ impl NoteService {
             .filter(|entry| entry.line != target.line)
             .any(|entry| entry.todo.note_link().and_then(Result::ok).as_ref() == Some(&link));
         (!shared).then_some(link)
+    }
+
+    /// Deletes a note after its todo was deleted. `document` is the todo
+    /// file as it was written, so a note that a todo added in the meantime
+    /// links to is kept. A note that is already gone is fine.
+    pub fn delete_unlinked(&self, todo_file: &Path, document: &TodoDocument, link: &NoteLink) -> Result<(), AppError> {
+        let linked = document
+            .todos()
+            .any(|entry| entry.todo.note_link().and_then(Result::ok).as_ref() == Some(link));
+        let path = Self::link_path(todo_file, link);
+        if linked || !self.files.exists(&path) {
+            return Ok(());
+        }
+        self.files.remove(&path)
     }
 }
 
@@ -470,5 +484,43 @@ mod tests {
             NoteService::orphaned_by_delete(&document, &target(2)).map(|n| n.to_string()),
             Some("own.md".to_owned())
         );
+    }
+
+    #[test]
+    fn deleting_a_note_keeps_it_while_a_todo_links_to_it() {
+        let (service, fake) = service();
+        fake.write(
+            &note_file("own.md"),
+            "# Own
+",
+            false,
+        )
+        .unwrap();
+        fake.write(
+            &note_file("shared.md"),
+            "# Shared
+",
+            false,
+        )
+        .unwrap();
+        let document = TodoDocument::parse(
+            "Two note:shared.md
+",
+            &[],
+        );
+        let link = |name: &str| NoteLink::parse(name).unwrap();
+
+        service
+            .delete_unlinked(&todo_file(), &document, &link("shared.md"))
+            .unwrap();
+        assert!(fake.exists(&note_file("shared.md")));
+        service
+            .delete_unlinked(&todo_file(), &document, &link("own.md"))
+            .unwrap();
+        assert!(!fake.exists(&note_file("own.md")));
+        // Already gone: nothing to do.
+        service
+            .delete_unlinked(&todo_file(), &document, &link("own.md"))
+            .unwrap();
     }
 }

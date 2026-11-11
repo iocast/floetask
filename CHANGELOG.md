@@ -6,6 +6,10 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Changed
+- Deleting a todo whose note no other todo uses asks whether to delete the note too: *Delete todo only* keeps the file as before, *Delete todo and note* removes it
+- *Join shared file…* opens a step-by-step wizard instead of two file pickers in a row: choose the shared copy, then your own copy (suggested next to your open file, or a new or existing file), then check both and join; it says up front whether your copy will be created or merged
+
 ## [0.7.0-rc.2] - 2026-11-11
 
 ### Added

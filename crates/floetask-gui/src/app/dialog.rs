@@ -3,13 +3,14 @@
 
 use std::path::PathBuf;
 
+use floetask_domain::NoteLink;
 use floetask_domain::board::BoardColumns;
 use floetask_domain::listing::Attribute;
 
 use super::Target;
 use crate::editor::{DatePicker, Editor};
 use crate::settings::SettingsDialog;
-use crate::sync::{ConflictsDialog, ShareDialog};
+use crate::sync::{ConflictsDialog, JoinDialog, ShareDialog};
 
 /// An action waiting for the user's confirmation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +29,12 @@ pub enum Dialog {
         message: String,
         detail: Option<String>,
         pending: Pending,
+    },
+    /// Confirms deleting a todo whose note no other todo uses, and asks
+    /// whether the note goes too. Confirming keeps it.
+    DeleteTodo {
+        target: Target,
+        note: NoteLink,
     },
     Rename {
         attribute: Attribute,
@@ -53,6 +60,8 @@ pub enum Dialog {
     },
     /// Where and under which name to share a file.
     Share(ShareDialog),
+    /// The wizard joining a file someone shared.
+    Join(JoinDialog),
     /// The conflicts of a linked file and the user's choices.
     Conflicts(ConflictsDialog),
 }

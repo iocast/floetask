@@ -6,7 +6,7 @@ use iced::Task;
 
 use floetask_application::{AppError, NoteService, ShareOutcome, StoreLocation, SyncLink, SyncReport, SyncStatus};
 
-use super::{ConflictsDialog, ShareDialog};
+use super::{ConflictsDialog, JoinDialog, ShareDialog};
 use crate::app::{Dialog, Floetask, Message};
 use crate::i18n::{self, tr, trf};
 use crate::sync;
@@ -53,30 +53,47 @@ impl Floetask {
             }
             sync::Message::ShareFolder(None)
             | sync::Message::ShareFile(None)
-            | sync::Message::JoinPicked(None)
-            | sync::Message::JoinLocal(_, None) => Task::none(),
+            | sync::Message::JoinShared(None)
+            | sync::Message::JoinLocal(None) => Task::none(),
             sync::Message::Shared(dialog, result) => self.shared(dialog, result),
-            sync::Message::Join => Task::perform(pick_shared_copy(), |shared| {
-                Message::Sync(sync::Message::JoinPicked(shared))
-            }),
-            sync::Message::JoinPicked(Some(shared)) => {
-                let name = file_name(&shared);
-                Task::perform(pick_local_copy(name), move |local| {
-                    Message::Sync(sync::Message::JoinLocal(shared.clone(), local))
-                })
+            sync::Message::Join => {
+                self.file_menu = None;
+                self.dialog = Some(Dialog::Join(JoinDialog::default()));
+                Task::none()
             }
-            sync::Message::JoinLocal(shared, Some(local)) => {
-                let (Some(folder), Some(_)) = (shared.parent(), shared.file_name()) else {
+            sync::Message::JoinChooseShared => Task::perform(pick_shared_copy(), |shared| {
+                Message::Sync(sync::Message::JoinShared(shared))
+            }),
+            sync::Message::JoinShared(Some(shared)) => self.join_shared(shared),
+            sync::Message::JoinChooseNew => {
+                let Some(Dialog::Join(dialog)) = &self.dialog else {
                     return Task::none();
                 };
-                let link = SyncLink {
-                    local: crate::app::absolute(&local),
-                    store: StoreLocation::Folder {
-                        path: folder.to_path_buf(),
-                    },
-                    name: file_name(&shared),
-                };
-                self.join(link)
+                let name = dialog.shared.as_deref().map(file_name).unwrap_or_default();
+                let folder = dialog.local.as_deref().and_then(Path::parent).map(Path::to_path_buf);
+                Task::perform(pick_local_copy(name, folder), |local| {
+                    Message::Sync(sync::Message::JoinLocal(local))
+                })
+            }
+            sync::Message::JoinChooseExisting => Task::perform(pick_existing_local(), |local| {
+                Message::Sync(sync::Message::JoinLocal(local))
+            }),
+            sync::Message::JoinLocal(Some(local)) => self.join_local(local, false),
+            sync::Message::JoinLocalExists(local, exists) => {
+                if let Some(Dialog::Join(dialog)) = &mut self.dialog
+                    && dialog.local.as_ref() == Some(&local)
+                {
+                    dialog.local_exists = Some(exists);
+                }
+                Task::none()
+            }
+            sync::Message::JoinBack => {
+                if let Some(Dialog::Join(dialog)) = &mut self.dialog
+                    && let Some(step) = dialog.step.previous()
+                {
+                    dialog.step = step;
+                }
+                Task::none()
             }
             sync::Message::Joined(link, result) => match result {
                 Ok(report) => {
@@ -204,6 +221,67 @@ impl Floetask {
                 ))
             },
         )
+    }
+
+    /// Takes the picked shared copy and, unless the user chose their own
+    /// copy already, suggests one: the shared copy's name next to the
+    /// active file.
+    fn join_shared(&mut self, shared: PathBuf) -> Task<Message> {
+        let suggestion = self
+            .active_path()
+            .and_then(|active| Some(active.parent()?.join(shared.file_name()?)))
+            .filter(|suggestion| *suggestion != shared);
+        let Some(Dialog::Join(dialog)) = &mut self.dialog else {
+            return Task::none();
+        };
+        dialog.shared = Some(shared);
+        if dialog.local.is_some() && !dialog.suggested {
+            return Task::none();
+        }
+        match suggestion {
+            Some(local) => self.join_local(local, true),
+            None => {
+                dialog.local = None;
+                dialog.local_exists = None;
+                Task::none()
+            }
+        }
+    }
+
+    /// Sets the join wizard's local copy, then looks up whether it exists,
+    /// which decides whether joining creates it or merges it.
+    fn join_local(&mut self, local: PathBuf, suggested: bool) -> Task<Message> {
+        let Some(Dialog::Join(dialog)) = &mut self.dialog else {
+            return Task::none();
+        };
+        dialog.local = Some(local.clone());
+        dialog.suggested = suggested;
+        dialog.local_exists = None;
+        let files = self.services.ports.files.clone();
+        Task::perform(
+            {
+                let local = local.clone();
+                async move { files.exists(&local) }
+            },
+            move |exists| Message::Sync(sync::Message::JoinLocalExists(local.clone(), exists)),
+        )
+    }
+
+    /// Goes on to the join wizard's next step, or joins on the last one.
+    pub(crate) fn join_next(&mut self, mut dialog: JoinDialog) -> Task<Message> {
+        if !dialog.can_continue() {
+            self.dialog = Some(Dialog::Join(dialog));
+            return Task::none();
+        }
+        match (dialog.step.next(), dialog.link()) {
+            (Some(step), _) => {
+                dialog.step = step;
+                self.dialog = Some(Dialog::Join(dialog));
+                Task::none()
+            }
+            (None, Some(link)) => self.join(link),
+            (None, None) => Task::none(),
+        }
     }
 
     /// Shares the file of the confirmed share dialog, or joins its shared
@@ -434,12 +512,23 @@ async fn pick_shared_copy() -> Option<PathBuf> {
         .map(|handle| handle.path().to_path_buf())
 }
 
-async fn pick_local_copy(name: String) -> Option<PathBuf> {
-    rfd::AsyncFileDialog::new()
+async fn pick_local_copy(name: String, folder: Option<PathBuf>) -> Option<PathBuf> {
+    let mut picker = rfd::AsyncFileDialog::new()
         .set_title(tr("join_pick_local"))
         .set_file_name(name)
+        .add_filter(tr("file_dialog_title"), &["txt"]);
+    if let Some(folder) = folder {
+        picker = picker.set_directory(folder);
+    }
+    picker.save_file().await.map(|handle| handle.path().to_path_buf())
+}
+
+async fn pick_existing_local() -> Option<PathBuf> {
+    rfd::AsyncFileDialog::new()
+        .set_title(tr("join_pick_existing"))
         .add_filter(tr("file_dialog_title"), &["txt"])
-        .save_file()
+        .add_filter("*", &["*"])
+        .pick_file()
         .await
         .map(|handle| handle.path().to_path_buf())
 }

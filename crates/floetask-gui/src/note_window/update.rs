@@ -149,6 +149,18 @@ impl Floetask {
         }
     }
 
+    /// Closes the note window without saving when it shows the note at
+    /// `path`, which is about to be deleted.
+    pub(crate) fn discard_note_window(&mut self, path: &Path) -> Task<Message> {
+        match self.note_window.take() {
+            Some(window) if window.path() == path => Task::batch([self.persist_state(), window::close(window.id)]),
+            other => {
+                self.note_window = other;
+                Task::none()
+            }
+        }
+    }
+
     /// Follows the note window's moves and resizes, so it opens there again.
     pub(crate) fn on_note_window_event(&mut self, event: window::Event) -> Task<Message> {
         match event {

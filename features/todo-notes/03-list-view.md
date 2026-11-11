@@ -15,7 +15,7 @@ Each row shows:
 Row interactions:
 
 - Click or `Enter` opens the edit dialog.
-- Right-click context menu: **Copy** (raw line to clipboard), **Archive** (move this single todo to the done file, completed or not), **Move to file…** (a dialog with a dropdown of the other files in the file drawer, see [§2.4](02-files.md#24-moving-a-todo-to-another-file)), **Delete** (with confirmation showing the raw line).
+- Right-click context menu: **Copy** (raw line to clipboard), **Archive** (move this single todo to the done file, completed or not), **Move to file…** (a dialog with a dropdown of the other files in the file drawer, see [§2.4](02-files.md#24-moving-a-todo-to-another-file)), **Delete** (with confirmation showing the raw line; when no other todo uses the todo's note, it also asks whether to delete the note, see [note extension](note-extension.md#how-floetask-implements-it)).
 - Pressing and releasing a row opens it for editing; dragging it onto a file in the file drawer moves it there ([§2.4](02-files.md#24-moving-a-todo-to-another-file)).
 - `Delete` or `Ctrl+Backspace` deletes the selected row (with confirmation).
 - `Up`/`Down` moves row focus; `Left`/`Right` moves between buttons inside a row.

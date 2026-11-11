@@ -11,7 +11,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Color, Element, Fill, mouse};
 
-use floetask_application::NoteStatus;
+use floetask_application::{NoteService, NoteStatus};
 use floetask_domain::board::BoardColumns;
 use floetask_domain::date::format_iso;
 use floetask_domain::human_date::display_bucket;
@@ -28,7 +28,9 @@ use crate::view::LIST_ID;
 use crate::view::dialogs::{buttons, raw_text};
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
-use crate::view::widgets::{file_choices, icon_button, primary_button, title, with_tooltip};
+use crate::view::widgets::{
+    danger_button, file_choices, icon_button, primary_button, secondary_button, title, with_tooltip,
+};
 use crate::{drawer, list};
 
 pub fn view(app: &Floetask) -> Element<'_, Message> {
@@ -689,6 +691,35 @@ pub(crate) fn move_dialog<'a>(app: &'a Floetask, target: &'a Target, to: &'a Pat
         .spacing(8)
         .align_y(Alignment::Center),
         buttons(primary_button(tr("move"), Message::ConfirmDialog, colors), colors),
+    ]
+    .spacing(16)
+    .width(460)
+    .into()
+}
+
+/// Confirms deleting a todo whose note no other todo uses and asks whether
+/// the note goes too. Keeping it is the default (`Enter`).
+pub(crate) fn delete_dialog<'a>(app: &'a Floetask, target: &'a Target, note: &'a NoteLink) -> Element<'a, Message> {
+    let colors = app.colors();
+    let line = Todo::parse(&target.todo.raw).editable_text();
+    let note = match note {
+        NoteLink::Folder(name) => format!("{}/{name}", NoteService::folder_name(&target.file)),
+        NoteLink::External(path) => path.clone(),
+    };
+    let actions = row![
+        secondary_button(tr("delete_todo_only"), Message::ConfirmDialog, colors),
+        danger_button(
+            tr("delete_todo_and_note"),
+            Message::List(list::Message::DeleteWithNote),
+            colors
+        ),
+    ]
+    .spacing(8);
+    column![
+        title(tr("delete_confirm")),
+        raw_text(line, colors),
+        text(trf("delete_note_question", &[("note", note.into())])).size(14),
+        buttons(actions.into(), colors),
     ]
     .spacing(16)
     .width(460)

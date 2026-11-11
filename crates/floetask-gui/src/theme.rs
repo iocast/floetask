@@ -266,6 +266,30 @@ pub fn accent(color: Color) -> impl Fn(&Theme) -> container::Style {
     }
 }
 
+/// The numbered circle of a wizard step: filled for the current step,
+/// tinted for the steps done, outlined for those to come.
+pub fn step_badge(colors: Colors, current: bool, done: bool) -> impl Fn(&Theme) -> container::Style {
+    move |_| {
+        let (background, text) = if current {
+            (colors.primary, on_primary(colors))
+        } else if done {
+            (colors.tint(colors.primary, 0.2), colors.primary)
+        } else {
+            (colors.surface, colors.muted)
+        };
+        container::Style {
+            background: filled(background),
+            text_color: Some(text),
+            border: Border {
+                color: if current || done { colors.primary } else { colors.border },
+                width: 1.0,
+                radius: 12.0.into(),
+            },
+            ..container::Style::default()
+        }
+    }
+}
+
 /// The todo that follows the cursor while it is dragged: lifted off the
 /// page with a shadow and outlined like a selected row.
 pub fn drag_ghost(colors: Colors) -> impl Fn(&Theme) -> container::Style {

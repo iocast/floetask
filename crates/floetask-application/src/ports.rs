@@ -34,7 +34,8 @@ pub trait FileSystem: Send + Sync {
 
     fn exists(&self, path: &Path) -> bool;
 
-    /// Deletes a file. Only used to finish moving a note to another folder.
+    /// Deletes a file: a note moved to another folder, or one the user
+    /// deleted along with its todo.
     fn remove(&self, path: &Path) -> Result<(), AppError>;
 }
 

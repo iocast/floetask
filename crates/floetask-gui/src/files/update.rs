@@ -247,7 +247,7 @@ impl Floetask {
     }
 
     /// Shows a saved file and passes the change on to its shared copy.
-    fn document_saved(&mut self, path: PathBuf, document: TodoDocument) -> Task<Message> {
+    pub(crate) fn document_saved(&mut self, path: PathBuf, document: TodoDocument) -> Task<Message> {
         self.documents.insert(path.clone(), document);
         if self.is_shown(&path) {
             self.refresh();
@@ -257,7 +257,7 @@ impl Floetask {
 
     /// A failed change usually means the file changed underneath: show the
     /// error and reload so the user sees the current content.
-    fn save_failed(&mut self, path: PathBuf, error: &AppError) -> Task<Message> {
+    pub(crate) fn save_failed(&mut self, path: PathBuf, error: &AppError) -> Task<Message> {
         let report = self.report(error);
         if path.as_os_str().is_empty() {
             report

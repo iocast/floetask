@@ -5,14 +5,14 @@ use std::path::Path;
 use iced::Task;
 use iced::widget::operation;
 
-use floetask_application::{NoteService, TodoFileEntry};
+use floetask_application::{NoteService, NoteStatus, TodoFileEntry};
 use floetask_domain::NoteLink;
 use floetask_domain::listing::ListedTodo;
 use floetask_domain::todo::Todo;
 
 use crate::app::{Dialog, Floetask, Message, Pending, Target};
 use crate::editor::{DateKey, DatePicker, Editor};
-use crate::i18n::{tr, trf};
+use crate::i18n::tr;
 use crate::{editor, files, list, note_window, view};
 
 impl Floetask {
@@ -75,12 +75,29 @@ impl Floetask {
             }
             list::Message::AskDelete(target) => {
                 self.row_menu = None;
-                self.dialog = Some(Dialog::Confirm {
-                    message: tr("delete_confirm").to_owned(),
-                    detail: Some(Todo::parse(&target.todo.raw).editable_text()),
-                    pending: Pending::DeleteTodo(target),
+                self.dialog = Some(match self.note_left_by_delete(&target) {
+                    Some(note) => Dialog::DeleteTodo { target, note },
+                    None => Dialog::Confirm {
+                        message: tr("delete_confirm").to_owned(),
+                        detail: Some(Todo::parse(&target.todo.raw).editable_text()),
+                        pending: Pending::DeleteTodo(target),
+                    },
                 });
                 Task::none()
+            }
+            list::Message::DeleteWithNote => match self.dialog.take() {
+                Some(Dialog::DeleteTodo { target, note }) => self.delete_todo_and_note(target, note),
+                other => {
+                    self.dialog = other;
+                    Task::none()
+                }
+            },
+            list::Message::Deleted(path, saved, note) => {
+                let saved = match saved {
+                    Ok(document) => self.document_saved(path, document),
+                    Err(error) => self.save_failed(path, &error),
+                };
+                Task::batch([saved, Task::done(Message::from_result(note))])
             }
             list::Message::ToggleGroup(key) => {
                 self.state.toggle_list_group(&key);
@@ -179,23 +196,44 @@ impl Floetask {
         self.select_row(next)
     }
 
-    /// Deletes a todo. Its note file is kept; if no other todo links to it
-    /// any more, a toast says so.
+    /// The note that deleting `target` would leave without a todo, when its
+    /// file exists: the delete dialog then asks whether it goes too.
+    fn note_left_by_delete(&self, target: &Target) -> Option<NoteLink> {
+        let value = Todo::parse(&target.todo.raw).note()?.to_owned();
+        let present = self
+            .note_statuses
+            .get(&target.file)
+            .and_then(|statuses| statuses.get(&value))
+            == Some(&NoteStatus::Present);
+        let document = self.documents.get(&target.file).filter(|_| present)?;
+        NoteService::orphaned_by_delete(document, &target.todo)
+    }
+
+    /// Deletes a todo. Its note file, if any, is kept.
     pub(crate) fn delete_todo(&mut self, target: Target) -> Task<Message> {
         let Target { file, todo } = target;
-        let orphan = self
-            .documents
-            .get(&file)
-            .and_then(|document| NoteService::orphaned_by_delete(document, &todo))
-            .map(|link| match link {
-                NoteLink::Folder(name) => format!("{}/{name}", NoteService::folder_name(&file)),
-                NoteLink::External(path) => path,
-            });
-        let delete = self.change_file(file, move |service, path, options| service.delete(path, &todo, options));
-        match orphan {
-            Some(name) => Task::batch([delete, self.toast(trf("note_orphaned", &[("note", name.into())]))]),
-            None => delete,
-        }
+        self.change_file(file, move |service, path, options| service.delete(path, &todo, options))
+    }
+
+    /// Deletes a todo, then its note. The note goes only once the todo file
+    /// is written, so a failed save never leaves the todo without its note.
+    fn delete_todo_and_note(&mut self, target: Target, note: NoteLink) -> Task<Message> {
+        let Target { file, todo } = target;
+        let close = self.discard_note_window(&NoteService::link_path(&file, &note));
+        let (todo_files, notes) = (self.services.todo_files.clone(), self.services.notes.clone());
+        let options = self.file_options();
+        let delete = Task::perform(
+            async move {
+                let saved = todo_files.delete(&file, &todo, &options);
+                let deleted = match &saved {
+                    Ok(document) => notes.delete_unlinked(&file, document, &note),
+                    Err(_) => Ok(()),
+                };
+                (file, saved, deleted)
+            },
+            |(file, saved, deleted)| Message::List(list::Message::Deleted(file, saved, deleted)),
+        );
+        Task::batch([close, delete])
     }
 
     /// Moves one todo to the done file of the file it is in, asking for a

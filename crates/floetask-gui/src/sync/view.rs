@@ -1,15 +1,15 @@
-//! The sync status next to a linked file, the share dialog and the
-//! conflict dialog.
+//! The sync status next to a linked file, the share dialog, the join
+//! wizard and the conflict dialog.
 
 use iced::widget::text::Span;
-use iced::widget::{Column, button, column, container, rich_text, row, scrollable, span, text, text_input};
+use iced::widget::{Column, Row, button, column, container, rich_text, row, scrollable, space, span, text, text_input};
 use iced::{Alignment, Element, Fill, Font};
 
 use floetask_application::SyncStatus;
 use floetask_domain::merge::{Choice, Conflict, changed_words};
 use floetask_domain::todo::MULTILINE_SEPARATOR;
 
-use super::{ConflictsDialog, ShareDialog};
+use super::{ConflictsDialog, JoinDialog, JoinStep, ShareDialog};
 use crate::app::{Floetask, Message};
 use crate::i18n::{self, tr, trf};
 use crate::sync;
@@ -122,6 +122,141 @@ pub fn share_dialog<'a>(app: &'a Floetask, dialog: &'a ShareDialog) -> Element<'
         .style(theme::primary(colors))
         .on_press_maybe(dialog.is_ready().then_some(Message::ConfirmDialog));
     content.push(buttons(action.into(), colors)).into()
+}
+
+/// Joining a shared file one step at a time: the shared copy, the user's
+/// own copy, then what joining will do. Next is enabled once the step has
+/// what it needs; Enter does the same.
+pub fn join_dialog<'a>(app: &'a Floetask, dialog: &'a JoinDialog) -> Element<'a, Message> {
+    let colors = app.colors();
+    let body: Element<'a, Message> = match dialog.step {
+        JoinStep::Shared => join_shared_step(dialog, colors),
+        JoinStep::Local => join_local_step(dialog, colors),
+        JoinStep::Review => join_review_step(dialog, colors),
+    };
+    let back: Element<'a, Message> = match dialog.step.previous() {
+        Some(_) => secondary_button(tr("back"), Message::Sync(sync::Message::JoinBack), colors),
+        None => space::horizontal().width(0).into(),
+    };
+    let label = if dialog.step.next().is_some() {
+        tr("next")
+    } else {
+        tr("join")
+    };
+    let action = button(text(label).size(14))
+        .padding([8, 16])
+        .style(theme::primary(colors))
+        .on_press_maybe(dialog.can_continue().then_some(Message::ConfirmDialog));
+    let footer = row![
+        back,
+        space::horizontal(),
+        secondary_button(tr("cancel"), Message::CloseDialog, colors),
+        action,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    column![title(tr("join_title")), join_steps(dialog.step, colors), body, footer]
+        .spacing(20)
+        .width(560)
+        .into()
+}
+
+/// The wizard's steps in a row, numbered, the current one highlighted.
+fn join_steps<'a>(current: JoinStep, colors: Colors) -> Element<'a, Message> {
+    let position = |step: JoinStep| JoinStep::ALL.iter().position(|each| *each == step).unwrap_or(0);
+    let steps = JoinStep::ALL.into_iter().enumerate().map(|(index, step)| {
+        let (is_current, done) = (step == current, index < position(current));
+        let badge = container(text((index + 1).to_string()).size(12))
+            .center(24)
+            .style(theme::step_badge(colors, is_current, done));
+        let key = match step {
+            JoinStep::Shared => "join_step_shared",
+            JoinStep::Local => "join_step_local",
+            JoinStep::Review => "join_step_review",
+        };
+        let name = text(tr(key))
+            .size(13)
+            .color(if is_current { colors.text } else { colors.muted });
+        row![badge, name].spacing(8).align_y(Alignment::Center).into()
+    });
+    Row::with_children(steps).spacing(24).align_y(Alignment::Center).into()
+}
+
+/// A chosen path in monospace, or a hint while none is chosen.
+fn chosen_path<'a>(path: Option<&std::path::Path>, colors: Colors) -> Element<'a, Message> {
+    match path {
+        Some(path) => raw_text(path.display().to_string(), colors),
+        None => text(tr("join_nothing_chosen")).size(13).color(colors.muted).into(),
+    }
+}
+
+fn join_shared_step<'a>(dialog: &'a JoinDialog, colors: Colors) -> Element<'a, Message> {
+    column![
+        text(tr("join_shared_hint")).size(13).color(colors.muted),
+        chosen_path(dialog.shared.as_deref(), colors),
+        row![secondary_button(
+            tr("join_choose_shared"),
+            Message::Sync(sync::Message::JoinChooseShared),
+            colors
+        )],
+    ]
+    .spacing(12)
+    .into()
+}
+
+fn join_local_step<'a>(dialog: &'a JoinDialog, colors: Colors) -> Element<'a, Message> {
+    let mut content = column![
+        text(tr("join_local_hint")).size(13).color(colors.muted),
+        chosen_path(dialog.local.as_deref(), colors),
+        row![
+            secondary_button(
+                tr("join_choose_new"),
+                Message::Sync(sync::Message::JoinChooseNew),
+                colors
+            ),
+            secondary_button(
+                tr("join_choose_existing"),
+                Message::Sync(sync::Message::JoinChooseExisting),
+                colors
+            ),
+        ]
+        .spacing(8),
+    ]
+    .spacing(12);
+    if let Some(outcome) = join_outcome(dialog, colors) {
+        content = content.push(outcome);
+    }
+    content.into()
+}
+
+fn join_review_step<'a>(dialog: &'a JoinDialog, colors: Colors) -> Element<'a, Message> {
+    let entry = |key: &'static str, path: Option<&'a std::path::Path>| {
+        column![caption(tr(key), colors), chosen_path(path, colors)].spacing(6)
+    };
+    let mut content = column![
+        text(tr("join_review_hint")).size(13).color(colors.muted),
+        entry("share_shared_copy", dialog.shared.as_deref()),
+        entry("join_step_local", dialog.local.as_deref()),
+    ]
+    .spacing(12);
+    if let Some(outcome) = join_outcome(dialog, colors) {
+        content = content.push(outcome);
+    }
+    content.into()
+}
+
+/// What joining does with the chosen local copy: create it, merge it, or
+/// nothing, because it is the shared copy itself.
+fn join_outcome<'a>(dialog: &JoinDialog, colors: Colors) -> Option<Element<'a, Message>> {
+    let (key, color) = if dialog.is_same_file() {
+        ("join_local_same", colors.danger)
+    } else {
+        match dialog.local_exists? {
+            true => ("join_local_merge", colors.warning),
+            false => ("join_local_new", colors.muted),
+        }
+    };
+    Some(text(tr(key)).size(13).color(color).into())
 }
 
 /// Every conflict of a linked file and its notes: both versions side by

@@ -94,12 +94,14 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
             Dialog::Editor(state) => editor::view(app, state),
             Dialog::Settings(dialog) => settings::view(app, dialog),
             Dialog::Confirm { message, detail, .. } => dialogs::confirm(app, message, detail.as_deref()),
+            Dialog::DeleteTodo { target, note } => list::delete_dialog(app, target, note),
             Dialog::Rename { attribute, from, input } => drawer::rename_dialog(app, *attribute, from, input),
             Dialog::RowDate { calendar, .. } => editor::row_dialog(app, calendar),
             Dialog::SaveFilter { name } => search::save_filter_dialog(app, name),
             Dialog::MoveToFile { target, to } => list::move_dialog(app, target, to),
             Dialog::BoardColumns { columns, input } => board::columns_dialog(app, columns, input),
             Dialog::Share(dialog) => sync::share_dialog(app, dialog),
+            Dialog::Join(dialog) => sync::join_dialog(app, dialog),
             Dialog::Conflicts(dialog) => sync::conflicts_dialog(app, dialog),
         };
         layers = layers.push(match dialog {

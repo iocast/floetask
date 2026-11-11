@@ -6,13 +6,15 @@ mod view;
 
 use std::path::PathBuf;
 
+use floetask_application::AppError;
+use floetask_domain::TodoDocument;
 use floetask_domain::listing::Attribute;
 
 use crate::app::Target;
 use crate::editor::DateKey;
 
 pub(crate) use view::{
-    add_area, attribute_label, body, card_menu, collapsible, drag_ghost, file_header, group_header,
+    add_area, attribute_label, body, card_menu, collapsible, delete_dialog, drag_ghost, file_header, group_header,
     looks_like_markdown, meta, move_dialog, status_label, status_name, view,
 };
 
@@ -29,6 +31,11 @@ pub enum Message {
     /// The file picked in the move dialog's dropdown.
     MoveToFileChoice(PathBuf),
     AskDelete(Target),
+    /// Deletes the todo of the open delete dialog and its note.
+    DeleteWithNote,
+    /// A todo and its note were deleted: the todo file as written, then
+    /// how deleting the note went.
+    Deleted(PathBuf, Result<TodoDocument, AppError>, Result<(), AppError>),
     ChipFilter(Attribute, String),
     /// Collapses or expands the list group with this key.
     ToggleGroup(String),

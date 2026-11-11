@@ -728,11 +728,13 @@ impl Floetask {
     fn confirm_dialog(&mut self) -> Task<Message> {
         match self.dialog.take() {
             Some(Dialog::Confirm { pending, .. }) => self.run_pending(pending),
+            Some(Dialog::DeleteTodo { target, .. }) => self.delete_todo(target),
             Some(Dialog::Rename { attribute, from, input }) => self.rename_value(attribute, from, input),
             Some(Dialog::SaveFilter { name }) => self.save_filter(name),
             Some(Dialog::MoveToFile { target, to }) => self.move_todo(target, to),
             Some(Dialog::BoardColumns { columns, .. }) => self.save_board_columns(columns),
             Some(Dialog::Share(dialog)) => self.share(dialog),
+            Some(Dialog::Join(dialog)) => self.join_next(dialog),
             Some(Dialog::Conflicts(dialog)) => self.resolve_conflicts(dialog),
             Some(Dialog::Editor(editor)) => {
                 self.dialog = Some(Dialog::Editor(editor));

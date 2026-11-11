@@ -730,7 +730,7 @@ fn note_path(name: &str) -> PathBuf {
 }
 
 #[test]
-fn notes_link_open_and_warn_when_orphaned() {
+fn notes_link_open_and_ask_on_delete() {
     let runtime = runtime();
     let _tokio = runtime.enter();
     let mut app = app();
@@ -755,17 +755,69 @@ fn notes_link_open_and_warn_when_orphaned() {
     );
     assert_eq!(app.note_statuses[Path::new(TODO_PATH)]["shopping"], NoteStatus::Present);
 
-    // Deleting the only todo linking a note warns and keeps the file.
+    // Deleting the only todo linking a note asks about the note; confirming
+    // keeps it.
     let _ = app.update(Message::List(list::Message::AskDelete(Target::new(
         TODO_PATH, 2, &todo,
     ))));
-    let _ = app.update(Message::ConfirmDialog);
+    assert!(matches!(app.dialog, Some(Dialog::DeleteTodo { .. })));
+    {
+        let mut ui = simulator(app.view());
+        assert!(ui.find("Delete todo and note").is_ok());
+        assert!(ui.find("Delete todo only").is_ok());
+    }
+    snapshot(&app, "delete-with-note");
+    drive(&runtime, &mut app, Message::ConfirmDialog);
+    assert!(app.dialog.is_none());
     assert!(
-        app.toasts
-            .iter()
-            .any(|toast| toast.text.contains("todo-notes/shopping.md"))
+        !app.services
+            .ports
+            .files
+            .read(Path::new(TODO_PATH))
+            .unwrap()
+            .contains("Buy milk")
     );
     assert!(app.services.ports.files.exists(&note_path("shopping.md")));
+}
+
+#[test]
+fn deleting_a_todo_can_delete_its_note_too() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+    let by_note = |app: &Floetask, note: &str| {
+        let entry = app
+            .listing
+            .todos()
+            .find(|entry| entry.todo.note() == Some(note))
+            .unwrap();
+        app.target(entry)
+    };
+    let slides = by_note(&app, "slides");
+
+    // The note window showing the note closes without writing it back.
+    drive(
+        &runtime,
+        &mut app,
+        Message::List(list::Message::OpenNote(slides.clone())),
+    );
+    assert!(app.note_window.is_some());
+    if let Some(window) = &mut app.note_window {
+        window.note.replace("# Slides\n\nUnsaved");
+    }
+
+    let _ = app.update(Message::List(list::Message::AskDelete(slides)));
+    drive(&runtime, &mut app, Message::List(list::Message::DeleteWithNote));
+    assert!(app.dialog.is_none());
+    assert!(app.note_window.is_none());
+    assert!(!files.read(Path::new(TODO_PATH)).unwrap().contains("Prepare slides"));
+    assert!(!files.exists(&note_path("slides.md")));
+
+    // A todo whose note does not exist is deleted with the plain question.
+    let milk = by_note(&app, "shopping");
+    let _ = app.update(Message::List(list::Message::AskDelete(milk)));
+    assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
 }
 
 /// Puts `text` in the open dialog's notes field.
@@ -1230,7 +1282,10 @@ fn assert_card_menu(app: &mut Floetask, label: &str) {
         let _ = app.update(message);
     }
     assert!(app.row_menu.is_none());
-    assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+    assert!(matches!(
+        app.dialog,
+        Some(Dialog::Confirm { .. } | Dialog::DeleteTodo { .. })
+    ));
     let _ = app.update(Message::CloseDialog);
 }
 
@@ -3009,6 +3064,139 @@ fn a_file_cannot_be_shared_with_itself() {
     let _ = app.update(Message::ConfirmDialog);
     assert!(app.sync.links.is_empty());
     assert!(matches!(app.dialog, Some(Dialog::Share(_))));
+}
+
+fn join_dialog(app: &Floetask) -> &sync::JoinDialog {
+    match &app.dialog {
+        Some(Dialog::Join(dialog)) => dialog,
+        _ => panic!("the join wizard is open"),
+    }
+}
+
+/// Clicks `label` in the open dialog and runs what it sends.
+fn click_and_drive(runtime: &tokio::runtime::Runtime, app: &mut Floetask, label: &str) {
+    for message in click(app, label) {
+        drive(runtime, app, message);
+    }
+}
+
+#[test]
+fn the_join_wizard_creates_your_copy_from_the_shared_one() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    set_shared(
+        &app,
+        "team.txt",
+        "Walk dog
+",
+    );
+    let _ = app.update(Message::Sync(sync::Message::Join));
+
+    // Step 1: Next waits for the shared copy.
+    assert_eq!(join_dialog(&app).step, sync::JoinStep::Shared);
+    let mut ui = simulator(app.view());
+    assert!(ui.find("Choose shared file…").is_ok());
+    drop(ui);
+    snapshot(&app, "join-shared");
+    let _ = app.update(Message::ConfirmDialog);
+    assert_eq!(join_dialog(&app).step, sync::JoinStep::Shared);
+    let shared = PathBuf::from(SHARED_FOLDER).join("team.txt");
+    drive(
+        &runtime,
+        &mut app,
+        Message::Sync(sync::Message::JoinShared(Some(shared))),
+    );
+    click_and_drive(&runtime, &mut app, "Next");
+
+    // Step 2: your copy is suggested next to the active file.
+    let dialog = join_dialog(&app);
+    assert_eq!(dialog.step, sync::JoinStep::Local);
+    let local = dialog.local.clone().expect("a suggested local copy");
+    assert_eq!(local, Path::new(TODO_PATH).parent().unwrap().join("team.txt"));
+    assert_eq!(dialog.local_exists, Some(false));
+    let mut ui = simulator(app.view());
+    for item in [
+        "New file…",
+        "Use an existing file…",
+        "A new file is created with the shared todos.",
+    ] {
+        assert!(ui.find(item).is_ok(), "missing {item}");
+    }
+    drop(ui);
+    snapshot(&app, "join-local");
+    click_and_drive(&runtime, &mut app, "Next");
+
+    // Step 3: review, then join.
+    assert_eq!(join_dialog(&app).step, sync::JoinStep::Review);
+    snapshot(&app, "join-review");
+    click_and_drive(&runtime, &mut app, "Join");
+    assert!(app.dialog.is_none());
+    assert_eq!(app.sync.links[0].name, "team.txt");
+    assert_eq!(
+        app.services.ports.files.read(&local).unwrap(),
+        "Walk dog
+"
+    );
+    assert!(app.state.files.iter().any(|entry| entry.path.ends_with("team.txt")));
+}
+
+#[test]
+fn the_join_wizard_warns_before_merging_an_existing_file() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    set_shared(
+        &app,
+        "team.txt",
+        "Walk dog
+",
+    );
+    let _ = app.update(Message::Sync(sync::Message::Join));
+    let shared = PathBuf::from(SHARED_FOLDER).join("team.txt");
+    drive(
+        &runtime,
+        &mut app,
+        Message::Sync(sync::Message::JoinShared(Some(shared.clone()))),
+    );
+    let _ = app.update(Message::ConfirmDialog);
+
+    // The shared copy itself cannot be your copy.
+    drive(
+        &runtime,
+        &mut app,
+        Message::Sync(sync::Message::JoinLocal(Some(shared))),
+    );
+    assert!(!join_dialog(&app).can_continue());
+    let mut ui = simulator(app.view());
+    assert!(ui.find("Your copy cannot be the shared copy itself.").is_ok());
+    drop(ui);
+
+    drive(
+        &runtime,
+        &mut app,
+        Message::Sync(sync::Message::JoinLocal(Some(PathBuf::from(TODO_PATH)))),
+    );
+    assert_eq!(join_dialog(&app).local_exists, Some(true));
+    let mut ui = simulator(app.view());
+    assert!(
+        ui.find(
+            "This file exists. Joining merges it with the shared copy; lines that differ become conflicts to settle."
+        )
+        .is_ok()
+    );
+    drop(ui);
+
+    // Back keeps what was chosen.
+    click_and_drive(&runtime, &mut app, "Back");
+    assert_eq!(join_dialog(&app).step, sync::JoinStep::Shared);
+    assert!(join_dialog(&app).local.is_some());
+    let _ = app.update(Message::ConfirmDialog);
+    let _ = app.update(Message::ConfirmDialog);
+    drive(&runtime, &mut app, Message::ConfirmDialog);
+    assert!(app.dialog.is_none());
+    // No base yet: every differing line is a conflict.
+    assert!(matches!(sync_status(&app), Some(SyncStatus::Conflict(_))));
 }
 
 #[test]
