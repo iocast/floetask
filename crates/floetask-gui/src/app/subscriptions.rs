@@ -49,7 +49,22 @@ pub(super) fn all(app: &Floetask) -> Subscription<Message> {
         sync_interval(app),
         watch(app),
         note_editors(app),
+        dialog_resize(app),
     ])
+}
+
+/// The cursor while the user resizes the edit dialog, and only then, so
+/// moving the mouse does not run `update` the rest of the time.
+fn dialog_resize(app: &Floetask) -> Subscription<Message> {
+    match &app.dialog {
+        Some(Dialog::Editor(editor)) if editor.resize.is_some() => event::listen_with(|event, _, _| match event {
+            iced::Event::Mouse(mouse::Event::CursorMoved { position }) => {
+                Some(Message::Editor(editor::Message::ResizeMove(position)))
+            }
+            _ => None,
+        }),
+        _ => Subscription::none(),
+    }
 }
 
 /// The notes editors' caret blink, and `Escape` from a focused one: the

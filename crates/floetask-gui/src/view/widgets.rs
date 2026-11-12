@@ -3,7 +3,8 @@
 use iced::widget::{
     button, center, column, container, mouse_area, opaque, row, space, stack, text, text_input, toggler, tooltip,
 };
-use iced::{Alignment, Element, Fill, alignment};
+use iced::window::Direction;
+use iced::{Alignment, Element, Fill, Length, Size, alignment, mouse};
 
 use floetask_application::TodoFileEntry;
 
@@ -20,7 +21,7 @@ pub fn modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element<'a, M
 
 /// Margin a large dialog keeps from the window edge when the window is
 /// small: about a thumb's width, so the app behind stays visible as a frame.
-const LARGE_MODAL_MARGIN: f32 = 40.0;
+pub const LARGE_MODAL_MARGIN: f32 = 40.0;
 /// The most a large dialog grows to, so it stays compact on a big window.
 const LARGE_MODAL_WIDTH: f32 = 820.0;
 const LARGE_MODAL_HEIGHT: f32 = 580.0;
@@ -36,6 +37,72 @@ pub fn large_modal<'a>(content: Element<'a, Message>, colors: Colors) -> Element
         .max_height(LARGE_MODAL_HEIGHT)
         .style(theme::card(colors));
     over_page(center(opaque(card)).padding(LARGE_MODAL_MARGIN).into(), colors)
+}
+
+/// Like [`large_modal`] at `size`, with edges and a corner grip that send
+/// `on_resize` when pressed, so the user can resize the dialog. The card
+/// stays centred, so a resize grows it on both sides.
+pub fn resizable_modal<'a>(
+    content: Element<'a, Message>,
+    size: Size,
+    on_resize: fn(Direction) -> Message,
+    colors: Colors,
+) -> Element<'a, Message> {
+    let grip = mouse_area(container(icon(Icon::Grip, 14.0, colors.muted)).padding(5))
+        .on_press(on_resize(Direction::SouthEast))
+        .interaction(mouse::Interaction::ResizingDiagonallyDown);
+    let card = container(stack![
+        container(content).padding(24).width(Fill).height(Fill),
+        resize_edges(RESIZE_EDGE, on_resize),
+        container(grip).align_right(Fill).align_bottom(Fill),
+    ])
+    .width(Fill)
+    .height(Fill)
+    .max_width(size.width)
+    .max_height(size.height)
+    .style(theme::card(colors));
+    over_page(center(opaque(card)).padding(LARGE_MODAL_MARGIN).into(), colors)
+}
+
+/// Width of the invisible resize border of a resizable dialog; it lies in
+/// the card's padding, clear of the content.
+const RESIZE_EDGE: f32 = 6.0;
+
+/// Thin areas along the border of whatever they are stacked over that send
+/// `on_resize` with their direction when pressed, showing a resize cursor.
+pub fn resize_edges<'a>(thickness: f32, on_resize: impl Fn(Direction) -> Message) -> Element<'a, Message> {
+    let edge = |direction: Direction, width: Length, height: Length| -> Element<'a, Message> {
+        let cursor = match direction {
+            Direction::North | Direction::South => mouse::Interaction::ResizingVertically,
+            Direction::East | Direction::West => mouse::Interaction::ResizingHorizontally,
+            Direction::NorthWest | Direction::SouthEast => mouse::Interaction::ResizingDiagonallyDown,
+            Direction::NorthEast | Direction::SouthWest => mouse::Interaction::ResizingDiagonallyUp,
+        };
+        mouse_area(space().width(width).height(height))
+            .on_press(on_resize(direction))
+            .interaction(cursor)
+            .into()
+    };
+    let e = Length::Fixed(thickness);
+    column![
+        row![
+            edge(Direction::NorthWest, e, e),
+            edge(Direction::North, Fill, e),
+            edge(Direction::NorthEast, e, e)
+        ],
+        row![
+            edge(Direction::West, e, Fill),
+            space().width(Fill).height(Fill),
+            edge(Direction::East, e, Fill)
+        ]
+        .height(Fill),
+        row![
+            edge(Direction::SouthWest, e, e),
+            edge(Direction::South, Fill, e),
+            edge(Direction::SouthEast, e, e)
+        ],
+    ]
+    .into()
 }
 
 /// Puts a dialog's card layer over the dimmed backdrop. The title bar's

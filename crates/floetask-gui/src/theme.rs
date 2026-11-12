@@ -4,7 +4,7 @@
 //! [`Colors`], which the user can override per mode in the colour file. All
 //! widget styles live here so views stay declarative.
 
-use iced::widget::{button, checkbox, container, scrollable, text_input};
+use iced::widget::{button, checkbox, container, overlay, pick_list, scrollable, text_input};
 use iced::{Background, Border, Color, Shadow, Theme, Vector, border};
 use iced_markdown_editor::{EditorStyle, Palette, Typography};
 
@@ -386,6 +386,20 @@ pub fn code(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     }
 }
 
+/// A quiet inset panel inside a card, such as the edit dialog's details.
+pub fn inset(colors: Colors) -> impl Fn(&Theme) -> container::Style {
+    move |_| container::Style {
+        background: filled(colors.background),
+        text_color: Some(colors.text),
+        border: Border {
+            radius: 12.0.into(),
+            width: 1.0,
+            color: colors.border,
+        },
+        ..container::Style::default()
+    }
+}
+
 /// A strip across a window, such as the note window's header.
 pub fn bar(colors: Colors) -> impl Fn(&Theme) -> container::Style {
     move |_| container::Style {
@@ -541,6 +555,38 @@ pub fn danger(colors: Colors) -> impl Fn(&Theme, button::Status) -> button::Styl
     }
 }
 
+/// A destructive action that should not shout: danger-coloured text that
+/// fills in only on hover, like Delete in the edit dialog.
+pub fn danger_ghost(colors: Colors) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+        button::Style {
+            background: hovered.then(|| Background::Color(colors.tint(colors.danger, 0.14))),
+            text_color: colors.danger,
+            border: border::rounded(8),
+            ..button::Style::default()
+        }
+    }
+}
+
+/// A button that looks like a field, such as a date that opens a picker;
+/// `open` while its popup shows.
+pub fn field_button(colors: Colors, open: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+        button::Style {
+            background: filled(if hovered { colors.hover } else { colors.surface }),
+            text_color: colors.text,
+            border: Border {
+                radius: 8.0.into(),
+                width: 1.0,
+                color: if open { colors.primary } else { colors.border },
+            },
+            ..button::Style::default()
+        }
+    }
+}
+
 /// A file tab in the title bar.
 pub fn tab(colors: Colors, active: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
     move |_, status| {
@@ -634,6 +680,48 @@ pub fn round_checkbox(colors: Colors) -> impl Fn(&Theme, checkbox::Status) -> ch
             },
             text_color: None,
         }
+    }
+}
+
+/// A pick list that looks like the text inputs next to it.
+pub fn select(colors: Colors) -> impl Fn(&Theme, pick_list::Status) -> pick_list::Style {
+    move |_, status| {
+        let open = matches!(status, pick_list::Status::Opened { .. });
+        let hovered = matches!(
+            status,
+            pick_list::Status::Hovered | pick_list::Status::Opened { is_hovered: true }
+        );
+        pick_list::Style {
+            text_color: colors.text,
+            placeholder_color: colors.muted,
+            handle_color: colors.muted,
+            background: filled(if hovered { colors.hover } else { colors.surface }).unwrap(),
+            border: Border {
+                radius: 8.0.into(),
+                width: 1.0,
+                color: if open { colors.primary } else { colors.border },
+            },
+        }
+    }
+}
+
+/// The open menu of a [`select`] pick list.
+pub fn select_menu(colors: Colors) -> impl Fn(&Theme) -> overlay::menu::Style {
+    move |_| overlay::menu::Style {
+        background: filled(colors.surface).unwrap(),
+        border: Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: colors.border,
+        },
+        text_color: colors.text,
+        selected_text_color: colors.primary,
+        selected_background: filled(colors.tint(colors.primary, 0.14)).unwrap(),
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(if colors.dark { 0.5 } else { 0.15 }),
+            offset: Vector::new(0.0, 4.0),
+            blur_radius: 12.0,
+        },
     }
 }
 

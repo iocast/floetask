@@ -40,7 +40,7 @@ File locations follow the [XDG Base Directory Specification](https://specificati
 | Directory | Files |
 |---|---|
 | `~/.config/floetask/` | `config.toml` (settings; `--config FILE` overrides the path), `colors.toml` and `filters.toml` (saved searches), both next to the config file |
-| `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, main and note window), `notified.toml` (notification de-dup), `sync.toml` (linked files) and `sync/` (their base copies) |
+| `~/.local/state/floetask/` | `state.toml` (registered files, layout, view toggles, main and note window, edit dialog size), `notified.toml` (notification de-dup), `sync.toml` (linked files) and `sync/` (their base copies) |
 | `~/.local/share/floetask/` | unused; older versions kept `filters.toml` here and it is moved on start |
 | `~/.cache/floetask/` | `floetask.png` (Windows: the icon notifications show, written on start) |
 

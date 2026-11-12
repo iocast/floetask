@@ -1,17 +1,20 @@
 # 5. Add / edit dialog (P0)
 
 - Opened by `Ctrl+N`, the add button, or opening a row.
-- Multi-line text field holding the raw todo.txt line. `Ctrl+Enter` saves, `Escape` closes.
+- Layout: the text field and the notes on the left, a **Details** panel on the right with one labelled control per attribute, the actions along the bottom. The user resizes the dialog by its edges or the grip in its bottom-right corner (it stays centred, down to a minimum that fits both columns); the size is kept in the app state. A window smaller than that size shrinks the dialog; the notes take the height that is left, and the Details panel scrolls when it runs out of room.
+- Multi-line text field holding the raw todo.txt line, without the tokens the Details panel shows (due, threshold, repeat, pomodoros, status, note). `Ctrl+Enter` saves, `Escape` closes.
 - **Autocomplete**: typing `+` or `@` shows suggestions from all known projects/contexts (including from hidden `h:1` todos). `Up`/`Down` to move, `Enter` to insert.
-- **Pickers** that edit the text in place:
+- **Pickers** in the Details panel that edit the text in place:
   - Priority picker (none, A–Z).
+  - Status picker.
   - Due date picker.
   - Threshold date picker.
   - Recurrence picker (unit + count + strict toggle).
   - Pomodoro picker (number).
-- **Notes** (P1): a WYSIWYG Markdown editor for the todo's notes, with a toolbar and a Source mode. Saving writes them to the `note:` file, creating the file and the tag from the task text when the todo has none. Buttons in the notes header link a Markdown file from disk instead (moved into the notes folder or kept where it is), open the note in the note window, and unlink it (see [note-extension.md](note-extension.md#how-floetask-implements-it)).
+  - A count of 0 means none; a clear button shows next to a count while it is set.
+- **Notes** (P1): a WYSIWYG Markdown editor for the todo's notes, with a toolbar and a Source mode. The toolbar is hidden until the format button in the notes header shows it. Saving writes them to the `note:` file, creating the file and the tag from the task text when the todo has none. Buttons in the notes header link a Markdown file from disk instead (moved into the notes folder or kept where it is), open the note in the note window, and unlink it (see [note-extension.md](note-extension.md#how-floetask-implements-it)).
 - **Complete** (edit only): a button next to Cancel saves the edits and completes the todo in one write; a recurring todo adds its next occurrence, as the list checkbox does. On a completed todo the button reads **Reopen** and un-completes it.
-- **Delete** (edit only): a button on the left of the actions deletes the todo after the same confirmation as the row menu, including the question whether its note goes too. Unsaved edits are discarded.
+- **Delete** (edit only): a quiet danger-coloured button on the left of the actions deletes the todo after the same confirmation as the row menu, including the question whether its note goes too. Unsaved edits are discarded.
 - **Bulk creation** (setting): each line in the field becomes a separate todo; the Add button shows the count, e.g. `Add (3)`.
 - Empty input shows a non-blocking warning (toast).
 - Creating a todo from the search box: `Ctrl+Enter` in the search field saves its text as a new todo.

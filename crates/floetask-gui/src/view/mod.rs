@@ -14,7 +14,7 @@ mod title_bar;
 pub(crate) mod widgets;
 
 use iced::widget::{column, container, mouse_area, row, space, stack, text};
-use iced::{Element, Fill, Length, mouse, window};
+use iced::{Element, Fill};
 
 use floetask_application::MainView;
 
@@ -105,6 +105,12 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
             Dialog::Conflicts(dialog) => sync::conflicts_dialog(app, dialog),
         };
         layers = layers.push(match dialog {
+            Dialog::Editor(_) => widgets::resizable_modal(
+                content,
+                iced::Size::new(app.state.edit_dialog.width, app.state.edit_dialog.height),
+                |direction| Message::Editor(editor::Message::ResizeStart(direction)),
+                colors,
+            ),
             Dialog::Settings(_) | Dialog::Conflicts(_) => widgets::large_modal(content, colors),
             _ => widgets::modal(content, colors),
         });
@@ -128,7 +134,7 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
         );
     }
     if !app.maximized {
-        layers = layers.push(resize_edges());
+        layers = layers.push(window_edges());
     }
     // A dragged todo follows the cursor, drawn with its own pointer so the
     // two never drift apart.
@@ -167,38 +173,6 @@ fn body(app: &Floetask) -> Element<'_, Message> {
 }
 
 /// Thin areas along the window border that resize the borderless window.
-fn resize_edges() -> Element<'static, Message> {
-    use window::Direction as D;
-    let edge = |direction: D, width: Length, height: Length| -> Element<'static, Message> {
-        let cursor = match direction {
-            D::North | D::South => mouse::Interaction::ResizingVertically,
-            D::East | D::West => mouse::Interaction::ResizingHorizontally,
-            D::NorthWest | D::SouthEast => mouse::Interaction::ResizingDiagonallyDown,
-            D::NorthEast | D::SouthWest => mouse::Interaction::ResizingDiagonallyUp,
-        };
-        mouse_area(space().width(width).height(height))
-            .on_press(Message::WindowResize(direction))
-            .interaction(cursor)
-            .into()
-    };
-    let e = Length::Fixed(EDGE);
-    column![
-        row![
-            edge(D::NorthWest, e, e),
-            edge(D::North, Fill, e),
-            edge(D::NorthEast, e, e)
-        ],
-        row![
-            edge(D::West, e, Fill),
-            space().width(Fill).height(Fill),
-            edge(D::East, e, Fill)
-        ]
-        .height(Fill),
-        row![
-            edge(D::SouthWest, e, e),
-            edge(D::South, Fill, e),
-            edge(D::SouthEast, e, e)
-        ],
-    ]
-    .into()
+fn window_edges() -> Element<'static, Message> {
+    widgets::resize_edges(EDGE, Message::WindowResize)
 }

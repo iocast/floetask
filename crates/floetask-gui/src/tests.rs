@@ -361,7 +361,11 @@ fn snapshot_view(app: &Floetask, view: iced::Element<'_, Message>, name: &str) {
         return;
     };
     let path = PathBuf::from(dir).join(name);
-    let _ = std::fs::remove_file(path.with_extension("png"));
+    // The snapshot is saved as `<name>-<renderer>.png`, and an existing one
+    // is only compared, never replaced, so remove it first.
+    for renderer in ["wgpu", "tiny-skia"] {
+        let _ = std::fs::remove_file(path.with_file_name(format!("{name}-{renderer}.png")));
+    }
     let mut ui = simulator(view);
     let snapshot = ui.snapshot(&app.theme()).unwrap();
     snapshot.matches_image(&path).unwrap();
@@ -648,9 +652,9 @@ fn file_menu_floats_and_closes_on_outside_click() {
 fn editor_date_picker_floats_over_the_dialog() {
     let mut app = app();
     let _ = app.update(Message::Editor(editor::Message::New));
-    for message in click(&app, "Due") {
-        let _ = app.update(message);
-    }
+    let _ = app.update(Message::Editor(editor::Message::OpenDatePicker(
+        crate::editor::DateKey::Due,
+    )));
     let editor_calendar = |app: &Floetask| match &app.dialog {
         Some(Dialog::Editor(editor)) => editor.calendar.as_ref().map(|calendar| calendar.key),
         _ => panic!("editor closed"),
@@ -3269,4 +3273,57 @@ fn the_sync_interval_is_a_setting() {
         SettingChange::SyncInterval(60),
     )));
     assert_eq!(app.settings.sync.interval, 60);
+}
+
+#[test]
+fn editing_a_todo_shows_its_attributes_in_the_details_panel() {
+    let mut app = app();
+    let _ = app.update(Message::List(list::Message::OpenTodo(target_of(
+        &app,
+        "Prepare slides",
+    ))));
+    let _ = app.update(Message::Editor(editor::Message::RecurrenceCount("2".to_owned())));
+    let _ = app.update(Message::Editor(editor::Message::Pomodoros("3".to_owned())));
+    let Some(Dialog::Editor(editor)) = &app.dialog else {
+        panic!("editor closed")
+    };
+    // The status shows in its picker, not in the field.
+    assert_eq!(editor.visible_text(), "(B) Prepare slides +work");
+    let mut ui = simulator(app.view());
+    for label in ["Doing", "2026-10-06", "Delete", "Complete", "Save"] {
+        assert!(ui.find(label).is_ok(), "{label} missing");
+    }
+    snapshot(&app, "editor-edit");
+}
+
+#[test]
+fn dragging_the_grip_resizes_the_edit_dialog() {
+    let mut app = app();
+    let _ = app.update(Message::Editor(editor::Message::New));
+    let resizing = |app: &Floetask| match &app.dialog {
+        Some(Dialog::Editor(editor)) => editor.resize.is_some(),
+        _ => panic!("editor closed"),
+    };
+    let _ = app.update(Message::Editor(editor::Message::ResizeStart(
+        iced::window::Direction::SouthEast,
+    )));
+    assert!(resizing(&app));
+    // The first move only marks where the drag starts.
+    let _ = app.update(Message::Editor(editor::Message::ResizeMove(iced::Point::new(
+        900.0, 650.0,
+    ))));
+    let _ = app.update(Message::Editor(editor::Message::ResizeMove(iced::Point::new(
+        840.0, 600.0,
+    ))));
+    assert_eq!(
+        (app.state.edit_dialog.width, app.state.edit_dialog.height),
+        (700.0, 480.0)
+    );
+    snapshot(&app, "editor-resized");
+
+    let _ = app.update(Message::MouseReleased);
+    assert!(!resizing(&app));
+    // Moves after the release change nothing.
+    let _ = app.update(Message::Editor(editor::Message::ResizeMove(iced::Point::new(0.0, 0.0))));
+    assert_eq!(app.state.edit_dialog.width, 700.0);
 }

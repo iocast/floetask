@@ -63,10 +63,14 @@ pub enum Icon {
     Sync,
     /// Conflicts to settle, a shared copy gone missing.
     Alert,
+    /// Text formatting: shows the notes editor's toolbar.
+    Format,
+    /// The corner grip of a resizable dialog.
+    Grip,
 }
 
 impl Icon {
-    const ALL: [Icon; 50] = [
+    const ALL: [Icon; 52] = [
         Icon::Plus,
         Icon::Search,
         Icon::Filter,
@@ -117,6 +121,8 @@ impl Icon {
         Icon::CloudOff,
         Icon::Sync,
         Icon::Alert,
+        Icon::Format,
+        Icon::Grip,
     ];
 
     /// The SVG body (elements inside the 24×24 canvas).
@@ -201,6 +207,8 @@ impl Icon {
             }
             Icon::Sync => r#"<path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M19 3v4h-4M5 21v-4h4"/>"#,
             Icon::Alert => r#"<path d="M12 3.5l9.5 16.5h-19zM12 10v4.5M12 17.5h.01"/>"#,
+            Icon::Format => r#"<path d="M4 20h16M6.5 16l5.5-12 5.5 12M8.8 11h6.4"/>"#,
+            Icon::Grip => r#"<path d="M20 9L9 20M20 15l-5 5"/>"#,
             Icon::Window => {
                 r#"<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M6.5 6.5h.01M9 6.5h.01"/>"#
             }

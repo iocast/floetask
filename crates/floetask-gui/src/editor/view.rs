@@ -2,7 +2,7 @@
 
 use iced::keyboard::{Key, key::Named};
 use iced::widget::{
-    Column, Row, button, checkbox, column, container, pick_list, row, space, text, text_editor, text_input,
+    Column, Row, button, checkbox, column, container, pick_list, row, scrollable, space, text, text_editor, text_input,
 };
 use std::path::Path;
 
@@ -24,10 +24,16 @@ use crate::theme::{self, Colors};
 use crate::view::EDITOR_ID;
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
-use crate::view::widgets::{
-    caption, danger_button, file_choices, primary_button, secondary_button, title, with_tooltip,
-};
+use crate::view::widgets::{caption, file_choices, primary_button, secondary_button, title, with_tooltip};
 
+/// Width of the details panel on the right of the dialog.
+const DETAILS_WIDTH: f32 = 248.0;
+/// What a date field shows while the todo has no such date.
+const NO_DATE: &str = "–";
+
+/// The dialog: the todo text and its notes on the left, the attributes the
+/// dialog edits for the user in a details panel on the right, and the
+/// actions along the bottom.
 pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     let colors = app.colors();
     let heading = tr(if editor.target.is_some() {
@@ -41,8 +47,8 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
         .id(EDITOR_ID)
         .placeholder(tr("editor_placeholder"))
         .on_action(|action| Message::Editor(editor::Message::Action(action)))
-        .min_height(96)
-        .max_height(240)
+        .min_height(76)
+        .max_height(180)
         .padding(12)
         .size(15)
         .style(field_style(colors))
@@ -69,18 +75,23 @@ pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
             }
         });
 
-    let mut content = Column::new().spacing(16).push(title(heading));
+    let mut header = row![title(heading), space::horizontal()]
+        .spacing(12)
+        .align_y(Alignment::Center);
     if app.state.shows_overview() {
-        content = content.push(file_line(app, editor, colors));
+        header = header.push(file_line(app, editor, colors));
     }
-    let mut content = content.push(input);
+    let mut main = Column::new().spacing(14).width(Fill).height(Fill).push(input);
     if has_suggestions {
-        content = content.push(suggestions(editor, colors));
+        main = main.push(suggestions(editor, colors));
     }
-    content = content.push(pickers(app, editor, colors));
-    content = content.push(repeat_and_pomodoros(editor, colors));
-    content = content.push(notes(app, editor, colors));
-    content.push(actions(app, editor, colors)).width(580).into()
+    main = main.push(notes(app, editor, colors));
+    let body = row![main, details(app, editor, colors)].spacing(20).height(Fill);
+    column![header, body, actions(app, editor, colors)]
+        .spacing(18)
+        .width(Fill)
+        .height(Fill)
+        .into()
 }
 
 /// The look of the dialog's multi-line fields.
@@ -153,143 +164,244 @@ fn file_line<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Eleme
     .into()
 }
 
-fn pickers<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
+/// The details panel: one labelled control per attribute, each editing the
+/// todo text in place.
+fn details<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
     let todo = Todo::from_user_text(&editor.text());
     let mut priorities: Vec<PriorityChoice> = vec![PriorityChoice(None)];
     priorities.extend(Priority::all().map(|p| PriorityChoice(Some(p))));
-    let date_button = |key: DateKey, date: Option<floetask_domain::Date>| {
-        let open = editor.calendar.as_ref().is_some_and(|c| c.key == key);
-        let label = match date {
-            Some(date) => format!("{} {date}", tr(key.key())),
-            None => tr(key.key()).to_owned(),
-        };
-        let tint = if open || date.is_some() {
-            colors.primary
-        } else {
-            colors.text
-        };
-        let anchor = button(
-            row![icon(Icon::Calendar, 14.0, tint), text(label).size(13)]
-                .spacing(6)
-                .align_y(Alignment::Center),
-        )
-        .padding([6, 10])
-        .style(theme::ghost(colors, open || date.is_some()))
-        // While open, a click on the button closes the calendar like any outside click.
-        .on_press(if open {
-            Message::Editor(editor::Message::CloseDatePicker)
-        } else {
-            Message::Editor(editor::Message::OpenDatePicker(key))
-        });
-        let calendar = editor.calendar.as_ref().filter(|_| open).map(|calendar| {
-            container(date_picker::view(calendar, app.today, app.settings.week_start, colors))
-                .padding(12)
-                .style(theme::card(colors))
-                .into()
-        });
-        popover(anchor, calendar, Message::Editor(editor::Message::CloseDatePicker)).align_left()
-    };
     let current_status = todo.status_tag().unwrap_or(DEFAULT_STATUS);
     let choice = |key: String| StatusChoice(status_label(app, &key), key);
     let mut statuses: Vec<StatusChoice> = app.status_options().into_iter().map(choice).collect();
     if !statuses.iter().any(|choice| choice.1 == current_status) {
         statuses.push(choice(current_status.to_owned()));
     }
-    column![
-        caption(tr("details"), colors),
-        row![
-            text(tr("priority")).size(13).color(colors.muted),
-            pick_list(priorities, Some(PriorityChoice(todo.priority())), |choice| {
-                Message::Editor(editor::Message::Priority(choice.0))
-            })
-            .text_size(13),
-            text(tr("status")).size(13).color(colors.muted),
-            pick_list(statuses, Some(choice(current_status.to_owned())), |choice| {
-                Message::Editor(editor::Message::Status(choice.1))
-            })
-            .text_size(13),
-            date_button(DateKey::Due, todo.due()),
-            date_button(DateKey::Threshold, todo.threshold()),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
-    ]
-    .spacing(8)
-    .into()
-}
+    let priority = select(
+        priorities,
+        PriorityChoice(todo.priority()),
+        |choice| Message::Editor(editor::Message::Priority(choice.0)),
+        colors,
+    );
+    let status = select(
+        statuses,
+        choice(current_status.to_owned()),
+        |choice| Message::Editor(editor::Message::Status(choice.1)),
+        colors,
+    );
 
-fn repeat_and_pomodoros(editor: &Editor, colors: Colors) -> Element<'_, Message> {
-    let small = move |label: &'static str, message: Message| {
-        button(text(tr(label)).size(12))
-            .padding([4, 10])
-            .style(theme::secondary(colors))
-            .on_press(message)
-    };
-    let number = |value: &'static str, current: &str, on_input: fn(String) -> Message| {
-        text_input(value, current)
-            .on_input(on_input)
-            .width(48)
-            .size(13)
-            .padding(6)
-            .style(theme::input(colors))
-    };
     let units: Vec<UnitChoice> = RecurrenceUnit::ALL.into_iter().map(UnitChoice).collect();
-    let repeat = row![
-        icon(Icon::Repeat, 14.0, colors.muted),
-        text(tr("rec")).size(13).color(colors.muted),
-        number("0", &editor.recurrence_count, |count| Message::Editor(
-            editor::Message::RecurrenceCount(count)
-        )),
-        pick_list(units, Some(UnitChoice(editor.recurrence_unit)), |unit| {
-            Message::Editor(editor::Message::RecurrenceUnit(unit.0))
-        })
-        .text_size(13),
+    let count = number(
+        &editor.recurrence_count,
+        |count| Message::Editor(editor::Message::RecurrenceCount(count)),
+        colors,
+    );
+    let unit = select(
+        units,
+        UnitChoice(editor.recurrence_unit),
+        |unit| Message::Editor(editor::Message::RecurrenceUnit(unit.0)),
+        colors,
+    );
+    let mut repeat = row![count, unit].spacing(8).align_y(Alignment::Center);
+    if is_set(&editor.recurrence_count) {
+        repeat = repeat.push(clear_button(Message::Editor(editor::Message::ClearRecurrence), colors));
+    }
+    // Strict sits on the label's line, so the repeat takes one row of controls.
+    let repeat_label = row![
+        label(Icon::Repeat, "rec", colors),
         checkbox(editor.recurrence_strict)
             .label(tr("strict"))
             .on_toggle(|strict| Message::Editor(editor::Message::RecurrenceStrict(strict)))
-            .text_size(13),
-        small("clear", Message::Editor(editor::Message::ClearRecurrence)),
+            .size(14)
+            .text_size(12),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    let pomodoros = row![
-        icon(Icon::Timer, 14.0, colors.muted),
-        text(tr("pm")).size(13).color(colors.muted),
-        number("0", &editor.pomodoros, |count| Message::Editor(
-            editor::Message::Pomodoros(count)
-        )),
-        small("clear", Message::Editor(editor::Message::ClearPomodoros)),
+
+    let count = number(
+        &editor.pomodoros,
+        |count| Message::Editor(editor::Message::Pomodoros(count)),
+        colors,
+    );
+    let mut pomodoros = row![count].spacing(8).align_y(Alignment::Center);
+    if is_set(&editor.pomodoros) {
+        pomodoros = pomodoros.push(clear_button(Message::Editor(editor::Message::ClearPomodoros), colors));
+    }
+
+    let fields = column![
+        caption(tr("details"), colors),
+        property(label(Icon::Star, "priority", colors), priority),
+        property(label(Icon::Status, "status", colors), status),
+        property(
+            label(Icon::Calendar, DateKey::Due.key(), colors),
+            date_field(app, editor, DateKey::Due, todo.due(), colors)
+        ),
+        property(
+            label(Icon::Calendar, DateKey::Threshold.key(), colors),
+            date_field(app, editor, DateKey::Threshold, todo.threshold(), colors)
+        ),
+        property(repeat_label, repeat),
+        property(label(Icon::Timer, "pm", colors), pomodoros),
     ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-    column![repeat, pomodoros].spacing(10).into()
+    .spacing(14);
+    container(
+        scrollable(fields)
+            // Beside the fields, not over them, once the dialog is too
+            // low to show them all.
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::new().width(6).scroller_width(6).spacing(6),
+            ))
+            .style(theme::slim_scroller(colors)),
+    )
+    .padding(16)
+    .width(DETAILS_WIDTH)
+    .height(Fill)
+    .style(theme::inset(colors))
+    .into()
+}
+
+/// A control in the details panel with its label above it.
+fn property<'a>(
+    label: impl Into<Element<'a, Message>>,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    column![label.into(), control.into()].spacing(6).into()
+}
+
+/// A property's label: a small icon and the translated name, filling the
+/// line so a control can sit at its end.
+fn label<'a>(glyph: Icon, key: &'static str, colors: Colors) -> Element<'a, Message> {
+    row![
+        icon(glyph, 13.0, colors.muted),
+        text(tr(key)).size(12).color(colors.muted)
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center)
+    .width(Fill)
+    .into()
+}
+
+/// A pick list styled like the dialog's fields, as wide as its space.
+fn select<'a, T>(
+    options: Vec<T>,
+    selected: T,
+    on_select: impl Fn(T) -> Message + 'a,
+    colors: Colors,
+) -> Element<'a, Message>
+where
+    T: ToString + PartialEq + Clone + 'a,
+{
+    pick_list(options, Some(selected), on_select)
+        .width(Fill)
+        .padding([6, 10])
+        .text_size(13)
+        .style(theme::select(colors))
+        .menu_style(theme::select_menu(colors))
+        .into()
+}
+
+/// A small field for a count, where 0 means none.
+fn number<'a>(current: &str, on_input: fn(String) -> Message, colors: Colors) -> Element<'a, Message> {
+    text_input("0", current)
+        .on_input(on_input)
+        .width(56)
+        .size(13)
+        .padding([6, 10])
+        .style(theme::input(colors))
+        .into()
+}
+
+/// Whether a count field holds more than 0.
+fn is_set(count: &str) -> bool {
+    count.parse::<u32>().is_ok_and(|count| count > 0)
+}
+
+/// Resets a count to 0; shown only while it is set.
+fn clear_button<'a>(message: Message, colors: Colors) -> Element<'a, Message> {
+    let button = button(icon(Icon::Close, 14.0, colors.muted))
+        .padding(6)
+        .style(theme::ghost(colors, false))
+        .on_press(message);
+    with_tooltip(button, tr("clear"), colors)
+}
+
+/// A date as a field that opens the date picker under it; the picker
+/// floats over the dialog without moving it.
+fn date_field<'a>(
+    app: &'a Floetask,
+    editor: &'a Editor,
+    key: DateKey,
+    date: Option<floetask_domain::Date>,
+    colors: Colors,
+) -> Element<'a, Message> {
+    let open = editor.calendar.as_ref().is_some_and(|c| c.key == key);
+    let value: Element<'a, Message> = match date {
+        Some(date) => text(date.to_string()).size(13).into(),
+        None => text(NO_DATE).size(13).color(colors.muted).into(),
+    };
+    let tint = if open || date.is_some() {
+        colors.primary
+    } else {
+        colors.muted
+    };
+    let anchor = button(
+        row![icon(Icon::Calendar, 14.0, tint), value]
+            .spacing(8)
+            .align_y(Alignment::Center),
+    )
+    .width(Fill)
+    .padding([6, 10])
+    .style(theme::field_button(colors, open))
+    // While open, a click on the field closes the calendar like any outside click.
+    .on_press(if open {
+        Message::Editor(editor::Message::CloseDatePicker)
+    } else {
+        Message::Editor(editor::Message::OpenDatePicker(key))
+    });
+    let calendar = editor.calendar.as_ref().filter(|_| open).map(|calendar| {
+        container(date_picker::view(calendar, app.today, app.settings.week_start, colors))
+            .padding(12)
+            .style(theme::card(colors))
+            .into()
+    });
+    popover(anchor, calendar, Message::Editor(editor::Message::CloseDatePicker)).into()
 }
 
 /// The todo's notes, in a Markdown editor. Saving writes them to the
 /// `note:` file, adding the tag with a name taken from the todo text when
-/// there is none. The header links a file from disk instead, opens the note
-/// in the note window, or unlinks it.
+/// there is none. The header shows the editor's formatting toolbar, links a
+/// file from disk instead, opens the note in the note window, or unlinks it.
 fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
     let target = editor.note_target();
-    let tool = |glyph: Icon, hint: &'static str, message: Message| {
-        let button = button(icon(glyph, 14.0, colors.muted))
+    let toggle = |glyph: Icon, hint: &'static str, message: Message, active: bool| {
+        let tint = if active { colors.primary } else { colors.muted };
+        let button = button(icon(glyph, 14.0, tint))
             .padding(5)
-            .style(theme::ghost(colors, false))
+            .style(theme::ghost(colors, active))
             .on_press(message);
         with_tooltip(button, tr(hint), colors)
     };
+    let tool = |glyph: Icon, hint: &'static str, message: Message| toggle(glyph, hint, message, false);
+    let in_window = app.dialog_note_in_window();
     let mut header = row![
         icon(Icon::Note, 14.0, colors.muted),
         caption(tr("notes"), colors),
         space::horizontal(),
-        tool(
-            Icon::Attach,
-            "link_note_file",
-            Message::Editor(editor::Message::PickNoteFile)
-        ),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
+    if !in_window {
+        header = header.push(toggle(
+            Icon::Format,
+            "note_toolbar",
+            Message::Editor(editor::Message::ToggleNoteToolbar),
+            editor.note_toolbar,
+        ));
+    }
+    header = header.push(tool(
+        Icon::Attach,
+        "link_note_file",
+        Message::Editor(editor::Message::PickNoteFile),
+    ));
     if !matches!(target, Some(Err(_))) {
         header = header.push(tool(
             Icon::Window,
@@ -305,12 +417,12 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
         ));
     }
 
-    let mut section = column![header].spacing(8);
+    let mut section = column![header].spacing(8).height(Fill);
     if let Some(picked) = &editor.pending_link {
         section = section.push(link_question(&editor.file, picked, colors));
     }
     // While the note window has this note, the dialog leaves it alone.
-    let field: Element<'a, Message> = if app.dialog_note_in_window() {
+    let field: Element<'a, Message> = if in_window {
         container(
             row![
                 text(tr("note_in_window")).size(13).color(colors.muted).width(Fill),
@@ -324,18 +436,22 @@ fn notes<'a>(app: &Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, 
             .align_y(Alignment::Center),
         )
         .padding([10, 12])
+        .height(Fill)
+        .align_y(Alignment::Center)
         .style(theme::note_field(colors, false))
         .into()
     } else {
         let state = editor.note.state();
         container(
             markdown_editor(state)
+                .toolbar(editor.note_toolbar)
                 .status_bar(false)
-                .height(220)
+                .height(Fill)
                 .view()
                 .map(|action| Message::Editor(editor::Message::NoteAction(action))),
         )
         .padding(4)
+        .height(Fill)
         .style(theme::note_field(colors, state.is_focused()))
         .into()
     };
@@ -421,11 +537,16 @@ fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
             file: editor.file.clone(),
             todo: todo.clone(),
         };
-        actions = actions.push(danger_button(
-            tr("delete"),
-            Message::List(list::Message::AskDelete(target)),
-            colors,
-        ));
+        // Quiet until hovered: the dialog's main actions are on the right.
+        let delete = button(
+            row![icon(Icon::Trash, 14.0, colors.danger), text(tr("delete")).size(14)]
+                .spacing(6)
+                .align_y(Alignment::Center),
+        )
+        .padding([8, 12])
+        .style(theme::danger_ghost(colors))
+        .on_press(Message::List(list::Message::AskDelete(target)));
+        actions = actions.push(delete);
     }
     actions = actions.push(text(tr("editor_hint")).size(12).color(colors.muted).width(Fill));
     if editor.target.is_some() {

@@ -203,6 +203,7 @@ note_move_into = Le déplacer vers { $folder }
 note_keep_in_place = Le laisser où il est
 unlink_note = Délier la note ; son fichier est conservé
 open_note_window = Ouvrir dans une fenêtre séparée
+note_toolbar = Afficher ou masquer la barre de mise en forme
 note_in_window = Cette note est ouverte dans sa propre fenêtre.
 show_note_window = Afficher la fenêtre
 note_saved = Enregistrée

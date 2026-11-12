@@ -85,7 +85,7 @@ pub fn edit_text(text: &str, edit: impl FnOnce(&Todo) -> Todo) -> String {
 }
 
 /// The todo text as the dialog's field shows it: without the due date,
-/// threshold, repeat, pomodoros and note, which the dialog shows in their own
+/// threshold, repeat, pomodoros, status and note, which the dialog shows in their own
 /// controls. It keeps the whole text so a todo the user did not retype is
 /// saved exactly as it was.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -146,8 +146,8 @@ impl FieldText {
     }
 }
 
-/// Whether the field hides this word: a valid `due:`, `t:`, `rec:` or `pm:`, or any
-/// `note:`. An invalid value stays visible so the user can fix it.
+/// Whether the field hides this word: a valid `due:`, `t:`, `rec:`, `pm:` or
+/// `status:`, or any `note:`. An invalid value stays visible so the user can fix it.
 fn is_hidden_token(word: &str) -> bool {
     let Some((key, value)) = word.split_once(':') else {
         return false;
@@ -162,6 +162,7 @@ fn is_hidden_token(word: &str) -> bool {
         "pm" => todo.pomodoros().is_some(),
         "rec" => todo.recurrence().is_some(),
         "note" => todo.note().is_some(),
+        "status" => todo.status_tag().is_some(),
         _ => false,
     }
 }
@@ -192,8 +193,8 @@ mod tests {
 
     #[test]
     fn field_keeps_invalid_values_and_other_tags() {
-        let field = FieldText::new("Fix due:someday pm:x rec:often status:doing rec:1w");
-        assert_eq!(field.visible, "Fix due:someday pm:x rec:often status:doing");
+        let field = FieldText::new("Fix due:someday pm:x rec:often status:doing rec:1w @home");
+        assert_eq!(field.visible, "Fix due:someday pm:x rec:often @home");
         let field = FieldText::new("Plan\ndue:2026-01-02\nmore");
         assert_eq!(field.visible, "Plan\nmore");
         let field = FieldText::new(" due:2026-01-02");

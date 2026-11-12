@@ -26,7 +26,7 @@ pub use notes::{NoteService, NoteStatus};
 pub use notifications::{DueNotification, NotificationService};
 pub use saved_filters::SavedFilter;
 pub use settings::{MonthOverflow, Settings, SyncSettings, ThemePreference, UpdateChannel, WatcherOptions};
-pub use state::{AppState, DrawerTab, FileSort, MainView, TodoFileEntry, WindowState};
+pub use state::{AppState, DialogSize, DrawerTab, FileSort, MainView, TodoFileEntry, WindowState};
 pub use sync::{ItemConflicts, ShareOutcome, StoreLocation, SyncLink, SyncReport, SyncService, SyncStatus};
 pub use todo_files::{FileOptions, InputOptions, TodoFileService, TodoRef};
 

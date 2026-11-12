@@ -401,7 +401,7 @@ impl Floetask {
             }
             Message::MouseReleased => {
                 self.end_todo_drags();
-                Task::none()
+                self.end_editor_resize()
             }
             Message::Quit => self.quit(),
             Message::WindowReady(..)

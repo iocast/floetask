@@ -200,6 +200,7 @@ note_move_into = Move it to { $folder }
 note_keep_in_place = Keep it where it is
 unlink_note = Unlink the note; its file is kept
 open_note_window = Open in a separate window
+note_toolbar = Show or hide the formatting toolbar
 note_in_window = This note is open in its own window.
 show_note_window = Show window
 note_saved = Saved

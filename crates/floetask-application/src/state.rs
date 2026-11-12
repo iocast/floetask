@@ -91,6 +91,24 @@ impl Default for WindowState {
     }
 }
 
+/// The size of a dialog the user can resize, such as the edit dialog. A
+/// window smaller than this shrinks the dialog without changing it.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DialogSize {
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Default for DialogSize {
+    fn default() -> Self {
+        Self {
+            width: 820.0,
+            height: 580.0,
+        }
+    }
+}
+
 /// Missing keys take their default, so older files stay valid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -125,6 +143,8 @@ pub struct AppState {
     pub window: WindowState,
     /// Where the note window was last, so it opens there again.
     pub note_window: WindowState,
+    /// The add/edit dialog's size, as the user last resized it.
+    pub edit_dialog: DialogSize,
 }
 
 impl Default for AppState {
@@ -151,6 +171,7 @@ impl Default for AppState {
                 height: 820.0,
                 ..WindowState::default()
             },
+            edit_dialog: DialogSize::default(),
         }
     }
 }

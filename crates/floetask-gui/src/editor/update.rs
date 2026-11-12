@@ -18,6 +18,23 @@ use crate::i18n::{self, tr};
 use crate::{editor, files, view};
 
 impl Floetask {
+    /// Ends a resize of the dialog on the mouse release and keeps the new
+    /// size for next time.
+    pub(crate) fn end_editor_resize(&mut self) -> Task<Message> {
+        let resized = match &mut self.dialog {
+            Some(Dialog::Editor(editor)) => editor.resize.take().is_some(),
+            _ => false,
+        };
+        if resized { self.persist_state() } else { Task::none() }
+    }
+
+    /// The most a resizable dialog can show in the window, keeping the
+    /// margin of a large dialog.
+    fn max_dialog_size(&self) -> iced::Size {
+        let margin = 2.0 * crate::view::widgets::LARGE_MODAL_MARGIN;
+        iced::Size::new(self.state.window.width - margin, self.state.window.height - margin)
+    }
+
     pub(crate) fn update_editor(&mut self, message: editor::Message) -> Task<Message> {
         match message {
             editor::Message::New => self.open_new_editor(None, &Todo::parse("")),
@@ -106,6 +123,37 @@ impl Floetask {
                 Task::none()
             }
             editor::Message::OpenNoteWindow => self.hand_note_to_window(),
+            editor::Message::ResizeStart(direction) => {
+                let max = self.max_dialog_size();
+                let size = &self.state.edit_dialog;
+                // A dialog the window shrank starts from the size it shows.
+                let start = iced::Size::new(size.width.min(max.width), size.height.min(max.height));
+                if let Some(Dialog::Editor(editor)) = &mut self.dialog {
+                    editor.resize = Some(super::Resize {
+                        direction,
+                        start,
+                        from: None,
+                    });
+                }
+                Task::none()
+            }
+            editor::Message::ResizeMove(position) => {
+                let max = self.max_dialog_size();
+                let Some(Dialog::Editor(editor)) = &mut self.dialog else {
+                    return Task::none();
+                };
+                let Some(resize) = &mut editor.resize else {
+                    return Task::none();
+                };
+                let Some(from) = resize.from else {
+                    resize.from = Some(position);
+                    return Task::none();
+                };
+                let size = resize.size_for(position - from, max);
+                self.state.edit_dialog.width = size.width;
+                self.state.edit_dialog.height = size.height;
+                Task::none()
+            }
             editor::Message::NoteHandedOver(result) => match result {
                 Ok((link, text)) => self.note_handed_over(link, text),
                 Err(error) => self.report(&error),
@@ -187,6 +235,10 @@ impl Floetask {
                                 .task
                                 .map(|action| Message::Editor(editor::Message::NoteAction(action)))]),
                         )
+                    }
+                    editor::Message::ToggleNoteToolbar => {
+                        editor.note_toolbar = !editor.note_toolbar;
+                        Task::none()
                     }
                     editor::Message::UnlinkNote => {
                         rewrite(editor, |todo| todo.with_note_link(None));

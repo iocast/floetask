@@ -36,6 +36,11 @@ pub struct Editor {
     pub pomodoros: String,
     /// The todo's notes in Markdown, saved to its `note:` file.
     pub note: NoteField,
+    /// Whether the notes editor shows its formatting toolbar. Hidden at
+    /// first, so the note reads as a plain field in the dialog.
+    pub note_toolbar: bool,
+    /// The resize in progress, from a press on an edge until the release.
+    pub resize: Option<Resize>,
     /// A file the user picked to link that lies outside the notes folder,
     /// while the dialog asks whether to move it in or keep it where it is.
     pub pending_link: Option<PathBuf>,
@@ -60,6 +65,8 @@ impl Editor {
             recurrence_strict: recurrence.is_some_and(|r| r.strict),
             pomodoros: todo.pomodoros().unwrap_or(0).to_string(),
             note: NoteField::new(colors),
+            note_toolbar: false,
+            resize: None,
             pending_link: None,
         }
     }
@@ -141,6 +148,45 @@ impl Editor {
             selection: None,
         });
         self.suggestions.clear();
+    }
+}
+
+/// A resize of the dialog: which edge is dragged and the size it started
+/// at. The first cursor position comes with the first move, as a press does
+/// not carry one.
+#[derive(Debug, Clone, Copy)]
+pub struct Resize {
+    pub direction: iced::window::Direction,
+    pub start: iced::Size,
+    pub from: Option<iced::Point>,
+}
+
+/// The smallest the dialog gets: room for the text, the notes and the
+/// details panel side by side.
+pub const MIN_DIALOG: iced::Size = iced::Size::new(640.0, 460.0);
+
+impl Resize {
+    /// The size after the cursor moved by `delta` since the first move,
+    /// between [`MIN_DIALOG`] and `max`. The card is centred, so it grows
+    /// on both sides: twice the distance keeps the dragged edge under the
+    /// cursor.
+    pub fn size_for(&self, delta: iced::Vector, max: iced::Size) -> iced::Size {
+        use iced::window::Direction as D;
+        let (x, y) = match self.direction {
+            D::North => (0.0, -1.0),
+            D::South => (0.0, 1.0),
+            D::East => (1.0, 0.0),
+            D::West => (-1.0, 0.0),
+            D::NorthEast => (1.0, -1.0),
+            D::NorthWest => (-1.0, -1.0),
+            D::SouthEast => (1.0, 1.0),
+            D::SouthWest => (-1.0, 1.0),
+        };
+        let clamp = |value: f32, min: f32, max: f32| value.min(max).max(min);
+        iced::Size::new(
+            clamp(self.start.width + 2.0 * x * delta.x, MIN_DIALOG.width, max.width),
+            clamp(self.start.height + 2.0 * y * delta.y, MIN_DIALOG.height, max.height),
+        )
     }
 }
 
@@ -236,5 +282,44 @@ impl std::fmt::Debug for NoteField {
             .field("markdown", &self.markdown)
             .field("loaded", &self.loaded)
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use iced::window::Direction;
+    use iced::{Size, Vector};
+
+    fn resize(direction: Direction) -> Resize {
+        Resize {
+            direction,
+            start: Size::new(820.0, 580.0),
+            from: None,
+        }
+    }
+
+    #[test]
+    fn the_dragged_edge_follows_the_cursor() {
+        let max = Size::new(2000.0, 2000.0);
+        let delta = Vector::new(30.0, 20.0);
+        assert_eq!(
+            resize(Direction::SouthEast).size_for(delta, max),
+            Size::new(880.0, 620.0)
+        );
+        assert_eq!(
+            resize(Direction::NorthWest).size_for(delta, max),
+            Size::new(760.0, 540.0)
+        );
+        assert_eq!(resize(Direction::East).size_for(delta, max), Size::new(880.0, 580.0));
+        assert_eq!(resize(Direction::North).size_for(delta, max), Size::new(820.0, 540.0));
+    }
+
+    #[test]
+    fn the_size_stays_between_the_minimum_and_the_window() {
+        let max = Size::new(900.0, 600.0);
+        let grip = resize(Direction::SouthEast);
+        assert_eq!(grip.size_for(Vector::new(500.0, 500.0), max), max);
+        assert_eq!(grip.size_for(Vector::new(-500.0, -500.0), max), MIN_DIALOG);
     }
 }

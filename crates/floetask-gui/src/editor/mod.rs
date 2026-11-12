@@ -15,7 +15,7 @@ use floetask_domain::{Date, NoteLink, Priority, RecurrenceUnit};
 
 pub(crate) use date_picker::row_dialog;
 pub use date_picker::{DateKey, DatePicker};
-pub use state::{Editor, NoteField};
+pub use state::{Editor, NoteField, Resize};
 #[cfg(test)]
 pub(crate) use update::NoteSave;
 pub(crate) use view::view;
@@ -47,6 +47,12 @@ pub enum Message {
     /// Sets the pomodoros to 0, which removes `pm:`.
     ClearPomodoros,
     NoteAction(iced_markdown_editor::Action),
+    /// Shows or hides the notes editor's formatting toolbar.
+    ToggleNoteToolbar,
+    /// An edge or the grip of the dialog was pressed: resizing starts.
+    ResizeStart(iced::window::Direction),
+    /// The cursor moved while resizing, in window coordinates.
+    ResizeMove(iced::Point),
     /// The note file of the todo being edited, read from disk (`None`: missing).
     NoteLoaded(crate::app::Target, Result<Option<String>, AppError>),
     /// Asks for a Markdown file on disk to link instead of creating one.
