@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.7.0-rc.4] - 2026-11-12
+
 ### Added
 - *Delete* in the edit dialog deletes the todo after asking, as the row menu does (including whether its note goes too)
 
@@ -192,7 +194,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.7.0-rc.3...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.7.0-rc.4...HEAD
+[0.7.0-rc.4]: https://github.com/iocast/floetask/compare/v0.7.0-rc.3...v0.7.0-rc.4
 [0.7.0-rc.3]: https://github.com/iocast/floetask/compare/v0.7.0-rc.2...v0.7.0-rc.3
 [0.7.0-rc.2]: https://github.com/iocast/floetask/compare/v0.7.0-rc.1...v0.7.0-rc.2
 [0.7.0-rc.1]: https://github.com/iocast/floetask/compare/v0.6.3...v0.7.0-rc.1
