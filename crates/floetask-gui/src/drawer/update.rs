@@ -1,4 +1,4 @@
-//! Filters, view toggles, sorting, and renaming or removing a value.
+//! Filters, view toggles, the overview's files, sorting, and renaming or removing a value.
 
 use std::path::PathBuf;
 
@@ -23,6 +23,11 @@ impl Floetask {
             }
             drawer::Message::ToggleSection(attribute) => {
                 self.state.toggle_section(attribute);
+                return self.persist_state();
+            }
+            drawer::Message::OverviewFile(path, shown) => {
+                self.state.set_in_overview(&path, shown);
+                self.refresh();
                 return self.persist_state();
             }
             drawer::Message::AskRename(attribute, value) => {

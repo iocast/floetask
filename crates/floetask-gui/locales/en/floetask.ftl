@@ -353,6 +353,7 @@ show_hidden_attributes = Show attributes of hidden todos
 show_hidden_statuses = Show { $statuses } todos
 show_future_threshold = Show todos with a future threshold date
 show_future_due = Show todos with a future due date
+overview_files = Files in the overview
 file_order = File order (no grouping)
 completed_last = Sort completed todos last
 move_up = Move up

@@ -4,6 +4,8 @@
 mod update;
 mod view;
 
+use std::path::PathBuf;
+
 use floetask_application::DrawerTab;
 use floetask_domain::listing::Attribute;
 
@@ -17,6 +19,8 @@ pub enum Message {
     FilterValue(Attribute, String, bool),
     ToggleCategory(Attribute),
     ViewToggle(ViewToggle, bool),
+    /// Lists a file in the overview (`true`) or leaves it out.
+    OverviewFile(PathBuf, bool),
     MoveSort(usize, isize),
     InvertSort(usize),
     FileOrder(bool),

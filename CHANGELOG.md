@@ -8,6 +8,12 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ### Added
 - *Work week* mode in the calendar: Monday to Friday as five day columns, next to *Day*, *Week* and *Month*
+- Choose which files the overview shows: the drawer's *Filters* tab lists every file with a switch while the overview is open; at least one stays on, and the choice is kept in `state.toml` (`overview_hidden`)
+
+### Changed
+- The edit dialog shows the details in a side panel next to the text and the note, and can be resized by its edges or corner; its size is kept in `state.toml` (`edit_dialog`)
+- The text field no longer shows `status:`, since the status picker does; *Delete* is a quiet text button and *×* clears the text
+- In the overview, renaming or removing a project or context changes only the files the overview shows
 
 ## [0.7.0-rc.4] - 2026-11-12
 

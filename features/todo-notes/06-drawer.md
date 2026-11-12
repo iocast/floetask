@@ -19,6 +19,7 @@ Toggled with `Ctrl+B`; `Escape` closes. Three tabs:
 - Show todos with future threshold dates.
 - Show todos with future due dates.
 - Show todos whose status is hidden by default (`someday`).
+- In the overview: which files it lists, one switch per file (see [§2.3](02-files.md#23-overview)).
 
 ## 6.3 Sorting tab
 

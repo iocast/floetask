@@ -1,7 +1,7 @@
 //! The drawer: a floating panel with attributes, view filters and sorting.
 
 use iced::widget::{
-    Column, Row, button, column, container, mouse_area, row, rule, scrollable, space, text, text_input,
+    Column, Row, button, column, container, mouse_area, row, rule, scrollable, space, text, text_input, toggler,
 };
 use iced::{Alignment, Element, Fill};
 
@@ -15,7 +15,9 @@ use crate::i18n::{tr, trf};
 use crate::list::{attribute_label, status_label};
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
-use crate::view::widgets::{caption, danger_button, icon_button, primary_button, secondary_button, switch, title};
+use crate::view::widgets::{
+    FileChoice, caption, danger_button, file_choices, icon_button, primary_button, secondary_button, switch, title,
+};
 
 const WIDTH: f32 = crate::layout::FILTER_DRAWER_WIDTH;
 
@@ -23,7 +25,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     let colors = app.colors();
     let content = match app.state.drawer_tab {
         DrawerTab::Attributes => attributes(app, colors),
-        DrawerTab::Filters => filters(app),
+        DrawerTab::Filters => filters(app, colors),
         DrawerTab::Sorting => sorting(app, colors),
     };
     container(
@@ -183,7 +185,7 @@ fn section<'a>(app: &'a Floetask, summary: &'a AttributeSummary, colors: Colors)
     column![header, values].spacing(8).into()
 }
 
-fn filters(app: &Floetask) -> Element<'_, Message> {
+fn filters(app: &Floetask, colors: Colors) -> Element<'_, Message> {
     let view = &app.state.view;
     let toggle = |label: &'static str, value: bool, which: ViewToggle| {
         switch(tr(label), value, move |on| {
@@ -207,7 +209,7 @@ fn filters(app: &Floetask) -> Element<'_, Message> {
             Message::Drawer(drawer::Message::ViewToggle(ViewToggle::HiddenStatuses, on))
         }));
     }
-    toggles
+    let toggles = toggles
         .extend([
             toggle("show_completed", view.show_completed, ViewToggle::Completed),
             toggle("show_hidden", view.show_hidden, ViewToggle::Hidden),
@@ -223,8 +225,36 @@ fn filters(app: &Floetask) -> Element<'_, Message> {
             ),
             toggle("show_future_due", view.show_future_due, ViewToggle::FutureDue),
         ])
+        .spacing(16);
+    if !app.state.shows_overview() {
+        return toggles.into();
+    }
+    column![toggles, rule::horizontal(1), overview_files(app, colors)]
         .spacing(16)
         .into()
+}
+
+/// One switch per file the overview can list. The last file listed cannot
+/// be switched off, so the overview never goes empty.
+fn overview_files(app: &Floetask, colors: Colors) -> Element<'_, Message> {
+    let shown = app.state.overview_files().len();
+    let files = file_choices(&app.state.drawer_files())
+        .into_iter()
+        .map(|FileChoice(label, path)| {
+            let on = app.state.is_in_overview(&path);
+            let toggle = (!on || shown > 1)
+                .then_some(move |value| Message::Drawer(drawer::Message::OverviewFile(path.clone(), value)));
+            row![text(label).size(14).width(Fill), toggler(on).on_toggle_maybe(toggle)]
+                .spacing(12)
+                .align_y(Alignment::Center)
+                .into()
+        });
+    column![
+        caption(tr("overview_files"), colors),
+        Column::with_children(files).spacing(16),
+    ]
+    .spacing(12)
+    .into()
 }
 
 fn sorting(app: &Floetask, colors: Colors) -> Element<'_, Message> {

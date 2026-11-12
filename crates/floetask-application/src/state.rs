@@ -1,6 +1,6 @@
 //! Persisted "where I left off" state. Losing it costs nothing but layout.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -118,6 +118,9 @@ pub struct AppState {
     /// The overview of every file is shown instead of the active file, which
     /// still takes new todos.
     pub overview: bool,
+    /// Files the user left out of the overview, by path. They stay in the
+    /// file drawer and can still be opened on their own.
+    pub overview_hidden: Vec<PathBuf>,
     /// The order of the file drawer.
     pub file_sort: FileSort,
     #[serde(with = "crate::persist::sorting")]
@@ -153,6 +156,7 @@ impl Default for AppState {
             files: Vec::new(),
             active_file: 0,
             overview: false,
+            overview_hidden: Vec::new(),
             file_sort: FileSort::default(),
             sorting: Sorting::default(),
             view: ViewOptions::default(),
@@ -187,13 +191,37 @@ impl AppState {
         self.overview && self.drawer_order().len() > 1
     }
 
-    /// The files an overview lists: those the drawer lists, in its order.
-    /// Archive files of another file are left out, like in the drawer.
-    pub fn overview_files(&self) -> Vec<&TodoFileEntry> {
+    /// The files the drawer lists, in its order. Archive files of another
+    /// file are left out.
+    pub fn drawer_files(&self) -> Vec<&TodoFileEntry> {
         self.drawer_order()
             .into_iter()
             .map(|index| &self.files[index])
             .collect()
+    }
+
+    /// The files an overview lists: those the drawer lists, in its order,
+    /// except the ones the user left out.
+    pub fn overview_files(&self) -> Vec<&TodoFileEntry> {
+        self.drawer_files()
+            .into_iter()
+            .filter(|entry| self.is_in_overview(&entry.path))
+            .collect()
+    }
+
+    /// Whether the overview lists the file at `path`.
+    pub fn is_in_overview(&self, path: &Path) -> bool {
+        !self.overview_hidden.iter().any(|hidden| hidden == path)
+    }
+
+    /// Lists the file at `path` in the overview, or leaves it out. The last
+    /// file listed stays: an overview of nothing would only look broken.
+    pub fn set_in_overview(&mut self, path: &Path, shown: bool) {
+        if shown {
+            self.overview_hidden.retain(|hidden| hidden != path);
+        } else if self.is_in_overview(path) && self.overview_files().len() > 1 {
+            self.overview_hidden.push(path.to_owned());
+        }
     }
 
     /// Registers a file (if new) and makes it active, leaving the overview.
@@ -210,7 +238,8 @@ impl AppState {
 
     pub fn remove_file(&mut self, index: usize) {
         if index < self.files.len() {
-            self.files.remove(index);
+            let removed = self.files.remove(index);
+            self.overview_hidden.retain(|hidden| *hidden != removed.path);
         }
         if self.active_file >= self.files.len() {
             self.active_file = self.files.len().saturating_sub(1);
@@ -386,6 +415,30 @@ mod tests {
         assert_eq!(names, ["b.txt", "a.txt", "c.txt"]);
         state.open_file("/x/c.txt".into());
         assert!(!state.shows_overview(), "opening a file leaves the overview");
+    }
+
+    #[test]
+    fn files_can_be_left_out_of_the_overview_but_not_all() {
+        let mut state = three_files();
+        state.overview = true;
+        let overview = |state: &AppState| -> Vec<String> {
+            state
+                .overview_files()
+                .into_iter()
+                .map(TodoFileEntry::file_name)
+                .collect()
+        };
+        state.set_in_overview(Path::new("/z/b.txt"), false);
+        assert_eq!(overview(&state), ["a.txt", "c.txt"]);
+        assert_eq!(state.drawer_files().len(), 3, "the drawer still lists it");
+        state.set_in_overview(Path::new("/y/a.txt"), false);
+        state.set_in_overview(Path::new("/x/c.txt"), false);
+        assert_eq!(overview(&state), ["c.txt"], "the last file stays");
+        assert!(state.shows_overview());
+        state.set_in_overview(Path::new("/z/b.txt"), true);
+        assert_eq!(overview(&state), ["b.txt", "c.txt"]);
+        state.remove_file(1);
+        assert!(state.overview_hidden.is_empty(), "a removed file is forgotten");
     }
 
     #[test]

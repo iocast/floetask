@@ -261,7 +261,7 @@ impl Floetask {
     /// lists but its own, in the drawer's order.
     pub(crate) fn move_targets(&self, file: &Path) -> Vec<&TodoFileEntry> {
         self.state
-            .overview_files()
+            .drawer_files()
             .into_iter()
             .filter(|entry| entry.path != file)
             .collect()

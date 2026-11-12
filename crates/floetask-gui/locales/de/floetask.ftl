@@ -350,6 +350,7 @@ show_hidden_attributes = Attribute versteckter Aufgaben zeigen
 show_hidden_statuses = Aufgaben mit Status { $statuses } zeigen
 show_future_threshold = Aufgaben mit künftigem Startdatum zeigen
 show_future_due = Aufgaben mit künftigem Fälligkeitsdatum zeigen
+overview_files = Dateien in der Übersicht
 file_order = Dateireihenfolge (ohne Gruppierung)
 completed_last = Erledigte Aufgaben zuletzt
 move_up = Nach oben

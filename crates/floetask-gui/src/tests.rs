@@ -2240,6 +2240,33 @@ fn the_overview_lists_every_file_grouped_by_file() {
 }
 
 #[test]
+fn the_filters_tab_picks_the_files_of_the_overview() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = overview_app();
+    let _ = app.update(Message::Drawer(drawer::Message::Toggle));
+    let _ = app.update(Message::Drawer(drawer::Message::Tab(
+        floetask_application::DrawerTab::Filters,
+    )));
+    assert!(simulator(app.view()).find("FILES IN THE OVERVIEW").is_ok());
+    snapshot(&app, "overview-filters");
+
+    let leave_out =
+        |path: &str, shown: bool| Message::Drawer(drawer::Message::OverviewFile(PathBuf::from(path), shown));
+    let _ = app.update(leave_out(WORK_PATH, false));
+    assert!(app.state.shows_overview(), "the overview stays with one file listed");
+    assert_eq!(app.listed_files, [PathBuf::from(TODO_PATH)]);
+    assert!(app.listing.todos().all(|entry| entry.todo.body() != "Plan offsite"));
+    // The last listed file stays, and the left-out one is still a move target.
+    let _ = app.update(leave_out(TODO_PATH, false));
+    assert_eq!(app.listed_files, [PathBuf::from(TODO_PATH)]);
+    assert_eq!(app.move_targets(Path::new(TODO_PATH)).len(), 1);
+
+    let _ = app.update(leave_out(WORK_PATH, true));
+    assert_eq!(app.listed_files, [PathBuf::from(TODO_PATH), PathBuf::from(WORK_PATH)]);
+}
+
+#[test]
 fn actions_in_the_overview_change_the_file_the_todo_is_in() {
     let runtime = runtime();
     let _tokio = runtime.enter();

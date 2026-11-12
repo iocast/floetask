@@ -136,7 +136,7 @@ fn suggestions(editor: &Editor, colors: Colors) -> Element<'_, Message> {
 /// Which file the todo is in, shown in the overview where files mix. A new
 /// todo picks its file here; it starts with the active one.
 fn file_line<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element<'a, Message> {
-    let choices = file_choices(&app.state.overview_files());
+    let choices = file_choices(&app.state.drawer_files());
     let current = choices.iter().find(|choice| choice.1 == editor.file).cloned();
     let glyph = icon(Icon::File, 14.0, colors.muted);
     if editor.target.is_some() {

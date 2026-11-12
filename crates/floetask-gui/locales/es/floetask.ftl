@@ -353,6 +353,7 @@ show_hidden_attributes = Mostrar atributos de tareas ocultas
 show_hidden_statuses = Mostrar tareas { $statuses }
 show_future_threshold = Mostrar tareas con fecha de inicio futura
 show_future_due = Mostrar tareas con vencimiento futuro
+overview_files = Archivos en la vista general
 file_order = Orden del archivo (sin agrupar)
 completed_last = Ordenar las tareas completadas al final
 move_up = Subir

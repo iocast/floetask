@@ -350,6 +350,7 @@ show_hidden_attributes = Mostra gli attributi delle attività nascoste
 show_hidden_statuses = Mostra le attività { $statuses }
 show_future_threshold = Mostra le attività con data di inizio futura
 show_future_due = Mostra le attività con scadenza futura
+overview_files = File nella panoramica
 file_order = Ordine del file (senza raggruppamento)
 completed_last = Metti in fondo le attività completate
 move_up = Sposta su

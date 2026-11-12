@@ -34,12 +34,13 @@
 ## 2.3 Overview
 
 - Lists the files the drawer lists, in its order; archive files of another file are left out.
+- The drawer's *Filters* tab has a switch per file to list it in the overview or leave it out (*Files in the overview*, shown while the overview is). At least one file stays listed: its switch is disabled. A left-out file stays in the file drawer, can be opened on its own, and is still offered as a move target and in the add dialog's file picker. Persisted in the state file (`overview_hidden`, by path).
 - List: one collapsible group per file, headed by its name, folder and count. Search, filters, view toggles and sorting apply inside each group; files with nothing to show are left out.
 - Board: one board per file, stacked like swimlanes, each with that file's columns. The group switch and the columns button are hidden; columns are edited from the file itself.
 - Calendar: every file's todos on one calendar; full cards name their file.
 - Every action on a todo (complete, edit, dates, notes, archive, delete, drag) writes to the file the todo is in. Its notes live next to that file.
 - The add dialog has a file picker for new todos, starting on the active file (the one last selected); the edit dialog names the todo's file. Archiving all completed todos needs a file selected.
-- The drawer counts every file. Renaming or removing a project or context changes every file, and the dialog says so.
+- The drawer counts every listed file. Renaming or removing a project or context changes every listed file, and the dialog says so.
 - Selecting or opening a file leaves the overview.
 
 ## 2.4 Moving a todo to another file
