@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- *Delete* in the edit dialog deletes the todo after asking, as the row menu does (including whether its note goes too)
+
 ## [0.7.0-rc.3] - 2026-11-11
 
 ### Changed

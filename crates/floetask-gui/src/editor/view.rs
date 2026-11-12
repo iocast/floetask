@@ -16,15 +16,17 @@ use floetask_domain::{NoteLink, Priority, RecurrenceUnit};
 
 use super::date_picker;
 use super::{DateKey, Editor};
-use crate::app::{Floetask, Message};
+use crate::app::{Floetask, Message, Target};
 use crate::editor;
 use crate::i18n::{self, tr, trf};
-use crate::list::status_label;
+use crate::list::{self, status_label};
 use crate::theme::{self, Colors};
 use crate::view::EDITOR_ID;
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
-use crate::view::widgets::{caption, file_choices, primary_button, secondary_button, title, with_tooltip};
+use crate::view::widgets::{
+    caption, danger_button, file_choices, primary_button, secondary_button, title, with_tooltip,
+};
 
 pub fn view<'a>(app: &'a Floetask, editor: &'a Editor) -> Element<'a, Message> {
     let colors = app.colors();
@@ -410,8 +412,22 @@ fn actions<'a>(app: &'a Floetask, editor: &'a Editor, colors: Colors) -> Element
             tr("add").to_owned()
         }
     };
-    let mut actions = row![text(tr("editor_hint")).size(12).color(colors.muted).width(Fill)];
-    // Only a todo already in the file can be completed from here.
+    let mut actions = Row::new();
+    // Only a todo already in the file can be deleted or completed from here.
+    // Deleting asks first, as the row menu does, with the note question when
+    // no other todo links to its note.
+    if let Some(todo) = &editor.target {
+        let target = Target {
+            file: editor.file.clone(),
+            todo: todo.clone(),
+        };
+        actions = actions.push(danger_button(
+            tr("delete"),
+            Message::List(list::Message::AskDelete(target)),
+            colors,
+        ));
+    }
+    actions = actions.push(text(tr("editor_hint")).size(12).color(colors.muted).width(Fill));
     if editor.target.is_some() {
         let label = tr(if Todo::from_user_text(&editor.text()).is_complete() {
             "reopen"

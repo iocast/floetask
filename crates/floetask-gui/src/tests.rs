@@ -935,6 +935,29 @@ fn the_edit_dialog_saves_and_completes_or_reopens_a_todo() {
     );
 }
 
+#[test]
+fn the_edit_dialog_deletes_a_todo_after_asking() {
+    let runtime = runtime();
+    let _tokio = runtime.enter();
+    let mut app = app();
+    let files = app.services.ports.files.clone();
+
+    // A new todo has nothing to delete yet.
+    let _ = app.update(Message::Editor(editor::Message::New));
+    assert!(simulator(app.view()).find("Delete").is_err());
+    let _ = app.update(Message::CloseDialog);
+
+    let _ = app.update(Message::List(list::Message::OpenTodo(target_of(&app, "Buy milk"))));
+    for message in click(&app, "Delete") {
+        let _ = app.update(message);
+    }
+    assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+    assert!(files.read(Path::new(TODO_PATH)).unwrap().contains("Buy milk"));
+    drive(&runtime, &mut app, Message::ConfirmDialog);
+    assert!(app.dialog.is_none());
+    assert!(!files.read(Path::new(TODO_PATH)).unwrap().contains("Buy milk"));
+}
+
 /// The open dialog's editor.
 fn editor(app: &Floetask) -> &crate::editor::Editor {
     match &app.dialog {
