@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Added
+- *Work week* mode in the calendar: Monday to Friday as five day columns, next to *Day*, *Week* and *Month*
+
 ## [0.7.0-rc.4] - 2026-11-12
 
 ### Added

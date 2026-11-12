@@ -228,6 +228,7 @@ reset_columns = Zurücksetzen
 
 show_calendar = Kalender (Strg+Alt+C)
 calendar_day = Tag
+calendar_work_week = Arbeitswoche
 calendar_week = Woche
 calendar_month = Monat
 calendar_today = Heute

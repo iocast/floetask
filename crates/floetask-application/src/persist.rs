@@ -31,7 +31,7 @@ pub(crate) mod week_start {
     }
 }
 
-/// `day`, `week` or `month`.
+/// `day`, `workweek`, `week` or `month`.
 pub(crate) mod calendar_mode {
     use floetask_domain::calendar::CalendarMode;
 
@@ -40,6 +40,7 @@ pub(crate) mod calendar_mode {
     pub fn serialize<S: Serializer>(value: &CalendarMode, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(match value {
             CalendarMode::Day => "day",
+            CalendarMode::WorkWeek => "workweek",
             CalendarMode::Week => "week",
             CalendarMode::Month => "month",
         })
@@ -48,6 +49,7 @@ pub(crate) mod calendar_mode {
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<CalendarMode, D::Error> {
         Ok(match String::deserialize(deserializer)?.as_str() {
             "day" => CalendarMode::Day,
+            "workweek" => CalendarMode::WorkWeek,
             "week" => CalendarMode::Week,
             _ => CalendarMode::Month,
         })

@@ -1,5 +1,5 @@
 //! The calendar view: the active file's todos, or the overview's, on a day,
-//! week or month calendar by due date (`features/todo-notes/18-calendar.md`).
+//! work week, week or month calendar by due date (`features/todo-notes/18-calendar.md`).
 //! In the overview each full card names its file.
 //!
 //! Dragging works like on the board: pressing a todo starts a drag, every
@@ -34,7 +34,7 @@ pub fn view(app: &Floetask) -> Element<'_, Message> {
     let days = todos_by_day(app.listing.todos(), &span);
     let body: Element<'_, Message> = match mode {
         CalendarMode::Month => month(app, &span, &days),
-        CalendarMode::Week => week(app, &span, &days),
+        CalendarMode::WorkWeek | CalendarMode::Week => week(app, &span, &days),
         CalendarMode::Day => day(app, app.calendar_anchor, days.get(&app.calendar_anchor)),
     };
     let body: Element<'_, Message> = if app.shown_panels().undated {
@@ -81,8 +81,9 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    // The month grid has a column of week numbers; the week view says it here.
-    let navigation = if mode == CalendarMode::Week && app.settings.week_numbers {
+    // The month grid has a column of week numbers; the week views say it here.
+    let weekly = matches!(mode, CalendarMode::WorkWeek | CalendarMode::Week);
+    let navigation = if weekly && app.settings.week_numbers {
         navigation.push(
             text(trf(
                 "calendar_week_number",
@@ -117,6 +118,7 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
     let modes = Row::with_children(CalendarMode::ALL.into_iter().map(|option| {
         let key = match option {
             CalendarMode::Day => "calendar_day",
+            CalendarMode::WorkWeek => "calendar_work_week",
             CalendarMode::Week => "calendar_week",
             CalendarMode::Month => "calendar_month",
         };
@@ -134,11 +136,12 @@ fn header<'a>(app: &'a Floetask, span: &CalendarSpan) -> Element<'a, Message> {
         .into()
 }
 
-/// "October 2026", "5 – 11 Oct 2026" or "Tuesday, 6 October 2026".
+/// "October 2026", "5 – 11 Oct 2026" (a work week "5 – 9 Oct 2026") or
+/// "Tuesday, 6 October 2026".
 fn period_title(mode: CalendarMode, anchor: Date, span: &CalendarSpan) -> String {
     match mode {
         CalendarMode::Month => i18n::month_year(anchor),
-        CalendarMode::Week => i18n::date_range(span.first, span.last),
+        CalendarMode::WorkWeek | CalendarMode::Week => i18n::date_range(span.first, span.last),
         CalendarMode::Day => i18n::long_date(anchor),
     }
 }
@@ -323,18 +326,28 @@ fn day_number<'a>(app: &Floetask, date: Date, in_month: bool, colors: Colors) ->
 }
 
 const DAY_SPACING: f32 = 6.0;
-/// Narrowest a week column gets: the columns share the week's minimum width.
+
+/// Narrowest a week column gets: seven share the main view's minimum width.
 const MIN_DAY_WIDTH: f32 = (crate::layout::MAIN_MIN_WIDTH - 6.0 * DAY_SPACING) / 7.0;
 
-/// Seven day columns listing every todo of the day, with board-size cards.
+/// Width below which `columns` day columns scroll sideways: the main view's
+/// minimum for a week, less for a work week's five.
+fn min_week_width(columns: usize) -> f32 {
+    let columns = columns.max(1) as f32;
+    columns * MIN_DAY_WIDTH + (columns - 1.0) * DAY_SPACING
+}
+
+/// One column per day of the span (seven, or five in a work week) listing
+/// every todo of the day, with board-size cards.
 fn week<'a>(app: &'a Floetask, span: &CalendarSpan, days: &Days<'a>) -> Element<'a, Message> {
     let span = *span;
     let days = days.clone();
+    let min_width = min_week_width(span.days().count());
     responsive(move |size| {
-        // Columns shrink with the window down to the week's minimum width;
-        // side panels close before that (see `layout`), so the week only
-        // scrolls sideways in a window too small for it alone.
-        if size.width >= crate::layout::MAIN_MIN_WIDTH {
+        // Columns shrink with the window down to the narrowest day width;
+        // side panels close before a week gets there (see `layout`), so it
+        // only scrolls sideways in a window too small for it alone.
+        if size.width >= min_width {
             week_row(app, &span, &days, Length::Fill)
         } else {
             let colors = app.colors();
@@ -476,7 +489,7 @@ fn compact_card<'a>(app: &'a Floetask, date: Date, entry: &'a ListedTodo, colors
     card_menu(app, entry, with_tooltip(card, todo.display_text(), colors))
 }
 
-/// A full todo card for the Week and Day views and the undated panel, the
+/// A full todo card for the Work week, Week and Day views and the undated panel, the
 /// size of a board card. `from` is the day it sits on, `None` in the panel.
 fn card<'a>(app: &'a Floetask, from: Option<Date>, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
     let todo = &entry.todo;
@@ -621,6 +634,12 @@ mod tests {
     use super::*;
 
     const ROW: f32 = CELL_SPACING + COMPACT_CARD_HEIGHT;
+
+    #[test]
+    fn a_week_needs_the_main_minimum_and_a_work_week_less() {
+        assert!((min_week_width(7) - crate::layout::MAIN_MIN_WIDTH).abs() < 0.01);
+        assert!(min_week_width(5) < 560.0);
+    }
 
     #[test]
     fn all_todos_show_when_they_fit() {

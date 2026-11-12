@@ -1837,6 +1837,36 @@ fn calendar_shows_week_numbers_when_enabled() {
 }
 
 #[test]
+fn calendar_work_week_shows_monday_to_friday() {
+    use floetask_application::MainView;
+    use floetask_domain::calendar::CalendarMode;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let _ = app.update(Message::Calendar(calendar::Message::Mode(CalendarMode::WorkWeek)));
+    assert_eq!(app.state.calendar_mode, CalendarMode::WorkWeek);
+
+    // Today (Sunday 4 October) ends the week of Monday 28 September, so its
+    // own day is not shown; the next work week holds Tuesday the 6th.
+    {
+        let mut ui = simulator(app.view());
+        assert!(ui.find("Fri").is_ok());
+        assert!(ui.find("Sat").is_err());
+        assert!(ui.find("Sun").is_err());
+        assert!(ui.find("Prepare slides").is_err());
+    }
+    let _ = app.update(Message::Calendar(calendar::Message::Step(1)));
+    assert_eq!(app.calendar_anchor, floetask_domain::date::add_days(app.today, 7));
+    assert!(simulator(app.view()).find("Prepare slides").is_ok());
+    snapshot(&app, "calendar-work-week");
+
+    // A click on a day number opens that day, as in the week view.
+    let tuesday = floetask_domain::date::parse_iso("2026-10-06").unwrap();
+    let _ = app.update(Message::Calendar(calendar::Message::OpenDay(tuesday)));
+    assert_eq!(app.state.calendar_mode, CalendarMode::Day);
+}
+
+#[test]
 fn calendar_checkbox_completes_a_todo_without_dragging_it() {
     use floetask_application::MainView;
 

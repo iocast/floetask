@@ -231,6 +231,7 @@ reset_columns = Restablecer
 
 show_calendar = Calendario (Ctrl+Alt+C)
 calendar_day = Día
+calendar_work_week = Semana laboral
 calendar_week = Semana
 calendar_month = Mes
 calendar_today = Hoy

@@ -1,5 +1,5 @@
-//! The calendar view's rules: which days a day, week or month shows, how to
-//! step between periods, and which todos land on which day (by `due:`).
+//! The calendar view's rules: which days a day, work week, week or month
+//! shows, how to step between periods, and which todos land on which day (by `due:`).
 //! See `features/todo-notes/18-calendar.md`.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,13 +14,20 @@ use crate::todo::Todo;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CalendarMode {
     Day,
+    /// Monday to Friday, the business days of `add_business_days`.
+    WorkWeek,
     Week,
     #[default]
     Month,
 }
 
 impl CalendarMode {
-    pub const ALL: [CalendarMode; 3] = [CalendarMode::Day, CalendarMode::Week, CalendarMode::Month];
+    pub const ALL: [CalendarMode; 4] = [
+        CalendarMode::Day,
+        CalendarMode::WorkWeek,
+        CalendarMode::Week,
+        CalendarMode::Month,
+    ];
 }
 
 /// The days on screen, first and last included.
@@ -32,13 +39,23 @@ pub struct CalendarSpan {
 
 impl CalendarSpan {
     /// The days `mode` shows around `anchor`. A month covers whole weeks, so
-    /// the grid starts and ends with days of the neighbouring months.
+    /// the grid starts and ends with days of the neighbouring months. A work
+    /// week is Monday to Friday of the week holding `anchor`, whichever day
+    /// that week starts on.
     pub fn new(mode: CalendarMode, anchor: Date, week_start: WeekStart) -> Self {
         match mode {
             CalendarMode::Day => Self {
                 first: anchor,
                 last: anchor,
             },
+            CalendarMode::WorkWeek => {
+                let week = start_of_week(anchor, week_start);
+                let monday = add_days(week, days_since(Weekday::Mon, week.weekday()));
+                Self {
+                    first: monday,
+                    last: add_days(monday, 4),
+                }
+            }
             CalendarMode::Week => {
                 let first = start_of_week(anchor, week_start);
                 Self {
@@ -76,11 +93,11 @@ pub fn week_number(first: Date) -> u32 {
     monday.iso_week().week()
 }
 
-/// The anchor `steps` periods away: days, weeks or months.
+/// The anchor `steps` periods away: days, weeks (work weeks too) or months.
 pub fn step(mode: CalendarMode, anchor: Date, steps: i64) -> Date {
     match mode {
         CalendarMode::Day => add_days(anchor, steps),
-        CalendarMode::Week => add_days(anchor, 7 * steps),
+        CalendarMode::WorkWeek | CalendarMode::Week => add_days(anchor, 7 * steps),
         CalendarMode::Month => add_months(first_of_month(anchor), steps),
     }
 }
@@ -153,6 +170,33 @@ mod tests {
         let month = CalendarSpan::new(CalendarMode::Month, d("2026-10-06"), WeekStart::Monday);
         assert_eq!((month.first, month.last), (d("2026-09-28"), d("2026-11-01")));
         assert_eq!(month.days().count(), 35);
+    }
+
+    #[test]
+    fn a_work_week_is_monday_to_friday_of_the_anchor_week() {
+        // 2026-10-06 is a Tuesday: Monday 5 to Friday 9 October.
+        let monday_week = CalendarSpan::new(CalendarMode::WorkWeek, d("2026-10-06"), WeekStart::Monday);
+        assert_eq!(
+            (monday_week.first, monday_week.last),
+            (d("2026-10-05"), d("2026-10-09"))
+        );
+        assert_eq!(monday_week.days().count(), 5);
+        // On Sunday 4 October a week starting on Sunday runs to the 10th, so
+        // its work days follow; a week starting on Monday ended with it.
+        let sunday_week = CalendarSpan::new(CalendarMode::WorkWeek, d("2026-10-04"), WeekStart::Sunday);
+        assert_eq!(
+            (sunday_week.first, sunday_week.last),
+            (d("2026-10-05"), d("2026-10-09"))
+        );
+        let monday_week = CalendarSpan::new(CalendarMode::WorkWeek, d("2026-10-04"), WeekStart::Monday);
+        assert_eq!(monday_week.first, d("2026-09-28"));
+        // A week starting on Saturday 3 October holds Monday 5 to Friday 9.
+        let saturday_week = CalendarSpan::new(CalendarMode::WorkWeek, d("2026-10-03"), WeekStart::Saturday);
+        assert_eq!(
+            (saturday_week.first, saturday_week.last),
+            (d("2026-10-05"), d("2026-10-09"))
+        );
+        assert_eq!(step(CalendarMode::WorkWeek, d("2026-10-06"), 1), d("2026-10-13"));
     }
 
     #[test]

@@ -1,5 +1,5 @@
-//! The calendar view: todos on a day, week or month by due date, dragged to
-//! another day to move their `due:`.
+//! The calendar view: todos on a day, work week, week or month by due date,
+//! dragged to another day to move their `due:`.
 
 mod update;
 mod view;

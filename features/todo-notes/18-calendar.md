@@ -8,12 +8,13 @@ A third way to show the active file, next to the list and the status board: todo
 | --------- | ------------------------------------------------------------------------------------------------------ | --------- |
 | **Month** | A grid of whole weeks covering the month, one cell per day. Days of the neighbouring months are muted. | one month |
 | **Week**  | Seven day columns, starting on the configured first day of the week (Settings → Dates).                | one week  |
+| **Work week** | Five day columns, Monday to Friday of the week holding the shown day, whichever day that week starts on. On a weekend, **today** shows the work days of the current week, so a week starting on Monday shows the days just past. | one week |
 | **Day**   | One day with full todo cards.                                                                          | one day   |
 
-- The header shows the period ("October 2026", "5 – 11 Oct 2026", "Tuesday, 6 October 2026"), **previous** / **today** / **next** buttons and the mode switch.
+- The header shows the period ("October 2026", "5 – 11 Oct 2026", "5 – 9 Oct 2026" for a work week, "Tuesday, 6 October 2026"), **previous** / **today** / **next** buttons and the mode switch.
 - Today is highlighted in every mode.
-- With **Week numbers** on (Settings → Dates, `week_numbers`, off by default), the month grid shows each week's number in a narrow column on its left, and the week view shows "Week 41" after the period. Numbers follow ISO 8601; a week starting on Saturday or Sunday takes the number of the Monday in it, the ISO week most of its days belong to.
-- The week view's columns shrink with the window down to the main view's minimum of 760 px; side panels hide before that, as in every view (§3.6), with the undated panel last.
+- With **Week numbers** on (Settings → Dates, `week_numbers`, off by default), the month grid shows each week's number in a narrow column on its left, and the week and work week views show "Week 41" after the period. Numbers follow ISO 8601; a week starting on Saturday or Sunday takes the number of the Monday in it, the ISO week most of its days belong to.
+- The week and work week views' columns shrink with the window down to the main view's minimum of 760 px (a work week's five columns, of the same narrowest width, need about 540 px); side panels hide before that, as in every view (§3.6), with the undated panel last.
 - The mode is remembered in `state.toml`; the calendar always opens on today.
 
 ## 18\.2 What is shown
@@ -21,7 +22,7 @@ A third way to show the active file, next to the list and the status board: todo
 - The same todos as the list: the search, the drawer filters and the view toggles (completed, hidden, threshold, someday) apply.
 - Each todo appears on the day of its `due:` date. Open todos without a due date are not on the calendar; the header says how many there are.
 - Clicking that count opens a panel beside the calendar listing those todos as cards. Each card can be dragged onto a day, or given a date with **Set due date**; either sets only its `due:`. Clicking a card opens it.
-- Week columns and the Day view list every todo of the day. A month cell shows as many todos as fit its height and "+N more" for the rest, so none is cut off; with the `month_overflow = "scroll"` setting (**Full month cells** in Appearance) it lists every todo and scrolls instead. Clicking the day number or "+N more" opens that day in Day mode.
+- Week and work week columns and the Day view list every todo of the day. A month cell shows as many todos as fit its height and "+N more" for the rest, so none is cut off; with the `month_overflow = "scroll"` setting (**Full month cells** in Appearance) it lists every todo and scrolls instead. Clicking the day number or "+N more" opens that day in Day mode.
 - Each entry shows the priority accent and the todo text; completed todos are struck through.
 
 ## 18\.3 Interaction

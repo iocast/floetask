@@ -132,7 +132,7 @@ maximized = true
         state.drawer_tab = DrawerTab::Sorting;
         state.collapsed_sections.push(Attribute::Due);
         state.main_view = MainView::Board;
-        state.calendar_mode = CalendarMode::Week;
+        state.calendar_mode = CalendarMode::WorkWeek;
         state.board_grouped = false;
         state.toggle_board_group("priority:A");
         state.toggle_list_group("projects:");

@@ -228,6 +228,7 @@ reset_columns = Reset
 
 show_calendar = Calendar (Ctrl+Alt+C)
 calendar_day = Day
+calendar_work_week = Work week
 calendar_week = Week
 calendar_month = Month
 calendar_today = Today

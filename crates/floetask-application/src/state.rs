@@ -131,7 +131,7 @@ pub struct AppState {
     #[serde(with = "crate::persist::attributes")]
     pub collapsed_sections: Vec<Attribute>,
     pub main_view: MainView,
-    /// Day, week or month in the calendar view.
+    /// Day, work week, week or month in the calendar view.
     #[serde(with = "crate::persist::calendar_mode")]
     pub calendar_mode: CalendarMode,
     /// The board splits into one board per group when the list is grouped.
