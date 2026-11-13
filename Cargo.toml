@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.7.1"
 edition = "2024"
 rust-version = "1.99.0"
 
@@ -42,7 +42,7 @@ fluent-bundle = "0.16.0"
 fluent-syntax = "0.12.0"
 
 # Adapters (floetask-infrastructure).
-toml = "1.1.8+spec-1.1.0"
+toml = "1.2.1+spec-1.1.0"
 notify-debouncer-full = "0.7"
 notify-rust = "4.18"
 open = "5.4"
