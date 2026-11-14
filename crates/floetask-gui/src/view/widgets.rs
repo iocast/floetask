@@ -267,6 +267,23 @@ pub fn status_name_field<'a>(
     .into()
 }
 
+/// A file's name with its folder's name below it, smaller and muted, so
+/// files that share a name stay apart without a long path on one line.
+pub(crate) fn file_label<'a>(entry: &TodoFileEntry, colors: Colors) -> Element<'a, Message> {
+    let folder = entry
+        .path
+        .parent()
+        .and_then(|parent| parent.file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    column![
+        text(entry.file_name()).size(14),
+        text(folder).size(11).color(colors.muted)
+    ]
+    .spacing(1)
+    .into()
+}
+
 /// A file in a file pick list: its label and its path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FileChoice(pub String, pub std::path::PathBuf);

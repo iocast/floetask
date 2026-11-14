@@ -20,7 +20,7 @@ use crate::i18n::tr;
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
 use crate::view::popover::popover;
-use crate::view::widgets::{caption, icon_button, with_tooltip};
+use crate::view::widgets::{caption, file_label, icon_button, with_tooltip};
 use crate::{editor, files, sync};
 
 const WIDTH: f32 = crate::layout::FILES_DRAWER_WIDTH;
@@ -154,19 +154,9 @@ fn file_entry(app: &Floetask, index: usize, colors: Colors) -> Element<'_, Messa
     let entry = &app.state.files[index];
     let active = is_shown(app, index) || is_todo_drop_target(app, index);
     let open = app.file_menu == Some(index);
-    let folder = entry
-        .path
-        .parent()
-        .and_then(|parent| parent.file_name())
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
     let content = row![
         icon(Icon::File, 16.0, if active { colors.primary } else { colors.muted }),
-        column![
-            text(entry.file_name()).size(14),
-            text(folder).size(11).color(colors.muted)
-        ]
-        .spacing(1),
+        file_label(entry, colors),
     ]
     .spacing(10)
     .align_y(Alignment::Center);

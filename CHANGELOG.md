@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Fixed
+- The overview's file switches in the *Filters* tab show each file's folder below its name, as announced for 0.7.1; that release still showed the full path in brackets
+
 ## [0.7.1] - 2026-11-13
 
 ### Changed
