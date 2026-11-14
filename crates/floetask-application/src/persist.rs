@@ -149,10 +149,8 @@ pub(crate) mod view_options {
     #[serde(default)]
     struct ViewFile {
         show_completed: bool,
-        show_hidden: bool,
         show_future_threshold: bool,
         show_future_due: bool,
-        show_hidden_attributes: bool,
         show_hidden_statuses: bool,
         hidden_categories: Vec<String>,
         filters: Vec<FilterFile>,
@@ -175,10 +173,8 @@ pub(crate) mod view_options {
         fn from(view: &ViewOptions) -> Self {
             Self {
                 show_completed: view.show_completed,
-                show_hidden: view.show_hidden,
                 show_future_threshold: view.show_future_threshold,
                 show_future_due: view.show_future_due,
-                show_hidden_attributes: view.show_hidden_attributes,
                 show_hidden_statuses: view.show_hidden_statuses,
                 hidden_categories: view.hidden_categories.iter().map(|a| a.key().to_owned()).collect(),
                 filters: view
@@ -202,10 +198,8 @@ pub(crate) mod view_options {
         let view = ViewFile::deserialize(deserializer)?;
         Ok(ViewOptions {
             show_completed: view.show_completed,
-            show_hidden: view.show_hidden,
             show_future_threshold: view.show_future_threshold,
             show_future_due: view.show_future_due,
-            show_hidden_attributes: view.show_hidden_attributes,
             show_hidden_statuses: view.show_hidden_statuses,
             hidden_categories: super::attributes::from_keys(&view.hidden_categories),
             filters: view

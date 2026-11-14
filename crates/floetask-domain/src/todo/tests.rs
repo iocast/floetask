@@ -54,12 +54,6 @@ fn urls_are_not_extensions() {
 }
 
 #[test]
-fn hidden_flag() {
-    assert!(Todo::parse("secret h:1").is_hidden());
-    assert!(!Todo::parse("secret h:0").is_hidden());
-}
-
-#[test]
 fn multiline_text_round_trips() {
     let todo = Todo::from_user_text("Shopping list\n- milk\n- bread +home");
     assert_eq!(todo.raw(), "Shopping list\u{10}- milk\u{10}- bread +home");

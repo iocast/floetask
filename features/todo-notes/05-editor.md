@@ -3,7 +3,7 @@
 - Opened by `Ctrl+N`, the add button, or opening a row.
 - Layout: the text field and the notes on the left, a **Details** panel on the right with one labelled control per attribute, the actions along the bottom. The user resizes the dialog by its edges or the grip in its bottom-right corner (it stays centred, down to a minimum that fits both columns); the size is kept in the app state. A window smaller than that size shrinks the dialog; the notes take the height that is left, and the Details panel scrolls when it runs out of room.
 - Multi-line text field holding the raw todo.txt line, without the tokens the Details panel shows (due, threshold, repeat, pomodoros, status, note). `Ctrl+Enter` saves, `Escape` closes.
-- **Autocomplete**: typing `+` or `@` shows suggestions from all known projects/contexts (including from hidden `h:1` todos). `Up`/`Down` to move, `Enter` to insert.
+- **Autocomplete**: typing `+` or `@` shows suggestions from all known projects/contexts. `Up`/`Down` to move, `Enter` to insert.
 - **Pickers** in the Details panel that edit the text in place:
   - Priority picker (none, A–Z).
   - Status picker.

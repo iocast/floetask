@@ -29,9 +29,8 @@ impl AttributeSummary {
     }
 }
 
-/// Drawer sections. Values come from every todo passing the view toggles
-/// (plus `h:1` todos when their attributes are shown); counts only from the
-/// todos actually listed, so a filtered-out value can still be clicked.
+/// Drawer sections. Values come from every todo passing the view toggles;
+/// counts only from the todos actually listed, so a filtered-out value can still be clicked.
 /// An overview passes all its documents and the counts add up.
 pub fn summarize_attributes(
     documents: &[&TodoDocument],
@@ -40,14 +39,10 @@ pub fn summarize_attributes(
     dates: &DateContext,
     statuses: &StatusSet,
 ) -> Vec<AttributeSummary> {
-    let toggles = ViewOptions {
-        show_hidden: options.show_hidden || options.show_hidden_attributes,
-        ..options.clone()
-    };
     let candidates: Vec<_> = documents
         .iter()
         .flat_map(|document| document.todos())
-        .filter(|entry| toggles.passes_toggles(entry.todo, dates))
+        .filter(|entry| options.passes_toggles(entry.todo, dates))
         .collect();
 
     Attribute::ALL
@@ -78,8 +73,7 @@ pub fn summarize_attributes(
         .collect()
 }
 
-/// Every project and context in the documents, including `h:1` todos, for
-/// autocomplete.
+/// Every project and context in the documents, for autocomplete.
 pub fn known_names(documents: &[&TodoDocument]) -> (BTreeSet<String>, BTreeSet<String>) {
     let mut projects = BTreeSet::new();
     let mut contexts = BTreeSet::new();
@@ -112,7 +106,7 @@ mod tests {
 
     #[test]
     fn counts_follow_filters_but_values_stay() {
-        let doc = TodoDocument::parse("a +x @home\nb +y @home\nc +x due:2020-01-01\nsecret +z h:1\n", &[]);
+        let doc = TodoDocument::parse("a +x @home\nb +y @home\nc +x due:2020-01-01\n", &[]);
         let dates = DateContext {
             today: parse_iso("2024-03-13").unwrap(),
             week_start: WeekStart::Monday,
@@ -123,12 +117,12 @@ mod tests {
         let summary = summarize_attributes(&[&doc], &options, &Query::Empty, &dates, &StatusSet::default());
         let projects = summary.iter().find(|s| s.attribute == Attribute::Projects).unwrap();
         let counts: Vec<_> = projects.values.iter().map(|v| (v.value.as_str(), v.count)).collect();
-        assert_eq!(counts, vec![("x", 2), ("y", 0), ("z", 0)]);
+        assert_eq!(counts, vec![("x", 2), ("y", 0)]);
         let due = summary.iter().find(|s| s.attribute == Attribute::Due).unwrap();
         assert!(due.has_overdue());
 
         let (projects, _) = known_names(&[&doc]);
-        assert!(projects.contains("z"));
+        assert!(projects.contains("y"));
 
         // An overview counts every file.
         let other = TodoDocument::parse(

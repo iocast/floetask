@@ -345,8 +345,6 @@ renamed =
     }
 include_hint = Klicken zum Einschließen, Alt+Klick zum Ausschließen. Rechtsklick auf ein Projekt oder einen Kontext zum Umbenennen oder Entfernen.
 show_completed = Erledigte Aufgaben zeigen
-show_hidden = Versteckte Aufgaben zeigen (h:1)
-show_hidden_attributes = Attribute versteckter Aufgaben zeigen
 show_hidden_statuses = Aufgaben mit Status { $statuses } zeigen
 show_future_threshold = Aufgaben mit künftigem Startdatum zeigen
 show_future_due = Aufgaben mit künftigem Fälligkeitsdatum zeigen

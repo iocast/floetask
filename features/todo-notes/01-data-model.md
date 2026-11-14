@@ -13,7 +13,6 @@
 | Due date | `due:YYYY-MM-DD` | |
 | Threshold date | `t:YYYY-MM-DD` | Defers visibility (see [§4](04-dates.md#4-dates-deferral-recurrence-p0--p1)). |
 | Recurrence | `rec:[+][N](d\|b\|w\|m\|y)` | `+` = strict; `b` = business days. |
-| Hidden | `h:1` | Todo hidden from list but its attributes still feed autocomplete and the drawer. |
 | Pomodoro | `pm:N` | Parsed and displayed only; no timer. |
 | Stored priority | `pri:X` | floetask moves the priority here on completion and restores it on un-completion. |
 | Note | `note:name.md` | Links a Markdown notes file in `<filename>-notes/` next to the todo file (`todo.txt` → `todo-notes/`), written from the add/edit dialog; the file and tag are created automatically (P1). A file elsewhere is linked by its percent-encoded absolute path (`note:C%3A/Users/me/plan.md`). See [note-extension.md](note-extension.md). |
@@ -21,7 +20,7 @@
 
 ## 1.2 Parsed todo object
 
-Each line becomes a `Todo` with: `line_number`, `raw` string, `body`, `complete`, `priority: Option<char>`, `created`, `completed`, `due`, `threshold`, `rec`, `pm`, `hidden`, `projects: Vec<String>`, `contexts: Vec<String>`, `extensions: Vec<(String,String)>`, and `notify` (computed). Lines are identified by line number because todo.txt has no ids; every write must re-validate that the target line still matches what the UI showed.
+Each line becomes a `Todo` with: `line_number`, `raw` string, `body`, `complete`, `priority: Option<char>`, `created`, `completed`, `due`, `threshold`, `rec`, `pm`, `projects: Vec<String>`, `contexts: Vec<String>`, `extensions: Vec<(String,String)>`, and `notify` (computed). Lines are identified by line number because todo.txt has no ids; every write must re-validate that the target line still matches what the UI showed.
 
 ## 1.3 Round-trip guarantees
 

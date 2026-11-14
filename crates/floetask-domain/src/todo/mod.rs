@@ -23,7 +23,7 @@ pub const MULTILINE_SEPARATOR: char = '\u{10}';
 
 /// Extension keys with a meaning in floetask. They are shown as chips, not in
 /// the body text.
-pub const KNOWN_KEYS: [&str; 8] = ["due", "t", "rec", "h", "pm", "pri", "note", "status"];
+pub const KNOWN_KEYS: [&str; 7] = ["due", "t", "rec", "pm", "pri", "note", "status"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Todo {
@@ -42,7 +42,6 @@ pub struct Todo {
     threshold: Option<Date>,
     rec: Option<Recurrence>,
     pm: Option<u32>,
-    hidden: bool,
     stored_priority: Option<Priority>,
     /// Value of the first valid `status:` tag, as written.
     status_tag: Option<String>,
@@ -134,11 +133,6 @@ impl Todo {
 
     pub fn pomodoros(&self) -> Option<u32> {
         self.pm
-    }
-
-    /// `h:1`: hidden from the list, but still feeds autocomplete.
-    pub fn is_hidden(&self) -> bool {
-        self.hidden
     }
 
     /// Priority saved in `pri:X` when the todo was completed.

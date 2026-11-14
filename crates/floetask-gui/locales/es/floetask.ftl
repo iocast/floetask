@@ -348,8 +348,6 @@ renamed =
     }
 include_hint = Haz clic para incluir, Alt+clic para excluir. Clic derecho en un proyecto o contexto para renombrarlo o quitarlo.
 show_completed = Mostrar tareas completadas
-show_hidden = Mostrar tareas ocultas (h:1)
-show_hidden_attributes = Mostrar atributos de tareas ocultas
 show_hidden_statuses = Mostrar tareas { $statuses }
 show_future_threshold = Mostrar tareas con fecha de inicio futura
 show_future_due = Mostrar tareas con vencimiento futuro

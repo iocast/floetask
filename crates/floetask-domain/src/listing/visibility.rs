@@ -16,11 +16,8 @@ pub struct AttributeFilter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ViewOptions {
     pub show_completed: bool,
-    pub show_hidden: bool,
     pub show_future_threshold: bool,
     pub show_future_due: bool,
-    /// Drawer counts include attributes of `h:1` todos.
-    pub show_hidden_attributes: bool,
     /// Show todos whose status is hidden by default, such as `someday`.
     pub show_hidden_statuses: bool,
     /// Hide every todo that has any value for these attributes.
@@ -32,10 +29,8 @@ impl Default for ViewOptions {
     fn default() -> Self {
         Self {
             show_completed: true,
-            show_hidden: false,
             show_future_threshold: false,
             show_future_due: true,
-            show_hidden_attributes: true,
             show_hidden_statuses: false,
             hidden_categories: Vec::new(),
             filters: Vec::new(),
@@ -44,11 +39,10 @@ impl Default for ViewOptions {
 }
 
 impl ViewOptions {
-    /// The toggles from the drawer's Filters tab: completion, `h:1`, and
-    /// future threshold or due dates.
+    /// The toggles from the drawer's Filters tab: completion and future
+    /// threshold or due dates.
     pub fn passes_toggles(&self, todo: &Todo, dates: &DateContext) -> bool {
         (self.show_completed || !todo.is_complete())
-            && (self.show_hidden || !todo.is_hidden())
             && (self.show_future_threshold || todo.threshold().is_none_or(|t| t <= dates.today))
             && (self.show_future_due || todo.due().is_none_or(|d| d <= dates.today))
     }

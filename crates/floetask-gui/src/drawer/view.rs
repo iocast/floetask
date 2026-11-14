@@ -212,12 +212,6 @@ fn filters(app: &Floetask, colors: Colors) -> Element<'_, Message> {
     let toggles = toggles
         .extend([
             toggle("show_completed", view.show_completed, ViewToggle::Completed),
-            toggle("show_hidden", view.show_hidden, ViewToggle::Hidden),
-            toggle(
-                "show_hidden_attributes",
-                view.show_hidden_attributes,
-                ViewToggle::HiddenAttributes,
-            ),
             toggle(
                 "show_future_threshold",
                 view.show_future_threshold,

@@ -9,13 +9,10 @@ Toggled with `Ctrl+B`; `Escape` closes. Three tabs:
 - Click a value to **include** filter; second action (modifier-click) to **exclude** filter. Multiple values combine (include = must match one of; exclude = must match none).
 - Hide a whole category (e.g. hide every todo that has any context).
 - Right-click a value: **Rename** or **Remove** across all todos in the active file, with confirmation. Case-sensitive. Not available for dates.
-- Option to include attributes from hidden todos in the drawer.
 
 ## 6.2 Filters tab (view toggles)
 
 - Show completed todos (`Ctrl+H`).
-- Show hidden (`h:1`) todos.
-- Show attributes from hidden todos in drawer.
 - Show todos with future threshold dates.
 - Show todos with future due dates.
 - Show todos whose status is hidden by default (`someday`).

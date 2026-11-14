@@ -225,7 +225,6 @@ mod tests {
 plain task
 x 2024-03-01 done +work
 (A) a2 task due:2024-03-14
-hidden h:1
 later t:2024-04-01
 ";
 
@@ -308,7 +307,6 @@ later t:2024-04-01
         let doc = TodoDocument::parse(FILE, &[]);
         let mut options = ViewOptions {
             show_completed: false,
-            show_hidden: true,
             show_future_threshold: true,
             ..ViewOptions::default()
         };

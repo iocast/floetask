@@ -348,8 +348,6 @@ renamed =
     }
 include_hint = Click to include, Alt+click to exclude. Right-click a project or context to rename or remove it.
 show_completed = Show completed todos
-show_hidden = Show hidden todos (h:1)
-show_hidden_attributes = Show attributes of hidden todos
 show_hidden_statuses = Show { $statuses } todos
 show_future_threshold = Show todos with a future threshold date
 show_future_due = Show todos with a future due date

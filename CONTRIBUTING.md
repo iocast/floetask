@@ -44,7 +44,7 @@ Long values may continue on indented lines. A literal `{` is written `{"{"}`.
 
 ### What stays as it is
 
-- todo.txt syntax in examples: `due:`, `t:`, `rec:`, `status:`, `h:1`, ISO dates.
+- todo.txt syntax in examples: `due:`, `t:`, `rec:`, `status:`, ISO dates.
 - Search keywords (`due`, `today`, `and`) and natural dates (`due:tomorrow`): they stay English in every language, so saved filters keep working.
 - Shortcut keys, except the key names your keyboards print (`Strg` in German).
 - The name floetask.

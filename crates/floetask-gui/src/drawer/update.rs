@@ -70,8 +70,6 @@ impl Floetask {
             drawer::Message::ToggleCategory(attribute) => view.toggle_hidden_category(attribute),
             drawer::Message::ViewToggle(toggle, on) => match toggle {
                 ViewToggle::Completed => view.show_completed = on,
-                ViewToggle::Hidden => view.show_hidden = on,
-                ViewToggle::HiddenAttributes => view.show_hidden_attributes = on,
                 ViewToggle::HiddenStatuses => view.show_hidden_statuses = on,
                 ViewToggle::FutureThreshold => view.show_future_threshold = on,
                 ViewToggle::FutureDue => view.show_future_due = on,

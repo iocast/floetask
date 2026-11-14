@@ -52,7 +52,6 @@ pub(super) fn parse(line: &str) -> Todo {
         threshold: None,
         rec: None,
         pm: None,
-        hidden: false,
         stored_priority: None,
         status_tag: None,
     };
@@ -82,7 +81,6 @@ fn apply_known_extension(todo: &mut Todo, key: &str, value: &str) {
         "t" if todo.threshold.is_none() => todo.threshold = parse_iso(value),
         "rec" if todo.rec.is_none() => todo.rec = Recurrence::parse(value),
         "pm" if todo.pm.is_none() => todo.pm = value.parse().ok(),
-        "h" => todo.hidden |= value == "1",
         "status" if todo.status_tag.is_none() && is_valid_status(value) => todo.status_tag = Some(value.to_owned()),
         "pri" if todo.stored_priority.is_none() => todo.stored_priority = value.chars().next().and_then(Priority::new),
         _ => {}

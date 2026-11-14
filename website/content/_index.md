@@ -77,7 +77,7 @@ points = [
 ]
 images = [
   { file = "drawer-attributes.png", caption = "The drawer: every attribute with its count, ready to filter." },
-  { file = "drawer-filters.png", caption = "Filter switches for completed, hidden and future todos." },
+  { file = "drawer-filters.png", caption = "Filter switches for completed and future todos." },
   { file = "dark.png", caption = "The attribute drawer in the dark theme." },
 ]
 

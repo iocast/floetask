@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Removed
+- Hidden todos (`h:1`) and the *Show hidden todos (h:1)* and *Show attributes of hidden todos* switches in the *Filters* tab; a line with `h:1` is now listed like any other todo, with `h:1` shown as a plain tag; delete such placeholder lines if you no longer want them
+
 ### Fixed
 - The overview's file switches in the *Filters* tab show each file's folder below its name, as announced for 0.7.1; that release still showed the full path in brackets
 

@@ -34,8 +34,6 @@ pub enum Message {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewToggle {
     Completed,
-    Hidden,
-    HiddenAttributes,
     HiddenStatuses,
     FutureThreshold,
     FutureDue,

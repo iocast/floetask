@@ -345,8 +345,6 @@ renamed =
     }
 include_hint = Clic per includere, Alt+clic per escludere. Clic destro su un progetto o contesto per rinominarlo o rimuoverlo.
 show_completed = Mostra le attività completate
-show_hidden = Mostra le attività nascoste (h:1)
-show_hidden_attributes = Mostra gli attributi delle attività nascoste
 show_hidden_statuses = Mostra le attività { $statuses }
 show_future_threshold = Mostra le attività con data di inizio futura
 show_future_due = Mostra le attività con scadenza futura
