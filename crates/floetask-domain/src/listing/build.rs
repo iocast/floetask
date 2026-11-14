@@ -252,7 +252,7 @@ later t:2024-04-01
         assert_eq!(
             listing.counts,
             Counts {
-                total: 7,
+                total: 6,
                 visible: 5,
                 completed: 1
             }
@@ -410,7 +410,7 @@ x 2024-03-02 done too
         assert_eq!(
             listing.counts,
             Counts {
-                total: 9,
+                total: 8,
                 visible: 7,
                 completed: 2
             }

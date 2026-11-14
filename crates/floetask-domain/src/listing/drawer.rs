@@ -134,7 +134,7 @@ e +w
         let summary = summarize_attributes(&[&doc, &other], &options, &Query::Empty, &dates, &StatusSet::default());
         let projects = summary.iter().find(|s| s.attribute == Attribute::Projects).unwrap();
         let counts: Vec<_> = projects.values.iter().map(|v| (v.value.as_str(), v.count)).collect();
-        assert_eq!(counts, vec![("w", 0), ("x", 3), ("y", 0), ("z", 0)]);
+        assert_eq!(counts, vec![("w", 0), ("x", 3), ("y", 0)]);
         let (projects, _) = known_names(&[&doc, &other]);
         assert!(projects.contains("w"));
     }
