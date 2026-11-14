@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-14
+
 ### Removed
 - Hidden todos (`h:1`) and the *Show hidden todos (h:1)* and *Show attributes of hidden todos* switches in the *Filters* tab; a line with `h:1` is now listed like any other todo, with `h:1` shown as a plain tag; delete such placeholder lines if you no longer want them
 
@@ -227,7 +229,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.7.1...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/iocast/floetask/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/iocast/floetask/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/iocast/floetask/compare/v0.6.3...v0.7.0
 [0.7.0-rc.4]: https://github.com/iocast/floetask/compare/v0.7.0-rc.3...v0.7.0-rc.4
