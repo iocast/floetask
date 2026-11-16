@@ -146,6 +146,9 @@ pub struct Floetask {
     /// The file (with its archive) under the mouse in the file drawer.
     pub(crate) file_hover: Option<usize>,
     pub(crate) dialog: Option<Dialog>,
+    /// Dialogs beneath the open one, the last on top, each shown again when
+    /// the dialog above it closes (see [`Message::OpenOver`]).
+    pub(crate) dialogs_beneath: Vec<Dialog>,
     /// The second window, editing a note; reused for every note.
     pub(crate) note_window: Option<NoteWindow>,
     pub(crate) toasts: Vec<Toast>,
@@ -243,6 +246,7 @@ impl Floetask {
             file_drag: None,
             file_hover: None,
             dialog: None,
+            dialogs_beneath: Vec::new(),
             note_window: None,
             toasts: Vec::new(),
             next_toast_id: 0,
@@ -369,6 +373,11 @@ impl Floetask {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         let task = self.dispatch(message);
+        // However a dialog closed (its buttons, Escape, the backdrop, or
+        // its action done), the one beneath it shows again.
+        if self.dialog.is_none() {
+            self.dialog = self.dialogs_beneath.pop();
+        }
         // The notes editor draws its own colours and texts, so it follows
         // the theme and language whichever message changed them.
         let style = crate::theme::markdown_editor(self.colors());
@@ -438,6 +447,14 @@ impl Floetask {
             }
             Message::ConfirmDialog => self.confirm_dialog(),
             Message::CloseDialog => self.close_dialog(),
+            Message::OpenOver(message) => {
+                // If the message opens no dialog, `update` shows this one
+                // again straight away.
+                if let Some(dialog) = self.dialog.take() {
+                    self.dialogs_beneath.push(dialog);
+                }
+                self.update(*message)
+            }
 
             Message::Files(message) => self.update_files(message),
             Message::List(message) => self.update_list(message),
@@ -736,6 +753,7 @@ impl Floetask {
             Some(Dialog::Share(dialog)) => self.share(dialog),
             Some(Dialog::Join(dialog)) => self.join_next(dialog),
             Some(Dialog::Conflicts(dialog)) => self.resolve_conflicts(dialog),
+            Some(Dialog::CalendarDay(day)) => self.update_calendar(crate::calendar::Message::OpenDay(day)),
             Some(Dialog::Editor(editor)) => {
                 self.dialog = Some(Dialog::Editor(editor));
                 self.update_editor(crate::editor::Message::Save)

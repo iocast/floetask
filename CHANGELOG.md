@@ -6,6 +6,11 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-16
+
+### Changed
+- *+N more* in a month cell of the calendar lists the day's todos in a dialog instead of switching to Day mode; a todo clicked there opens over the dialog, which shows again when the todo is saved or closed, and *Open day* opens the day
+
 ## [0.7.2] - 2026-11-14
 
 ### Removed
@@ -229,7 +234,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.7.2...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/iocast/floetask/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/iocast/floetask/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/iocast/floetask/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/iocast/floetask/compare/v0.6.3...v0.7.0

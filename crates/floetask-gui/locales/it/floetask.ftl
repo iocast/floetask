@@ -235,6 +235,12 @@ calendar_today = Oggi
 calendar_previous = Precedente
 calendar_next = Successivo
 calendar_more = +{ $count } altre
+calendar_open_day = Apri giorno
+calendar_day_count =
+    { $count ->
+        [one] 1 attività in scadenza
+       *[other] { $count } attività in scadenza
+    }
 calendar_undated = { $count } senza scadenza
 calendar_undated_title = Senza scadenza
 calendar_undated_hint = Trascina un’attività su un giorno o imposta qui la sua data.

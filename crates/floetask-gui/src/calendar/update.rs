@@ -5,7 +5,7 @@ use iced::Task;
 
 use floetask_domain::calendar::{CalendarMode, new_todo_on, step};
 
-use crate::app::{Floetask, Message};
+use crate::app::{Dialog, Floetask, Message};
 use crate::{calendar, list};
 
 impl Floetask {
@@ -24,9 +24,17 @@ impl Floetask {
                 Task::none()
             }
             calendar::Message::OpenDay(day) => {
+                if matches!(self.dialog, Some(Dialog::CalendarDay(_))) {
+                    self.dialog = None;
+                }
                 self.calendar_anchor = day;
                 self.state.calendar_mode = CalendarMode::Day;
                 self.persist_state()
+            }
+            calendar::Message::ShowDay(day) => {
+                self.close_card_menus();
+                self.dialog = Some(Dialog::CalendarDay(day));
+                Task::none()
             }
             calendar::Message::NewTodo(day) => {
                 self.select_day(day);

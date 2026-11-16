@@ -238,6 +238,12 @@ calendar_today = Aujourd’hui
 calendar_previous = Précédent
 calendar_next = Suivant
 calendar_more = +{ $count } de plus
+calendar_open_day = Ouvrir le jour
+calendar_day_count =
+    { $count ->
+        [one] 1 tâche due
+       *[other] { $count } tâches dues
+    }
 calendar_undated = { $count } sans échéance
 calendar_undated_title = Sans échéance
 calendar_undated_hint = Faites glisser une tâche sur un jour, ou définissez sa date ici.

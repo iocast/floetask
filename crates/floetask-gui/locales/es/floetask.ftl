@@ -238,6 +238,12 @@ calendar_today = Hoy
 calendar_previous = Anterior
 calendar_next = Siguiente
 calendar_more = +{ $count } más
+calendar_open_day = Abrir día
+calendar_day_count =
+    { $count ->
+        [one] 1 tarea vence
+       *[other] { $count } tareas vencen
+    }
 calendar_undated = { $count } sin fecha de vencimiento
 calendar_undated_title = Sin fecha de vencimiento
 calendar_undated_hint = Arrastra una tarea a un día o fija su fecha aquí.

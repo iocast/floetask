@@ -3,9 +3,9 @@
 
 use std::path::PathBuf;
 
-use floetask_domain::NoteLink;
 use floetask_domain::board::BoardColumns;
 use floetask_domain::listing::Attribute;
+use floetask_domain::{Date, NoteLink};
 
 use super::Target;
 use crate::editor::{DatePicker, Editor};
@@ -64,4 +64,6 @@ pub enum Dialog {
     Join(JoinDialog),
     /// The conflicts of a linked file and the user's choices.
     Conflicts(ConflictsDialog),
+    /// The todos due on a day, from a month cell's "+N more".
+    CalendarDay(Date),
 }

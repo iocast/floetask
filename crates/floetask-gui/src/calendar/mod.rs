@@ -9,7 +9,7 @@ use floetask_domain::calendar::CalendarMode;
 
 use crate::app::Target;
 
-pub(crate) use view::view;
+pub(crate) use view::{day_dialog, view};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -19,6 +19,9 @@ pub enum Message {
     Today,
     /// Opens one day in Day mode.
     OpenDay(Date),
+    /// Lists a day's todos in a dialog: a month cell's "+N more", which
+    /// keeps the month in view. The dialog's button opens the day.
+    ShowDay(Date),
     /// Opens the add dialog for a todo due on this day: a double-click on
     /// the day, or its right-click menu.
     NewTodo(Date),

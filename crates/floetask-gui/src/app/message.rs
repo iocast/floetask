@@ -43,6 +43,9 @@ pub enum Message {
     OpenLink(String),
     ConfirmDialog,
     CloseDialog,
+    /// Handles a message that opens a dialog, keeping the open one beneath
+    /// it: closing the new dialog shows the one before again.
+    OpenOver(Box<Message>),
 
     // Features
     Files(files::Message),

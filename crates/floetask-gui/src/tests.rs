@@ -2451,6 +2451,72 @@ fn a_calendar_day_adds_a_todo_due_that_day() {
 }
 
 #[test]
+fn more_in_a_month_cell_lists_the_day_in_a_dialog() {
+    use floetask_application::MainView;
+    use floetask_domain::calendar::CalendarMode;
+
+    let mut app = app();
+    let _ = app.update(Message::ShowMainView(MainView::Calendar));
+    let _ = app.update(Message::Calendar(calendar::Message::Mode(CalendarMode::Month)));
+    let slides = app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap();
+    let day = slides.todo.due().unwrap();
+    let anchor = app.calendar_anchor;
+
+    // The dialog keeps the month in view and lists the day's todos.
+    let _ = app.update(Message::Calendar(calendar::Message::ShowDay(day)));
+    assert!(matches!(app.dialog, Some(Dialog::CalendarDay(d)) if d == day));
+    assert_eq!(app.state.calendar_mode, CalendarMode::Month);
+    assert_eq!(app.calendar_anchor, anchor);
+    snapshot(&app, "calendar-day-dialog");
+
+    // A click on a todo opens it over the dialog. The month behind shows
+    // the same text, so click it in the dialog alone.
+    let mut ui = simulator(calendar::day_dialog(&app, day));
+    ui.click("Prepare slides").unwrap();
+    for message in ui.into_messages() {
+        let _ = app.update(message);
+    }
+    assert!(matches!(app.dialog, Some(Dialog::Editor(_))));
+    assert!(matches!(app.dialogs_beneath[..], [Dialog::CalendarDay(d)] if d == day));
+    snapshot(&app, "calendar-day-dialog-todo");
+
+    // Closing the todo, by Escape or by saving it, shows the day again.
+    let _ = app.update(Message::KeyPressed(
+        iced::window::Id::unique(),
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+        Default::default(),
+    ));
+    assert!(matches!(app.dialog, Some(Dialog::CalendarDay(d)) if d == day));
+    assert!(app.dialogs_beneath.is_empty());
+    let target = app.target(app.listing.todos().find(|e| e.todo.body() == "Prepare slides").unwrap());
+    let _ = app.update(Message::OpenOver(Box::new(Message::List(list::Message::OpenTodo(
+        target,
+    )))));
+    let _ = app.update(Message::Editor(editor::Message::Save));
+    assert!(matches!(app.dialog, Some(Dialog::CalendarDay(d)) if d == day));
+
+    // A message that opens nothing leaves the dialog as it was.
+    let _ = app.update(Message::OpenOver(Box::new(Message::Tick)));
+    assert!(matches!(app.dialog, Some(Dialog::CalendarDay(d)) if d == day));
+    assert!(app.dialogs_beneath.is_empty());
+
+    // Its button opens the day and closes the dialog.
+    for message in click(&app, "Open day") {
+        let _ = app.update(message);
+    }
+    assert!(app.dialog.is_none());
+    assert_eq!(app.state.calendar_mode, CalendarMode::Day);
+    assert_eq!(app.calendar_anchor, day);
+
+    // Enter does the same.
+    let _ = app.update(Message::Calendar(calendar::Message::Mode(CalendarMode::Month)));
+    let _ = app.update(Message::Calendar(calendar::Message::ShowDay(day)));
+    let _ = app.update(Message::ConfirmDialog);
+    assert!(app.dialog.is_none());
+    assert_eq!(app.state.calendar_mode, CalendarMode::Day);
+}
+
+#[test]
 fn a_clicked_day_or_lane_is_outlined_until_escape() {
     use floetask_application::MainView;
 

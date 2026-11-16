@@ -23,7 +23,7 @@ use crate::i18n::{self, tr, trf};
 use crate::list::{add_area, body, card_menu, meta};
 use crate::theme::{self, Colors};
 use crate::view::icons::{Icon, icon};
-use crate::view::widgets::{icon_button, with_tooltip};
+use crate::view::widgets::{icon_button, primary_button, secondary_button, title, with_tooltip};
 use crate::{calendar, list};
 
 const WEEKDAYS: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -269,7 +269,7 @@ fn month_cell_entries<'a>(
             button(text(trf("calendar_more", &[("count", (todos.len() - shown).into())])).size(11))
                 .padding([1, 6])
                 .style(theme::ghost(colors, false))
-                .on_press(Message::Calendar(calendar::Message::OpenDay(date))),
+                .on_press(Message::Calendar(calendar::Message::ShowDay(date))),
         );
     }
     entries.into()
@@ -423,6 +423,100 @@ fn day<'a>(app: &'a Floetask, date: Date, todos: Option<&Vec<&'a ListedTodo>>) -
         .into()
     };
     drop_zone(app, date, container(content).padding(10).width(Fill).height(Fill), true)
+}
+
+/// Height above which the day dialog's list scrolls.
+const DAY_DIALOG_LIST_HEIGHT: f32 = 360.0;
+
+/// The todos due on `date` in a dialog, opened from a month cell's "+N
+/// more" so the month stays in view. A click on a todo opens it over the
+/// dialog, which shows again when the todo closes; the button opens the day
+/// in Day mode.
+pub(crate) fn day_dialog(app: &Floetask, date: Date) -> Element<'_, Message> {
+    let colors = app.colors();
+    let span = CalendarSpan::new(CalendarMode::Day, date, app.settings.week_start);
+    let days = todos_by_day(app.listing.todos(), &span);
+    let todos = days.get(&date).map(Vec::as_slice).unwrap_or_default();
+    let list: Element<'_, Message> = if todos.is_empty() {
+        text(tr("calendar_empty_day")).size(14).color(colors.muted).into()
+    } else {
+        container(
+            scrollable(
+                Column::with_children(todos.iter().map(|entry| summary_row(app, entry, colors)))
+                    .spacing(6)
+                    .padding(iced::padding::right(8)),
+            )
+            .direction(theme::thin_scrollbar())
+            .style(theme::slim_scroller(colors)),
+        )
+        .max_height(DAY_DIALOG_LIST_HEIGHT)
+        .into()
+    };
+    column![
+        column![
+            title(i18n::long_date(date)),
+            text(trf("calendar_day_count", &[("count", todos.len().into())]))
+                .size(13)
+                .color(colors.muted),
+        ]
+        .spacing(4),
+        list,
+        row![
+            space().width(Fill),
+            secondary_button(tr("close"), Message::CloseDialog, colors),
+            primary_button(
+                tr("calendar_open_day"),
+                Message::Calendar(calendar::Message::OpenDay(date)),
+                colors
+            ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    ]
+    .spacing(16)
+    .width(460)
+    .into()
+}
+
+/// A todo in the day dialog: the priority accent, its checkbox and text,
+/// and in the overview its file. A click opens it over the dialog.
+fn summary_row<'a>(app: &'a Floetask, entry: &'a ListedTodo, colors: Colors) -> Element<'a, Message> {
+    let todo = &entry.todo;
+    let target = app.target(entry);
+    let accent = match todo.priority() {
+        Some(priority) if !todo.is_complete() => colors.priority(priority),
+        _ => Color::TRANSPARENT,
+    };
+    let mut details = column![body(app, todo, colors)].spacing(4).width(Fill);
+    if app.state.shows_overview()
+        && let Some(name) = target.file.file_name()
+    {
+        details = details.push(
+            row![
+                icon(Icon::File, 12.0, colors.muted),
+                text(name.to_string_lossy().into_owned()).size(12).color(colors.muted)
+            ]
+            .spacing(4)
+            .align_y(Alignment::Center),
+        );
+    }
+    let content = row![
+        container(space()).width(3).height(20).style(theme::accent(accent)),
+        complete_box(app, entry, 16.0, colors),
+        details
+    ]
+    .spacing(10);
+    mouse_area(
+        container(content)
+            .padding([8, 10])
+            .width(Fill)
+            .style(theme::board_card(colors, false)),
+    )
+    .on_press(Message::OpenOver(Box::new(Message::List(list::Message::OpenTodo(
+        target,
+    )))))
+    .interaction(mouse::Interaction::Pointer)
+    .into()
 }
 
 /// A day that takes dropped todos, outlined while one is dragged over it or

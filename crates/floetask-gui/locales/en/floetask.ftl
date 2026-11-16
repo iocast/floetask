@@ -235,6 +235,12 @@ calendar_today = Today
 calendar_previous = Previous
 calendar_next = Next
 calendar_more = +{ $count } more
+calendar_open_day = Open day
+calendar_day_count =
+    { $count ->
+        [one] 1 todo due
+       *[other] { $count } todos due
+    }
 calendar_undated = { $count } without a due date
 calendar_undated_title = Without due date
 calendar_undated_hint = Drag a todo onto a day, or set its date here.

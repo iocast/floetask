@@ -235,6 +235,12 @@ calendar_today = Heute
 calendar_previous = Zurück
 calendar_next = Weiter
 calendar_more = +{ $count } weitere
+calendar_open_day = Tag öffnen
+calendar_day_count =
+    { $count ->
+        [one] 1 Aufgabe fällig
+       *[other] { $count } Aufgaben fällig
+    }
 calendar_undated = { $count } ohne Fälligkeitsdatum
 calendar_undated_title = Ohne Fälligkeitsdatum
 calendar_undated_hint = Zieh eine Aufgabe auf einen Tag oder setze ihr Datum hier.

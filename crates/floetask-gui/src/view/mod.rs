@@ -89,31 +89,9 @@ pub fn root(app: &Floetask) -> Element<'_, Message> {
     // The page is always the stack's first child, so opening a dialog does
     // not rebuild it and the list keeps its scroll position.
     let mut layers = stack![base];
-    if let Some(dialog) = &app.dialog {
-        let content = match dialog {
-            Dialog::Editor(state) => editor::view(app, state),
-            Dialog::Settings(dialog) => settings::view(app, dialog),
-            Dialog::Confirm { message, detail, .. } => dialogs::confirm(app, message, detail.as_deref()),
-            Dialog::DeleteTodo { target, note } => list::delete_dialog(app, target, note),
-            Dialog::Rename { attribute, from, input } => drawer::rename_dialog(app, *attribute, from, input),
-            Dialog::RowDate { calendar, .. } => editor::row_dialog(app, calendar),
-            Dialog::SaveFilter { name } => search::save_filter_dialog(app, name),
-            Dialog::MoveToFile { target, to } => list::move_dialog(app, target, to),
-            Dialog::BoardColumns { columns, input } => board::columns_dialog(app, columns, input),
-            Dialog::Share(dialog) => sync::share_dialog(app, dialog),
-            Dialog::Join(dialog) => sync::join_dialog(app, dialog),
-            Dialog::Conflicts(dialog) => sync::conflicts_dialog(app, dialog),
-        };
-        layers = layers.push(match dialog {
-            Dialog::Editor(_) => widgets::resizable_modal(
-                content,
-                iced::Size::new(app.state.edit_dialog.width, app.state.edit_dialog.height),
-                |direction| Message::Editor(editor::Message::ResizeStart(direction)),
-                colors,
-            ),
-            Dialog::Settings(_) | Dialog::Conflicts(_) => widgets::large_modal(content, colors),
-            _ => widgets::modal(content, colors),
-        });
+    // Dialogs opened over another one stack on it, the open one on top.
+    for dialog in app.dialogs_beneath.iter().chain(&app.dialog) {
+        layers = layers.push(dialog_layer(app, dialog, colors));
     }
 
     if !app.toasts.is_empty() {
@@ -175,4 +153,33 @@ fn body(app: &Floetask) -> Element<'_, Message> {
 /// Thin areas along the window border that resize the borderless window.
 fn window_edges() -> Element<'static, Message> {
     widgets::resize_edges(EDGE, Message::WindowResize)
+}
+
+/// A dialog over a dimmed backdrop, as a layer to stack on the page.
+fn dialog_layer<'a>(app: &'a Floetask, dialog: &'a Dialog, colors: theme::Colors) -> Element<'a, Message> {
+    let content = match dialog {
+        Dialog::Editor(state) => editor::view(app, state),
+        Dialog::Settings(dialog) => settings::view(app, dialog),
+        Dialog::Confirm { message, detail, .. } => dialogs::confirm(app, message, detail.as_deref()),
+        Dialog::DeleteTodo { target, note } => list::delete_dialog(app, target, note),
+        Dialog::Rename { attribute, from, input } => drawer::rename_dialog(app, *attribute, from, input),
+        Dialog::RowDate { calendar, .. } => editor::row_dialog(app, calendar),
+        Dialog::SaveFilter { name } => search::save_filter_dialog(app, name),
+        Dialog::MoveToFile { target, to } => list::move_dialog(app, target, to),
+        Dialog::BoardColumns { columns, input } => board::columns_dialog(app, columns, input),
+        Dialog::Share(dialog) => sync::share_dialog(app, dialog),
+        Dialog::Join(dialog) => sync::join_dialog(app, dialog),
+        Dialog::Conflicts(dialog) => sync::conflicts_dialog(app, dialog),
+        Dialog::CalendarDay(day) => calendar::day_dialog(app, *day),
+    };
+    match dialog {
+        Dialog::Editor(_) => widgets::resizable_modal(
+            content,
+            iced::Size::new(app.state.edit_dialog.width, app.state.edit_dialog.height),
+            |direction| Message::Editor(editor::Message::ResizeStart(direction)),
+            colors,
+        ),
+        Dialog::Settings(_) | Dialog::Conflicts(_) => widgets::large_modal(content, colors),
+        _ => widgets::modal(content, colors),
+    }
 }
