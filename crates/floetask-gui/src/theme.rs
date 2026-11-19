@@ -6,7 +6,7 @@
 
 use iced::widget::{button, checkbox, container, overlay, pick_list, scrollable, text_input};
 use iced::{Background, Border, Color, Shadow, Theme, Vector, border};
-use iced_markdown_editor::{EditorStyle, Palette, Typography};
+use iced_markdown_editor::{EditorStyle, Palette, Typography, color_from_iced};
 
 use floetask_application::{ColorOverrides, PaletteOverrides};
 use floetask_domain::Priority;
@@ -428,29 +428,29 @@ pub fn note_field(colors: Colors, focused: bool) -> impl Fn(&Theme) -> container
 /// reads as one field like the dialog's other inputs.
 pub fn markdown_editor(colors: Colors) -> EditorStyle {
     let palette = Palette {
-        background: colors.background,
-        page: colors.background,
-        page_border: colors.background,
-        page_shadow: Color::TRANSPARENT,
-        ink: colors.text,
-        heading: colors.text,
-        quote: colors.muted,
-        quote_bar: colors.border,
-        code: colors.text,
-        code_background: colors.surface,
-        inline_code_background: colors.border,
-        link: colors.primary,
-        marker: colors.muted,
-        rule: colors.border,
-        selection: colors.primary.scale_alpha(0.3),
-        caret: colors.text,
-        toolbar_background: colors.background,
-        toolbar_border: colors.background,
-        toolbar_text: colors.text,
-        toolbar_hover: colors.hover,
-        toolbar_active: colors.tint(colors.primary, 0.14),
-        accent: colors.primary,
-        muted: colors.muted,
+        background: color_from_iced(colors.background),
+        page: color_from_iced(colors.background),
+        page_border: color_from_iced(colors.background),
+        page_shadow: color_from_iced(Color::TRANSPARENT),
+        ink: color_from_iced(colors.text),
+        heading: color_from_iced(colors.text),
+        quote: color_from_iced(colors.muted),
+        quote_bar: color_from_iced(colors.border),
+        code: color_from_iced(colors.text),
+        code_background: color_from_iced(colors.surface),
+        inline_code_background: color_from_iced(colors.border),
+        link: color_from_iced(colors.primary),
+        marker: color_from_iced(colors.muted),
+        rule: color_from_iced(colors.border),
+        selection: color_from_iced(colors.primary.scale_alpha(0.3)),
+        caret: color_from_iced(colors.text),
+        toolbar_background: color_from_iced(colors.background),
+        toolbar_border: color_from_iced(colors.background),
+        toolbar_text: color_from_iced(colors.text),
+        toolbar_hover: color_from_iced(colors.hover),
+        toolbar_active: color_from_iced(colors.tint(colors.primary, 0.14)),
+        accent: color_from_iced(colors.primary),
+        muted: color_from_iced(colors.muted),
     };
     // Sized like the dialog's text fields rather than a printed page.
     let typography = Typography {
