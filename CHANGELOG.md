@@ -6,6 +6,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-11-27
+
 ### Fixed
 - The window's edges and corners resize it again after Windows restored it from maximised by snapping, dragging the title bar or Win+↓; until then floetask still thought it was maximised, even after a restart
 
@@ -242,7 +244,8 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 - Settings → About with the version, a check for new releases on start (`check_for_updates` in `config.toml`, on by default) or on request, and one-click install of signed updates
 - Installers for every platform attached to each release: setup `.exe` and `.msi` on Windows, `.app` and `.dmg` on macOS, `.deb` and AppImage on Linux; on Windows the app opens without a console window
 
-[unreleased]: https://github.com/iocast/floetask/compare/v0.7.4...HEAD
+[unreleased]: https://github.com/iocast/floetask/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/iocast/floetask/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/iocast/floetask/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/iocast/floetask/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/iocast/floetask/compare/v0.7.1...v0.7.2
