@@ -27,6 +27,9 @@ pub enum Message {
     WindowResize(window::Direction),
     WindowMinimize,
     WindowToggleMaximize,
+    /// Whether the main window is maximised, read back from the OS after
+    /// it resized: it can also be restored by snapping or dragging it.
+    WindowMaximized(bool),
     Window(window::Id, window::Event),
     /// `Escape` taken by a focused notes editor, in the window it came from.
     NoteEditorEscape(window::Id),

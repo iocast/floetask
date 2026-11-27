@@ -399,6 +399,22 @@ fn list_shows_grouped_todos() {
 }
 
 #[test]
+fn restoring_the_window_outside_the_app_brings_back_the_resize_edges() {
+    // Saved as maximised, then restored by the OS (snapping, dragging the
+    // title bar): the window reports it and the edges show again.
+    let mut app = app();
+    app.maximized = true;
+    app.state.window.maximized = true;
+    let _ = app.update(Message::WindowMaximized(false));
+    assert!(!app.maximized);
+    assert!(!app.state.window.maximized);
+
+    let _ = app.update(Message::WindowMaximized(true));
+    assert!(app.maximized);
+    assert!(app.state.window.maximized);
+}
+
+#[test]
 fn someday_todos_show_on_request() {
     let mut app = app();
     let _ = app.update(Message::Drawer(drawer::Message::ViewToggle(

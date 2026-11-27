@@ -417,7 +417,8 @@ impl Floetask {
             | Message::WindowDrag
             | Message::WindowResize(_)
             | Message::WindowMinimize
-            | Message::WindowToggleMaximize => self.update_window_frame(message),
+            | Message::WindowToggleMaximize
+            | Message::WindowMaximized(_) => self.update_window_frame(message),
             Message::Window(id, event) => self.on_window_event(id, event),
             // A focused notes editor takes `Escape`; in the dialog it still
             // closes the dialog, in the note window it does nothing.
@@ -823,7 +824,9 @@ impl Floetask {
             window::Event::Resized(size) => {
                 self.state.window.width = size.width;
                 self.state.window.height = size.height;
-                Task::none()
+                // The OS also maximises and restores the window (snapping,
+                // dragging it off the top), so ask rather than keep count.
+                window::is_maximized(id).map(Message::WindowMaximized)
             }
             window::Event::Moved(position) => {
                 self.state.window.x = Some(position.x);

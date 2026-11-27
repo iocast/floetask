@@ -6,6 +6,9 @@ Format: Keep a Changelog (https://keepachangelog.com), versioning: Semantic Vers
 
 ## [Unreleased]
 
+### Fixed
+- The window's edges and corners resize it again after Windows restored it from maximised by snapping, dragging the title bar or Win+↓; until then floetask still thought it was maximised, even after a restart
+
 ## [0.7.4] - 2026-11-19
 
 ### Fixed
